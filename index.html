@@ -382,7 +382,7 @@ html{-webkit-tap-highlight-color:transparent}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.7",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.8",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -2322,6 +2322,112 @@ if(WEB){
 if(WEB&&window.supabase)sbReady();
 </script>
 <script>
+/* ---------- Accesul vine de pe server (doar în versiunea web): planuri, mod gratuit, invitații, recomandări, mentenanță, anunțuri ---------- */
+const lsGet=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let CFGW=lsGet("latimp.cfg"),ACC=lsGet("latimp.acc"),ISADM=false;
+const MONC=()=>Object.assign({free:false,control:true,sparks:true,invites:true,referrals:true},CFGW&&CFGW.mon||{});
+const accNow=()=>{if(ACC&&SBU)return ACC;const fm=!!MONC().free;return{pro:fm,source:fm?"free":null,free_mode:fm}};
+async function cfgLoad(){
+ if(!SB)return;
+ try{const{data,error}=await SB.from("app_config").select("value").eq("key","app").maybeSingle();if(error||!data)return;CFGW=data.value||{};lsSet("latimp.cfg",CFGW);cfgApply();soft()}catch(e){}}
+async function accLoad(){
+ if(!SB)return;
+ if(!SBU){ACC=null;lsSet("latimp.acc",null);ISADM=false;soft();return}
+ try{const{data,error}=await SB.rpc("get_my_access");if(!error&&data){ACC=data;lsSet("latimp.acc",ACC)}}catch(e){}
+ try{const{data}=await SB.rpc("am_i_admin");ISADM=data===true}catch(e){}
+ cfgApply();soft()}
+/* anunțul din panou → cardul de anunț existent; publicul: toți, gratuit, plătitori, noi, invitați */
+function newsFit(n){const a=accNow(),au=n.audience||"all";if(au=="free")return !a.pro||a.source=="free";if(au=="paid")return a.source=="sub";if(au=="invite")return a.source=="invite";if(au=="new"){const f=lsGet("latimp.first");return !!f&&Date.now()-f<7*DAY}return true}
+function cfgApply(){
+ const n=CFGW&&CFGW.news;
+ if(n&&n.on&&(n.title||n.body)&&newsFit(n))CFG.news={on:true,id:"n"+String(n.at||"x").replace(/\D/g,"").slice(-20),t:String(n.title||"").slice(0,60),x:String(n.body||"").slice(0,240),u:""};
+ else if(WEB)CFG.news=null;
+ mntCheck()}
+/* mentenanță: ecran peste aplicație, cu excepția administratorilor */
+function mntCheck(){
+ const m=CFGW&&CFGW.maint,on=!!(m&&m.on)&&!ISADM;let el=$("mnt");
+ if(!on){if(el)el.remove();return}
+ if(!el){el=document.createElement("div");el.id="mnt";el.setAttribute("role","alertdialog");document.body.appendChild(el)}
+ el.innerHTML=`<div class="mntw"><h2>LaTimp revine imediat</h2><p>${esc(String(m.msg||"Facem câteva îmbunătățiri. Revenim imediat.").slice(0,300))}</p><button class="btn" onclick="cfgLoad()">Încearcă din nou</button></div>`}
+if(WEB){
+ if(!lsGet("latimp.first"))lsSet("latimp.first",Date.now());
+ /* starea demonstrativă a planurilor nu mai decide nimic pe web */
+ invExp=function(){};bonusExp=function(){};subExp=function(){};
+ const rA0=render;
+ render=function(){
+  const a=accNow();S.pro=!!a.pro;
+  S.inv=a.source=="invite"?{h:"srv",exp:a.until?String(a.until).slice(0,10):"",at:0,was:false}:null;
+  S.bx=a.source=="bonus"&&a.bonus_until?String(a.bonus_until).slice(0,10):null;S.bw=false;
+  if(a.source!="sub")S.sub=null;
+  rA0();accPost()};
+ const mA0=more;
+ more=function(){let h=mA0();const m=MONC(),a=accNow();
+  if(!m.invites&&a.source!="invite")h=h.replace(/<button class="it" onclick="invOpen\(\)">[\s\S]*?<\/button>/g,"");
+  if(!m.referrals)h=h.replace(/<button class="it" onclick="refOpen\(\)">[\s\S]*?<\/button>/g,"");
+  return h};
+ const oP0=openPlan;
+ openPlan=function(k){const m=MONC(),a=accNow();
+  if(a.source=="free"){openSheet(`<h2>Totul e gratuit acum</h2><div class="mu">În această perioadă poți folosi toate funcțiile LaTimp fără abonament. Te anunțăm înainte de orice schimbare.</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"plan");return}
+  if(k=="agenda"&&!m.control&&a.source!="sub"&&a.source!="invite"&&a.source!="bonus"){openSheet(`<h2>Control</h2><div class="mu">Abonamentul nu este disponibil încă. Te anunțăm când pornește.</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"plan");return}
+  if(k!="agenda"&&!m.sparks){openSheet(`<h2>Scântei</h2><div class="mu">Pachetele de scântei nu sunt disponibile încă.</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"plan");return}
+  oP0(k);sheetTidy()};
+ setPro=function(v){if(v)toast("Plata nu este disponibilă încă în versiunea web.")};
+ buy=function(){toast("Plata nu este disponibilă încă în versiunea web.")};
+ invEnd=function(){toast("Accesul prin invitație se încheie la data codului.")};
+ const iO0=invOpen;invOpen=function(m,v){if(!MONC().invites&&!invOn()){toast("Codurile de invitație nu sunt disponibile acum.");return}iO0(m,v);sheetTidy()};
+ invGo=async function(){
+  const el=$("ivc"),raw=el?el.value:"",c=invNorm(raw);
+  if(!IVRE.test(c)){iO0("Codul nu arată corect. Are forma LT-XXXXX-XXXXX.",raw);sheetTidy();return}
+  if(needAcct("Ca să folosești un cod de invitație, ai nevoie de un cont.",()=>invOpen("",raw)))return;
+  if(!SB){iO0("Codul nu poate fi verificat acum. Conectează-te la internet și încearcă din nou.",raw);sheetTidy();return}
+  const b=$("ivb");if(b){b.disabled=true;b.textContent="Se verifică…"}
+  try{const{data,error}=await SB.rpc("redeem_invite",{p_code:c});if(error||!data)throw error;
+   if(!data.ok){const E={invalid:"Cod invalid sau retras.",expired:"Codul a expirat.",full:"Codul a fost deja folosit de numărul maxim de persoane.",rate:"Prea multe încercări. Mai așteaptă un minut."};iO0(E[data.err]||"Nu am putut verifica codul. Încearcă din nou.",raw);sheetTidy();return}
+   if(data.access){ACC=data.access;lsSet("latimp.acc",ACC)}closeSheet();render();toast("Cod activat. Ai acces complet.")}
+  catch(e){iO0("Nu am putut verifica codul. Încearcă din nou.",raw);sheetTidy()}};
+ refOpen=async function(msg){
+  if(!MONC().referrals){toast("Recomandările nu sunt disponibile acum.");return}
+  if(needAcct("Ca să inviți prieteni și să primești zilele, ai nevoie de un cont.",refOpen))return;
+  if(!SB){openSheet(`<h2>Invită un prieten</h2><div class="mu">Ai nevoie de internet pentru recomandări.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"ref");return}
+  const R=Object.assign({days:30,max:12},CFGW&&CFGW.ref||{});let code="",n=0,used=false;
+  try{const{data}=await SB.rpc("get_my_referral_code");code=String(data||"")}catch(e){}
+  if(!code){toast("Nu am putut crea codul");return}
+  try{const{count}=await SB.from("referral_uses").select("user_id",{count:"exact",head:true}).eq("referrer",SBU.id);n=count||0}catch(e){}
+  try{const{data}=await SB.from("referral_uses").select("user_id").eq("user_id",SBU.id).maybeSingle();used=!!data}catch(e){}
+  S.ref=code;const c=code.slice(0,4)+"-"+code.slice(4),a=accNow();
+  openSheet(`<h2>Invită un prieten</h2><div class="mu">Când un prieten folosește codul tău, amândoi primiți ${+R.days} de zile de acces complet. Cel mult ${+R.max} prieteni.</div><div class="code">${esc(c)}</div><button class="btn" onclick="refCopy()">Copiază codul</button><div class="note">${n?n+(n==1?" prieten l-a folosit":" prieteni l-au folosit")+(a.source=="bonus"&&S.bx?". Ai acces complet până la "+esc(nice(S.bx))+".":"."):"Încă nu l-a folosit nimeni."}</div>${used?"":`<label for="rf_c">Ai primit un cod de la un prieten?</label><input id="rf_c" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="RXXX-XXXX" onkeydown="if(event.key=='Enter')refUse()"><div class="note dg" role="alert">${esc(msg||"")}</div><button class="btn alt" onclick="refUse()">Folosește codul</button>`}<button class="btn alt" onclick="closeSheet()">Închide</button>`,"ref")};
+ refUse=async function(){
+  const c=pCode(($("rf_c")||{}).value);
+  if(!/^R[A-HJ-NP-Z2-9]{7}$/.test(c)){refOpen("Codul are forma RXXX-XXXX.");return}
+  try{const{data,error}=await SB.rpc("redeem_referral",{p_code:c});if(error||!data)throw error;
+   if(!data.ok){const E={invalid:"Nu am găsit acest cod.",self:"Acesta este codul tău. Trimite-l unui prieten.",used:"Ai folosit deja un cod de la un prieten.",old_account:"Codurile de la prieteni sunt pentru conturile noi.",rate:"Prea multe încercări. Mai așteaptă un minut."};refOpen(E[data.err]||"Nu am putut verifica codul. Încearcă din nou.");return}
+   if(data.access){ACC=data.access;lsSet("latimp.acc",ACC)}closeSheet();render();toast("Gata: ai "+(+data.days||30)+" de zile de acces complet.")}
+  catch(e){refOpen("Nu am putut verifica codul. Încearcă din nou.")}};
+ /* după conectare sau deconectare, accesul se recitește */
+ const sbD0=sbDone;sbDone=function(m,n){sbD0(m,n);accLoad()};
+ const aO1=acctOut;acctOut=async function(){await aO1();if(!S.acct){ACC=null;lsSet("latimp.acc",null);ISADM=false;render()}};
+}
+/* foile de plan: fără invitații când sunt oprite și fără „Renunț la acces” (pe web accesul vine de pe server) */
+function sheetTidy(){const sb=$("sb");if(!sb||!WEB)return;
+ if(!MONC().invites&&!invOn())sb.querySelectorAll('button[onclick^="invOpen("]').forEach(b=>b.remove());
+ sb.querySelectorAll('button[onclick^="invEnd("]').forEach(b=>b.remove());
+ sb.querySelectorAll('button[onclick^="restoreBuy("]').forEach(b=>b.remove())}
+/* după fiecare desen: fără butoanele de plan în antet când planul e oprit sau totul e gratuit */
+function accPost(){
+ const m=MONC(),a=accNow();
+ document.querySelectorAll("#main .hd .pill").forEach(p=>{const f=p.getAttribute("onclick")||"";
+  if(/openPlan\('agenda'\)/.test(f))p.hidden=a.source=="free"||(!m.control&&!a.pro);
+  else if(/openPlan\('free'\)/.test(f))p.hidden=a.source=="free"||!m.sparks})}
+/* pornire: configurarea și accesul se citesc o dată ce clientul Supabase e gata */
+function accBoot(){if(accBoot.on||!SB)return;accBoot.on=true;cfgLoad();SB.auth.getSession().then(()=>setTimeout(accLoad,50)).catch(()=>{});addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible"){cfgLoad();accLoad()}})}
+if(WEB){const sR0=sbReady;sbReady=function(){sR0();accBoot()};if(SB)accBoot();else if(window.supabase)sbReady();cfgApply()}
+</script>
+<style>
+#mnt{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:linear-gradient(135deg,var(--br1),var(--br2));color:#fff;text-align:center}
+.mntw{max-width:340px}.mntw h2{font-size:24px;margin:0 0 8px}.mntw p{margin:0 0 18px;opacity:.92}
+#mnt .btn{background:#fff;color:#11523a;box-shadow:none}
+</style>
+<script>
 /* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
 const I18N={d:{},r:[]};
 const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
@@ -2592,6 +2698,7 @@ Object.assign(I18N.d,{"Se conectează la cont…":"Connecting to your account…
 I18N.r.unshift([/^Am trimis un cod la (.+)\. Verifică și dosarul Spam\.$/,"We sent a code to $1. Check your Spam folder too."],[/^Poți cere alt cod peste (\d+) secunde\.$/,"You can ask for another code in $1 seconds."],[/^În cont: (\d+) (termen|termene)\. Pe acest telefon: (\d+) (termen|termene)\. Alege ce păstrezi\.$/,(m,a,b,c,d)=>"In the account: "+a+(a=="1"?" date":" dates")+". On this phone: "+c+(c=="1"?" date":" dates")+". Choose which to keep."]);
 Object.assign(I18N.d,{"Verifică e-mailul":"Check your email","Codul din e-mail (dacă ai primit unul)":"Code from the email (if you got one)","Trimite alt e-mail":"Send another email","Îți trimitem pe e-mail un link de conectare. Nu ai nevoie de parolă.":"We'll email you a sign-in link. No password needed.","Trimite e-mailul":"Send the email","Am trimis un e-mail nou":"New email sent","Ai cerut prea multe e-mailuri. Încearcă din nou peste un minut.":"You've asked for too many emails. Try again in a minute.","Nu am putut trimite e-mailul. Verifică adresa și încearcă din nou.":"Couldn't send the email. Check the address and try again.","Nu am putut trimite e-mailul. Verifică internetul.":"Couldn't send the email. Check your internet connection.","Linkul de conectare a expirat sau a fost folosit. Cere altul din Mai mult, Cont.":"The sign-in link has expired or was already used. Ask for another one from More, Account."});
 I18N.r.unshift([/^Am trimis un e-mail la (.+)\. Apasă linkul din el ca să te conectezi\. Dacă e-mailul are un cod, scrie-l aici\. Verifică și dosarul Spam\.$/,"We sent an email to $1. Tap the link in it to sign in. If the email has a code, enter it here. Check your Spam folder too."],[/^Poți cere alt e-mail peste (\d+) secunde\.$/,"You can ask for another email in $1 seconds."]);
+Object.assign(I18N.d,{"LaTimp revine imediat":"LaTimp will be right back","Facem câteva îmbunătățiri. Revenim imediat.":"We're making a few improvements. We'll be right back.","Încearcă din nou":"Try again","Totul e gratuit acum":"Everything is free right now","În această perioadă poți folosi toate funcțiile LaTimp fără abonament. Te anunțăm înainte de orice schimbare.":"For now you can use every LaTimp feature without a subscription. We'll let you know before anything changes.","Abonamentul nu este disponibil încă. Te anunțăm când pornește.":"The subscription isn't available yet. We'll let you know when it starts.","Pachetele de scântei nu sunt disponibile încă.":"Spark packs aren't available yet.","Plata nu este disponibilă încă în versiunea web.":"Payment isn't available yet in the web version.","Accesul prin invitație se încheie la data codului.":"Invitation access ends on the code's date.","Codurile de invitație nu sunt disponibile acum.":"Invitation codes aren't available right now.","Ca să folosești un cod de invitație, ai nevoie de un cont.":"To use an invitation code you need an account.","Codul nu poate fi verificat acum. Conectează-te la internet și încearcă din nou.":"The code can't be checked right now. Connect to the internet and try again.","Recomandările nu sunt disponibile acum.":"Referrals aren't available right now.","Ai nevoie de internet pentru recomandări.":"Referrals need the internet.","Ai primit un cod de la un prieten?":"Got a code from a friend?","Folosește codul":"Use the code","Codurile de la prieteni sunt pentru conturile noi.":"Friend codes are for new accounts.","Prea multe încercări. Mai așteaptă un minut.":"Too many attempts. Wait a minute."});
 </script>
 <script>
 /* ---------- Opțiuni dezvoltator (doar administratori) ---------- */
