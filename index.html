@@ -11,11 +11,13 @@
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <script>
 window.LT_WEB=true;
+window.LT_SB={url:"https://jzcwmucmxxedvwbtzrvp.supabase.co",key:"sb_publishable_qZDRrfEWVRhr9xeDBmME9A_y_7wIg5k"};
 /* descărcări în browser: aceeași interfață ca în prototip */
 (function(){const dl={save:async function(o){const t=/\.json$/.test(o.filename)?"application/json":/\.csv$/.test(o.filename)?"text/csv":/\.ics$/.test(o.filename)?"text/calendar":"application/octet-stream";const b=o.data instanceof Blob?o.data:new Blob([o.data],{type:t+";charset=utf-8"});const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=o.filename;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}};
 window.claude={use:async function(n){return n=="downloads"?dl:null}};})();
 if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" async onload="window.sbReady&&sbReady()"></script>
 </head><body>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
@@ -380,7 +382,7 @@ html{-webkit-tap-highlight-color:transparent}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.6.1",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.7",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -1440,7 +1442,7 @@ function more(){
  const row=(t,d,c,k)=>`<div class="it${k?" stk":""}"><span><b>${t}</b><div class="mu">${d}</div></span>${c}</div>`;
  const lnk=(t,fn)=>`<button class="it" onclick="${fn}"><b>${t}</b><span class="mu">›</span></button>`;
  const ext=(t,u,m)=>okUrl(u)?`<a class="it" style="color:inherit" href="${esc(u.trim())}" target="_blank" rel="noopener noreferrer"><b>${t}</b><span class="mu">›</span></a>`:lnk(t,`toast('${m}')`);
- const sy=!S.acct?(REM?"Ai o agendă salvată în cont. Conectează-te ca s-o aduci pe acest telefon.":"Doar pe acest telefon. Cu un cont o regăsești pe orice telefon."):!DB||!UID?"Doar pe acest dispozitiv. Nu ești conectat.":DBOFF?"Doar pe acest dispozitiv. Contul tău nu poate salva copii aici.":SY.ok?"Copie salvată în cont, "+ago(SY.t):SY.ok===false?"Nu am putut salva copia. Încerc la următoarea modificare.":"Se verifică…";
+ const sy=!S.acct?(REM?"Ai o agendă salvată în cont. Conectează-te ca s-o aduci pe acest telefon.":"Doar pe acest telefon. Cu un cont o regăsești pe orice telefon."):!cloudOn()?(window.LT_WEB?"Se conectează la cont…":"Doar pe acest dispozitiv. Nu ești conectat."):DBOFF?"Doar pe acest dispozitiv. Contul tău nu poate salva copii aici.":SY.ok?"Copie salvată în cont, "+ago(SY.t):SY.ok===false?"Nu am putut salva copia. Încerc la următoarea modificare.":"Se verifică…";
  const n=DEV?RP.filter(r=>r.st!="done").length:0;
  return head("Mai mult","Cont, setări și ajutor")+
  `<div class="gt">Cont și copie de siguranță</div><div class="grp">`+(S.acct?row("Cont",esc(PROV[S.acct.p]||"")+" · "+esc(S.acct.e),`<span class="acts" style="margin:0"><button onclick="acctOpen()">Gestionează</button></span>`):`<button class="it" onclick="acctOpen()"><span><b>Creează un cont sau conectează-te</b><div class="mu">Opțional. Google, Apple, Microsoft sau e-mail.</div></span><span class="mu">›</span></button>`)+row("Copie de siguranță",sy,"")+lnk("Copie într-un fișier","bkOpen()")+lnk("Restaurează achizițiile","restoreBuy()")+(DL?lnk("Exportă agenda (CSV)","exportCsv()"):"")+(invOn()?row("Acces prin invitație",invLine(),`<span class="acts" style="margin:0"><button onclick="invOpen()">Detalii</button></span>`):lnk("Ai un cod de invitație?","invOpen()"))+`<button class="it" onclick="refOpen()"><span><b>Invită un prieten</b><div class="mu">${bonusOn()?"Acces complet până la "+esc(nice(S.bx)):"Amândoi primiți "+RFD+" de zile de acces complet."}</div></span><span class="mu">›</span></button>`+lnk("Anul tău în LaTimp","yrShow()")+`</div>
@@ -2223,6 +2225,103 @@ async function instGo(){
 .ist{margin:14px 0 6px;padding-left:22px}.ist li{margin:8px 0;font-size:15px}
 </style>
 <script>
+/* ---------- Cont real și sincronizare prin Supabase (doar în versiunea web) ---------- */
+let SB=null,SBU=null,SBQ=false,SBT=0,SBJ=false;
+const cloudOn=()=>WEB?!!SBU:!!(DB&&UID);
+function sbReady(){
+ if(SB||!WEB||!window.LT_SB||!window.supabase||!window.supabase.createClient)return;
+ const H=location.hash||"",LINK=/access_token=/.test(H),LERR=/error_code=|error=/.test(H)&&!LINK;
+ try{SB=window.supabase.createClient(LT_SB.url,LT_SB.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:"implicit",storageKey:"latimp.auth"}})}catch(e){SB=null;return}
+ SB.auth.onAuthStateChange((ev,s)=>{const u=s&&s.user||null;if(ev=="SIGNED_OUT"){SBU=null;softMore();return}if(u)SBU=u});
+ if(LERR){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}setTimeout(()=>toast("Linkul de conectare a expirat sau a fost folosit. Cere altul din Mai mult, Cont."),900)}
+ SB.auth.getSession().then(async({data})=>{const u=data&&data.session&&data.session.user;if(!u)return;SBU=u;
+  const e=String(u.email||"").toLowerCase();
+  if(LINK&&!SBJ){try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}if(!S.acct||String(S.acct.e||"").toLowerCase()!=e){AC=Object.assign({},AC||{},{e});await sbJoin();return}}
+  if(!S.acct||String(S.acct.e||"").toLowerCase()!=e){S.acct={p:"email",e,n:S.acct&&S.acct.n||"",at:Date.now(),v:true};store()}
+  await sbPull();softMore()}).catch(()=>{});
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible")sbPull()});
+ addEventListener("online",()=>{sbPull();sbPush()});
+ softMore()}
+/* citește agenda din cont; cea mai nouă câștigă (după S.at, ca în prototip) */
+async function sbPull(){
+ if(!SB||!SBU||SBQ)return;SBQ=true;
+ try{const{data,error}=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();if(error)throw error;
+  if(!data){if(S.acct)sbPush();return}
+  const st=data.state||{},ra=+st.at||0;
+  if(ra>(+S.at||0)){const keep=S.acct;S=mig(st);S.at=ra;if(!S.acct)S.acct=keep;store();theme();uiApply();SY.ok=true;SY.t=Date.now();soft()}
+  else if(ra<(+S.at||0))sbPush();
+  else{SY.ok=true;SY.t=SY.t||Date.now()}}
+ catch(e){SY.ok=false}
+ finally{SBQ=false}}
+const sbPush=writer(async()=>{
+ if(!SB||!SBU||!S.acct||!S.at)return;
+ try{const{error}=await SB.from("user_state").upsert({user_id:SBU.id,state:JSON.parse(JSON.stringify(S)),schema_ver:2,device:String(navigator.userAgent||"").slice(0,80)},{onConflict:"user_id"});if(error)throw error;SY.ok=true;SY.t=Date.now()}
+ catch(e){SY.ok=false}
+ softMore()},1200);
+if(WEB){const sv1=save;save=function(){sv1();sbPush()}}
+
+/* ecranele de cont: e-mail și cod, fără parolă */
+if(WEB){
+ const da0=drawAcct;
+ drawAcct=function(){
+  if(!SB){if(AC.m=="me"&&S.acct)return da0();if(AC.ob){closeSheet();return}openSheet(`<h2>Cont LaTimp</h2><div class="mu">Conectarea are nevoie de internet. Încearcă din nou când ești online.</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"acct");return}
+  const err=`<div class="note dg" id="ac_err" role="alert"></div>`;
+  if(AC.m=="me"&&S.acct){const a=S.acct;
+   openSheet(`<h2>Contul tău</h2><div class="grp" style="margin-top:12px">${rw("Conectat cu e-mail",esc(a.e),"")}</div><div class="note">Agenda se salvează în cont și o regăsești pe orice telefon pe care te conectezi.</div><div style="margin-top:14px"><button class="btn alt" onclick="closeSheet()">Închide</button><button class="btn alt dg" onclick="acctOut()">${AC.out?"Apasă din nou ca să te deconectezi":"Deconectează-te"}</button><button class="btn alt dg" onclick="acctDel()">${AC.del?"Apasă din nou: contul se șterge":"Șterge contul"}</button></div><div class="note">Ștergerea contului șterge de pe server agenda salvată, contul și fișierele lui. Agenda rămâne doar pe acest telefon.</div>`,"acct");return}
+  if(AC.m=="code"){
+   openSheet(`<h2>Verifică e-mailul</h2><div class="mu">Am trimis un e-mail la ${esc(AC.e)}. Apasă linkul din el ca să te conectezi. Dacă e-mailul are un cod, scrie-l aici. Verifică și dosarul Spam.</div><label for="ac_c">Codul din e-mail (dacă ai primit unul)</label><input id="ac_c" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" onkeydown="if(event.key=='Enter')sbVerify()">${err}<div style="margin-top:14px"><button class="btn" id="ac_go" onclick="sbVerify()">Conectează-te</button><button class="btn alt" onclick="sbSend(true)">Trimite alt e-mail</button><button class="btn alt" onclick="AC.m='start';drawAcct()">Altă adresă</button></div>`,"acct");
+   setTimeout(()=>{const c=$("ac_c");if(c)try{c.focus()}catch(e){}},350);return}
+  openSheet(`<h2>${AC.ob?"Păstrează-ți agenda":"Cont LaTimp"}</h2><div class="mu">${esc(AC.why||"Opțional. Cu un cont îți regăsești agenda pe orice telefon.")}</div><label for="ac_e">Adresa de e-mail</label><input id="ac_e" type="email" autocomplete="email" maxlength="254" value="${esc(AC.e)}" onkeydown="if(event.key=='Enter')sbSend()">${err}<div style="margin-top:14px"><button class="btn" id="ac_go" onclick="sbSend()">Trimite e-mailul</button><button class="btn alt" onclick="closeSheet()">${AC.ob?"Mai târziu":"Renunță"}</button></div><div class="note">Îți trimitem pe e-mail un link de conectare. Nu ai nevoie de parolă.</div>`,"acct")};
+ acctGo=function(){sbSend()};
+}
+function sbBusy(v,t){const b=$("ac_go");if(b){b.disabled=v;if(t)b.textContent=t}}
+async function sbSend(again){
+ if(!SB)return;
+ if(!again){acctGrab();AC.e=(AC.e||"").trim().toLowerCase()}
+ if(!EMRE.test(AC.e||"")){acctErr("Adresa de e-mail nu arată corect.");return}
+ const w=Math.ceil((SBT-Date.now())/1000);if(w>0){acctErr("Poți cere alt e-mail peste "+w+" secunde.");return}
+ sbBusy(true,"Se trimite…");
+ try{const{error}=await SB.auth.signInWithOtp({email:AC.e,options:{shouldCreateUser:true,emailRedirectTo:LT_SB.home||(location.origin+location.pathname)}});
+  if(error){sbBusy(false,"Trimite e-mailul");acctErr(error.status==429?"Ai cerut prea multe e-mailuri. Încearcă din nou peste un minut.":"Nu am putut trimite e-mailul. Verifică adresa și încearcă din nou.");return}
+  SBT=Date.now()+60000;AC.m="code";drawAcct();if(again)toast("Am trimis un e-mail nou")}
+ catch(e){sbBusy(false,"Trimite e-mailul");acctErr("Nu am putut trimite e-mailul. Verifică internetul.")}}
+async function sbVerify(){
+ const t=(($("ac_c")||{}).value||"").replace(/\D/g,"");
+ if(t.length<6){acctErr("Codul are cel puțin 6 cifre.");return}
+ sbBusy(true,"Se verifică…");SBJ=true;
+ try{const{data,error}=await SB.auth.verifyOtp({email:AC.e,token:t,type:"email"});
+  if(error||!data||!data.user){SBJ=false;sbBusy(false,"Conectează-te");acctErr("Codul nu e bun sau a expirat. Cere alt cod.");return}
+  SBU=data.user;await sbJoin()}
+ catch(e){SBJ=false;sbBusy(false,"Conectează-te");acctErr("Nu am putut verifica codul. Verifică internetul.")}}
+/* prima conectare pe acest telefon: alegi ce agendă păstrezi, dacă există deja una în cont */
+let SBR=null;
+const realN=s=>(s&&Array.isArray(s.items)?s.items.filter(x=>!x.ex).length:0);
+async function sbJoin(){
+ const e=String(SBU.email||AC.e).toLowerCase(),a={p:"email",e,n:"",at:Date.now(),v:true},nx=AC&&AC.next;
+ let row=null;try{const r=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();row=r.data||null}catch(x){}
+ const rs=row&&row.state,rn=realN(rs),ln=realN(S);
+ if(rs&&rn&&ln){SBR={rs,a,nx};openSheet(`<h2>Ai deja o agendă în cont</h2><div class="mu">În cont: ${rn} ${rn==1?"termen":"termene"}. Pe acest telefon: ${ln} ${ln==1?"termen":"termene"}. Alege ce păstrezi.</div><div style="margin-top:14px"><button class="btn" onclick="sbPick(true)">Folosește agenda din cont</button><button class="btn alt" onclick="sbPick(false)">Păstrează agenda de pe telefon</button></div><div class="note">Cealaltă agendă se înlocuiește. Dacă nu ești sigur, fă întâi o copie într-un fișier din Mai mult.</div>`,"acct");return}
+ if(rs&&rn){S=mig(rs);S.at=Date.now();S.acct=a;store();theme();uiApply();sbDone("Ești conectat. Agenda din cont a fost adusă.",nx);return}
+ S.acct=a;sbDone("Ești conectat. Agenda se salvează în cont.",nx)}
+function sbPick(fromCloud){
+ const r=SBR;if(!r)return;SBR=null;
+ if(fromCloud){S=mig(r.rs);S.acct=r.a;theme();uiApply()}else S.acct=r.a;
+ sbDone(fromCloud?"Ești conectat. Agenda din cont a fost adusă.":"Ești conectat. Agenda de pe telefon a fost salvată în cont.",r.nx)}
+function sbDone(msg,nx){SBJ=false;REM=null;save();sbPush();closeSheet();render();toast(msg);if(nx)setTimeout(nx,350)}
+if(WEB){
+ acctOut=async function(){if(!AC.out){AC.out=true;AC.del=false;drawAcct();return}try{if(SB)await SB.auth.signOut()}catch(e){}SBU=null;S.acct=null;save();closeSheet();render();toast("Te-ai deconectat. Agenda rămâne pe acest telefon.")};
+ acctDel=async function(){
+  if(!AC.del){AC.del=true;AC.out=false;drawAcct();return}
+  if(!SB||!SBU){toast("Ai nevoie de internet ca să ștergi contul.");return}
+  try{const{data,error}=await SB.functions.invoke("delete-account",{body:{}});
+   if(error){let c="";try{c=(await error.context.json()).error}catch(x){}toast(c=="active_subscription"?"Ai un abonament activ. Anulează-l întâi din magazin, apoi șterge contul.":"Nu am putut șterge contul. Încearcă din nou.");return}}
+  catch(e){toast("Nu am putut șterge contul. Verifică internetul.");return}
+  try{await SB.auth.signOut({scope:"local"})}catch(e){}
+  SBU=null;if(S.inv){S.pro=!!S.inv.was;S.inv=null}S.acct=null;S.fam=null;S.stats=false;save();closeSheet();render();toast("Contul a fost șters. Agenda rămâne doar pe acest telefon.")};
+}
+if(WEB&&window.supabase)sbReady();
+</script>
+<script>
 /* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
 const I18N={d:{},r:[]};
 const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
@@ -2489,6 +2588,10 @@ Object.assign(I18N.d,{"Marchează de anulat": "Mark to cancel", "Cort din pătur
 Object.assign(I18N.d,{"Culorile aplicației":"App colours","Grafit":"Graphite","Pădure și Teracotă":"Forest and Terracotta"});
 Object.assign(I18N.d,{"Instalează LaTimp pe telefon":"Install LaTimp on your phone","Se deschide ca o aplicație, de pe ecranul principal, și merge și fără internet.":"It opens like an app from your home screen and also works offline.","Instalează":"Install","Instalează LaTimp":"Install LaTimp","Pe iPhone, aplicația se adaugă din Safari.":"On iPhone, the app is added from Safari.","Din browser, în trei pași.":"From your browser, in three steps.","Deschide pagina în Safari.":"Open the page in Safari.","Apasă butonul Partajare (pătratul cu săgeată în sus).":"Tap the Share button (the square with an up arrow).","Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.":"Choose “Add to Home Screen”, then “Add”.","Deschide meniul browserului (cele trei puncte).":"Open the browser menu (the three dots).","Alege „Instalează aplicația” sau „Adaugă pe ecranul de pornire”.":"Choose “Install app” or “Add to Home screen”.","Confirmă cu „Instalează”.":"Confirm with “Install”.","Am înțeles":"Got it","LaTimp a fost instalată":"LaTimp has been installed"});
 I18N.r.unshift([/^LaTimp, versiune de test (.+)$/,"LaTimp, test version $1"]);
+Object.assign(I18N.d,{"Se conectează la cont…":"Connecting to your account…","Conectarea are nevoie de internet. Încearcă din nou când ești online.":"Signing in needs the internet. Try again when you're online.","Conectat cu e-mail":"Signed in with email","Ștergerea contului șterge de pe server agenda salvată, contul și fișierele lui. Agenda rămâne doar pe acest telefon.":"Deleting the account removes the saved agenda, the account and its files from the server. The agenda stays only on this phone.","Scrie codul":"Enter the code","Codul din e-mail":"Code from the email","Conectează-te":"Sign in","Trimite alt cod":"Send another code","Altă adresă":"Another address","Opțional. Cu un cont îți regăsești agenda pe orice telefon.":"Optional. With an account you get your agenda back on any phone.","Trimite codul":"Send the code","Îți trimitem pe e-mail un cod de conectare. Nu ai nevoie de parolă.":"We'll email you a sign-in code. No password needed.","Ai cerut prea multe coduri. Încearcă din nou peste un minut.":"You've asked for too many codes. Try again in a minute.","Nu am putut trimite codul. Verifică adresa și încearcă din nou.":"Couldn't send the code. Check the address and try again.","Nu am putut trimite codul. Verifică internetul.":"Couldn't send the code. Check your internet connection.","Am trimis un cod nou":"New code sent","Codul are cel puțin 6 cifre.":"The code has at least 6 digits.","Codul nu e bun sau a expirat. Cere alt cod.":"The code is wrong or has expired. Ask for another one.","Nu am putut verifica codul. Verifică internetul.":"Couldn't check the code. Check your internet connection.","Ai deja o agendă în cont":"You already have an agenda in your account","Folosește agenda din cont":"Use the agenda from the account","Păstrează agenda de pe telefon":"Keep the agenda on this phone","Cealaltă agendă se înlocuiește. Dacă nu ești sigur, fă întâi o copie într-un fișier din Mai mult.":"The other agenda gets replaced. If you're not sure, first save a copy to a file from More.","Ești conectat. Agenda din cont a fost adusă.":"You're signed in. The agenda from your account has been loaded.","Ești conectat. Agenda se salvează în cont.":"You're signed in. Your agenda is saved to your account.","Ești conectat. Agenda de pe telefon a fost salvată în cont.":"You're signed in. The agenda on this phone was saved to your account.","Ai nevoie de internet ca să ștergi contul.":"You need the internet to delete the account.","Ai un abonament activ. Anulează-l întâi din magazin, apoi șterge contul.":"You have an active subscription. Cancel it in the store first, then delete the account.","Nu am putut șterge contul. Încearcă din nou.":"Couldn't delete the account. Try again.","Nu am putut șterge contul. Verifică internetul.":"Couldn't delete the account. Check your internet connection.","Contul a fost șters. Agenda rămâne doar pe acest telefon.":"The account was deleted. The agenda stays only on this phone.","Te-ai deconectat. Agenda rămâne pe acest telefon.":"You've signed out. The agenda stays on this phone."});
+I18N.r.unshift([/^Am trimis un cod la (.+)\. Verifică și dosarul Spam\.$/,"We sent a code to $1. Check your Spam folder too."],[/^Poți cere alt cod peste (\d+) secunde\.$/,"You can ask for another code in $1 seconds."],[/^În cont: (\d+) (termen|termene)\. Pe acest telefon: (\d+) (termen|termene)\. Alege ce păstrezi\.$/,(m,a,b,c,d)=>"In the account: "+a+(a=="1"?" date":" dates")+". On this phone: "+c+(c=="1"?" date":" dates")+". Choose which to keep."]);
+Object.assign(I18N.d,{"Verifică e-mailul":"Check your email","Codul din e-mail (dacă ai primit unul)":"Code from the email (if you got one)","Trimite alt e-mail":"Send another email","Îți trimitem pe e-mail un link de conectare. Nu ai nevoie de parolă.":"We'll email you a sign-in link. No password needed.","Trimite e-mailul":"Send the email","Am trimis un e-mail nou":"New email sent","Ai cerut prea multe e-mailuri. Încearcă din nou peste un minut.":"You've asked for too many emails. Try again in a minute.","Nu am putut trimite e-mailul. Verifică adresa și încearcă din nou.":"Couldn't send the email. Check the address and try again.","Nu am putut trimite e-mailul. Verifică internetul.":"Couldn't send the email. Check your internet connection.","Linkul de conectare a expirat sau a fost folosit. Cere altul din Mai mult, Cont.":"The sign-in link has expired or was already used. Ask for another one from More, Account."});
+I18N.r.unshift([/^Am trimis un e-mail la (.+)\. Apasă linkul din el ca să te conectezi\. Dacă e-mailul are un cod, scrie-l aici\. Verifică și dosarul Spam\.$/,"We sent an email to $1. Tap the link in it to sign in. If the email has a code, enter it here. Check your Spam folder too."],[/^Poți cere alt e-mail peste (\d+) secunde\.$/,"You can ask for another email in $1 seconds."]);
 </script>
 <script>
 /* ---------- Opțiuni dezvoltator (doar administratori) ---------- */
