@@ -1,0 +1,39 @@
+{
+ "name": "LaTimp",
+ "short_name": "LaTimp",
+ "description": "Termenele, plățile și zilele importante la timp, plus idei pentru timpul liber.",
+ "lang": "ro",
+ "dir": "ltr",
+ "id": "./",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#11523a",
+ "theme_color": "#eff1f2",
+ "categories": [
+  "productivity",
+  "lifestyle",
+  "finance"
+ ],
+ "icons": [
+  {
+   "src": "icons/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
