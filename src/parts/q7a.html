@@ -47,6 +47,8 @@ if(WEB){
  more=function(){let h=mA0();const m=MONC(),a=accNow();
   if(!m.invites&&a.source!="invite")h=h.replace(/<button class="it" onclick="invOpen\(\)">[\s\S]*?<\/button>/g,"");
   if(!m.referrals)h=h.replace(/<button class="it" onclick="refOpen\(\)">[\s\S]*?<\/button>/g,"");
+  /* fără abonament și fără pachete de vânzare (lansarea gratuită), nu există achiziții de restaurat */
+  if(WEB&&!m.control&&!m.sparks&&a.source!="sub")h=h.replace(/<button class="it" onclick="restoreBuy\(\)">[\s\S]*?<\/button>/g,"");
   return h};
  const oP0=openPlan;
  openPlan=function(k){const m=MONC(),a=accNow();

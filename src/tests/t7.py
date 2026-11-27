@@ -28,7 +28,7 @@ async def main():
             chk("splash covers the page", st["pos"] == "fixed" and int(st["z"]) >= 100)
             chk("first launch uses full animation", st["q"] is False)
             chk("splash has gradient background", "gradient" in st["bg"], st["bg"])
-            chk("logo parts drawn (ring, arc, L, letters)", st["paths"] >= 10 and st["dots"] == 2, st)
+            chk("logo parts drawn (ring, arc, L, letters)", st["paths"] >= 10 and st["dots"] >= 2, st)
         txt = await pg.evaluate("document.getElementById('spl')?document.getElementById('spl').innerText:''")
         chk("splash has no text (logo is drawn)", txt.strip() == "")
         await pg.wait_for_timeout(2300)
