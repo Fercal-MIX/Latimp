@@ -382,7 +382,7 @@ html{-webkit-tap-highlight-color:transparent}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.8",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.9",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -2428,6 +2428,80 @@ if(WEB){const sR0=sbReady;sbReady=function(){sR0();accBoot()};if(SB)accBoot();el
 #mnt .btn{background:#fff;color:#11523a;box-shadow:none}
 </style>
 <script>
+/* ---------- Memento-uri reale pe telefon (doar în versiunea web): web push trimis de server la ora memento-ului ---------- */
+const VAPID="BDh-9I14jyPTFDeKJaSrp7hnPaXEHAt5-7MG20ajqGbdoOA6gu4gC_216eT23MOXICQpcd-FU2Usf5qPFgw7NAE";
+let PUSHS=null,PBUSY=false;
+const pushOk=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function swReg(){try{return await Promise.race([navigator.serviceWorker.ready,new Promise((_,r)=>setTimeout(()=>r(0),4000))])}catch(e){return null}}
+async function pushRead(){if(!WEB||!pushOk())return null;const r=await swReg();if(!r)return null;try{PUSHS=await r.pushManager.getSubscription()}catch(e){PUSHS=null}return PUSHS}
+function pushState(){
+ if(!pushOk())return isIOS()&&!standalone()?"ios":"unsupported";
+ if(isIOS()&&!standalone())return "ios";
+ if(Notification.permission=="denied")return "denied";
+ return PUSHS&&S.nt&&S.nt.push?"on":"off"}
+/* programul: următoarele 60 de zile, câte o notificare pe oră de memento (termenele din aceeași oră se adună) */
+function remPlan(){
+ const now=Date.now(),end=now+60*DAY,by={},en=S.lang=="en",pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0;
+ S.items.filter(x=>!x.ex&&okDate(x.d)).forEach(x=>remDays(x).forEach(k=>{const t=+remAt(x.d,k);if(t<=now+60000||t>end||t<pz)return;(by[t]=by[t]||[]).push([x,k])}));
+ return Object.keys(by).map(Number).sort((a,b)=>a-b).slice(0,200).map(t=>{
+  const l=by[t].sort((a,b)=>a[1]-b[1]),[x,k]=l[0],nd=nice(x.d).replace(/\.$/,""),m=l.length-1;
+  const b=en?(k==0?"Due today.":"Due "+(k==1?"tomorrow":"in "+k+" days")+", on "+nd+".")+(m>0?" And "+m+" more.":""):(k==0?"Termenul e azi.":"Termenul e "+(k==1?"mâine":"în "+k+" zile")+", pe "+nd+".")+(m>0?" Și încă "+m+(m==1?" termen.":" termene."):"");
+  return{at:new Date(t).toISOString(),title:String(ttl(x)||"LaTimp").slice(0,120),body:b.slice(0,300),tag:"lt-"+t}})}
+const remSync=writer(async()=>{
+ if(!WEB||!SB||!SBU||!S.nt||!S.nt.push)return;
+ const p=remPlan(),sig=JSON.stringify(p);if(sig==remSync.last)return;
+ try{const{error}=await SB.rpc("set_reminders",{p});if(!error)remSync.last=sig}catch(e){}},2000);
+async function pushOn(){
+ if(PBUSY)return;
+ if(pushState()=="ios"){pushHelp();return}
+ if(!pushOk()){toast("Telefonul sau browserul acesta nu primește notificări de la aplicații web.");return}
+ if(needAcct("Ca să primești memento-uri pe telefon, ai nevoie de un cont. Așa știe serverul când să ți le trimită.",()=>{notifGo()}))return;
+ if(!SB){toast("Ai nevoie de internet ca să pornești notificările.");return}
+ PBUSY=true;
+ try{
+  const perm=await Notification.requestPermission();
+  if(perm!="granted"){toast(perm=="denied"?"Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului.":"Notificările nu au fost pornite.");return}
+  const r=await swReg();if(!r)throw 0;
+  let s=await r.pushManager.getSubscription();
+  if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)});
+  const j=s.toJSON();
+  const{error}=await SB.from("push_subs").upsert({user_id:SBU.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,ua:String(navigator.userAgent||"").slice(0,120),lang:S.lang=="en"?"en":"ro"},{onConflict:"endpoint"});
+  if(error)throw error;
+  PUSHS=s;S.nt.push=true;save();remSync.last="";remSync();
+  try{r.showNotification("LaTimp",{body:S.lang=="en"?"Notifications are on. Your reminders will arrive here.":"Notificările sunt pornite. Memento-urile vin aici.",icon:"icons/icon-192.png",tag:"lt-on"}).catch(()=>{})}catch(e){}
+  render();toast("Notificările sunt pornite")}
+ catch(e){toast("Nu am putut porni notificările. Încearcă din nou.")}
+ finally{PBUSY=false}}
+async function pushOff(keep){
+ try{const s=PUSHS||await pushRead();if(s){const ep=s.endpoint;try{await s.unsubscribe()}catch(e){}if(SB&&SBU)try{await SB.from("push_subs").delete().eq("endpoint",ep)}catch(e){}}}catch(e){}
+ PUSHS=null;if(!keep){S.nt.push=false;save();if(SB&&SBU)try{await SB.rpc("set_reminders",{p:[]})}catch(e){}render();toast("Notificările pe acest telefon sunt oprite")}}
+function pushHelp(){openSheet(`<h2>Notificări pe iPhone</h2><div class="mu">Pe iPhone, notificările merg doar după ce adaugi LaTimp pe ecranul principal.</div><ol class="ist"><li>Deschide pagina în Safari.</li><li>Apasă butonul Partajare (pătratul cu săgeată în sus).</li><li>Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.</li><li>Deschide LaTimp de pe ecranul principal și pornește notificările din Mai mult, Notificări.</li></ol><button class="btn alt" onclick="closeSheet()">Am înțeles</button>`,"inst")}
+async function pushTest(){
+ if(pushState()!="on"){pushBanner("RCA · Mașina mea","Aceasta este o notificare de test.");return}
+ const r=await swReg();try{await r.showNotification("RCA · Mașina mea",{body:S.lang=="en"?"This is a test notification.":"Aceasta este o notificare de test.",icon:"icons/icon-192.png",tag:"lt-test"});toast("Ți-am trimis o notificare de test")}catch(e){toast("Nu am putut afișa notificarea")}}
+if(WEB){
+ const nv1=notifView;
+ notifView=function(){
+  let h=nv1();const st=pushState(),old=rw("Pe telefon","Notificări chiar și cu aplicația închisă. Vin cu aplicația instalată.",`<span class="tag">în curând</span>`);
+  const A=s=>`<span class="acts" style="margin:0">${s}</span>`;
+  const row=st=="on"?rw("Pe telefon","Memento-urile vin ca notificări, chiar și cu aplicația închisă.",A(`<span class="tag ok">activ</span><button class="g" onclick="pushOff()">Oprește</button>`),1)
+   :st=="denied"?rw("Pe telefon","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului (Aplicații, LaTimp sau browserul, Notificări).","",1)
+   :st=="ios"?rw("Pe telefon","Pe iPhone, notificările merg după ce adaugi LaTimp pe ecranul principal.",A(`<button onclick="pushHelp()">Cum fac</button>`),1)
+   :st=="unsupported"?rw("Pe telefon","Browserul acesta nu primește notificări de la aplicații web.","",1)
+   :rw("Pe telefon","Memento-urile vin ca notificări, chiar și cu aplicația închisă.",A(`<button onclick="pushOn()">Pornește</button>`),1);
+  h=h.replace(old,row);
+  h=h.replace(`onclick="pushBanner('RCA · Mașina mea','Termenul e în ${Math.round(+S.nt.d)||0} zile. Aceasta este o notificare de test.')"`,`onclick="pushTest()"`);
+  return h};
+ const sv2=save;save=function(){sv2();remSync()};
+ const sD1=sbDone;sbDone=function(m,n){sD1(m,n);pushRead().then(s=>{if(s&&S.nt.push&&SB&&SBU){const j=s.toJSON();SB.from("push_subs").upsert({user_id:SBU.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,ua:String(navigator.userAgent||"").slice(0,120),lang:S.lang=="en"?"en":"ro"},{onConflict:"endpoint"}).then(()=>{remSync.last="";remSync()})}})};
+ const aO2=acctOut;acctOut=async function(){if(AC&&AC.out&&SBU&&S.nt&&S.nt.push)await pushOff(true);return aO2()};
+ pushRead().then(()=>{if(TAB=="more"&&VIEW=="notif")soft()});
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible"){remSync.last="";remSync()}});
+ if(typeof accBoot=="function"){const aB=accLoad;accLoad=async function(){await aB();remSync()}}
+}
+</script>
+<script>
 /* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
 const I18N={d:{},r:[]};
 const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
@@ -2699,6 +2773,7 @@ I18N.r.unshift([/^Am trimis un cod la (.+)\. Verifică și dosarul Spam\.$/,"We 
 Object.assign(I18N.d,{"Verifică e-mailul":"Check your email","Codul din e-mail (dacă ai primit unul)":"Code from the email (if you got one)","Trimite alt e-mail":"Send another email","Îți trimitem pe e-mail un link de conectare. Nu ai nevoie de parolă.":"We'll email you a sign-in link. No password needed.","Trimite e-mailul":"Send the email","Am trimis un e-mail nou":"New email sent","Ai cerut prea multe e-mailuri. Încearcă din nou peste un minut.":"You've asked for too many emails. Try again in a minute.","Nu am putut trimite e-mailul. Verifică adresa și încearcă din nou.":"Couldn't send the email. Check the address and try again.","Nu am putut trimite e-mailul. Verifică internetul.":"Couldn't send the email. Check your internet connection.","Linkul de conectare a expirat sau a fost folosit. Cere altul din Mai mult, Cont.":"The sign-in link has expired or was already used. Ask for another one from More, Account."});
 I18N.r.unshift([/^Am trimis un e-mail la (.+)\. Apasă linkul din el ca să te conectezi\. Dacă e-mailul are un cod, scrie-l aici\. Verifică și dosarul Spam\.$/,"We sent an email to $1. Tap the link in it to sign in. If the email has a code, enter it here. Check your Spam folder too."],[/^Poți cere alt e-mail peste (\d+) secunde\.$/,"You can ask for another email in $1 seconds."]);
 Object.assign(I18N.d,{"LaTimp revine imediat":"LaTimp will be right back","Facem câteva îmbunătățiri. Revenim imediat.":"We're making a few improvements. We'll be right back.","Încearcă din nou":"Try again","Totul e gratuit acum":"Everything is free right now","În această perioadă poți folosi toate funcțiile LaTimp fără abonament. Te anunțăm înainte de orice schimbare.":"For now you can use every LaTimp feature without a subscription. We'll let you know before anything changes.","Abonamentul nu este disponibil încă. Te anunțăm când pornește.":"The subscription isn't available yet. We'll let you know when it starts.","Pachetele de scântei nu sunt disponibile încă.":"Spark packs aren't available yet.","Plata nu este disponibilă încă în versiunea web.":"Payment isn't available yet in the web version.","Accesul prin invitație se încheie la data codului.":"Invitation access ends on the code's date.","Codurile de invitație nu sunt disponibile acum.":"Invitation codes aren't available right now.","Ca să folosești un cod de invitație, ai nevoie de un cont.":"To use an invitation code you need an account.","Codul nu poate fi verificat acum. Conectează-te la internet și încearcă din nou.":"The code can't be checked right now. Connect to the internet and try again.","Recomandările nu sunt disponibile acum.":"Referrals aren't available right now.","Ai nevoie de internet pentru recomandări.":"Referrals need the internet.","Ai primit un cod de la un prieten?":"Got a code from a friend?","Folosește codul":"Use the code","Codurile de la prieteni sunt pentru conturile noi.":"Friend codes are for new accounts.","Prea multe încercări. Mai așteaptă un minut.":"Too many attempts. Wait a minute."});
+Object.assign(I18N.d,{"Telefonul sau browserul acesta nu primește notificări de la aplicații web.":"This phone or browser doesn't receive notifications from web apps.","Ca să primești memento-uri pe telefon, ai nevoie de un cont. Așa știe serverul când să ți le trimită.":"To get reminders on your phone you need an account. That's how the server knows when to send them.","Ai nevoie de internet ca să pornești notificările.":"You need the internet to turn on notifications.","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului.":"Notifications are blocked for LaTimp. Turn them on in your phone's settings.","Notificările nu au fost pornite.":"Notifications weren't turned on.","Notificările sunt pornite":"Notifications are on","Nu am putut porni notificările. Încearcă din nou.":"Couldn't turn on notifications. Try again.","Notificările pe acest telefon sunt oprite":"Notifications on this phone are off","Notificări pe iPhone":"Notifications on iPhone","Pe iPhone, notificările merg doar după ce adaugi LaTimp pe ecranul principal.":"On iPhone, notifications work only after you add LaTimp to your Home Screen.","Deschide LaTimp de pe ecranul principal și pornește notificările din Mai mult, Notificări.":"Open LaTimp from the Home Screen and turn on notifications in More, Notifications.","Ți-am trimis o notificare de test":"We sent you a test notification","Nu am putut afișa notificarea":"Couldn't show the notification","Memento-urile vin ca notificări, chiar și cu aplicația închisă.":"Reminders arrive as notifications, even with the app closed.","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului (Aplicații, LaTimp sau browserul, Notificări).":"Notifications are blocked for LaTimp. Turn them on in your phone's settings (Apps, LaTimp or the browser, Notifications).","Pe iPhone, notificările merg după ce adaugi LaTimp pe ecranul principal.":"On iPhone, notifications work after you add LaTimp to your Home Screen.","Browserul acesta nu primește notificări de la aplicații web.":"This browser doesn't receive notifications from web apps.","Cum fac":"How to","Oprește":"Turn off"});
 </script>
 <script>
 /* ---------- Opțiuni dezvoltator (doar administratori) ---------- */
