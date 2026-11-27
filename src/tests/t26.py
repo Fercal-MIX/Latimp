@@ -28,7 +28,11 @@ async def mk(b,items,signed=True,pre="",geo=None):
     p=await c.new_page();errs=[];p.on("pageerror",lambda e:errs.append(str(e)))
     await p.goto(U);await p.wait_for_timeout(2500)
     return c,p,errs
-OVP={"elements":[{"type":"way","id":1,"center":{"lat":44.4371,"lon":26.1027},"tags":{"leisure":"park","name":"Parcul Test"}},{"type":"node","id":2,"lat":44.4400,"lon":26.1100,"tags":{"amenity":"cinema","name":"Cinema Lumina","website":"https://cinema.example","opening_hours":"Mo-Su 10:00-23:00"}},{"type":"node","id":3,"lat":44.4362,"lon":26.1030,"tags":{"leisure":"playground"}},{"type":"node","id":4,"lat":44.45,"lon":26.12,"tags":{"amenity":"bar","name":"Bar X"}},{"type":"node","id":5,"lat":44.4400,"lon":26.1100,"tags":{"amenity":"cinema","name":"Cinema Lumina"}}]}
+def _f(n,k,v,la,lo):
+    p={"osm_key":k,"osm_value":v}
+    if n: p["name"]=n
+    return {"type":"Feature","properties":p,"geometry":{"type":"Point","coordinates":[lo,la]}}
+OVP={"type":"FeatureCollection","features":[_f("Parcul Test","leisure","park",44.4371,26.1027),_f("Cinema Lumina","amenity","cinema",44.4400,26.1100),_f(None,"leisure","playground",44.4362,26.1030),_f("Bar X","amenity","bar",44.45,26.12),_f("Cinema Lumina","amenity","cinema",44.4400,26.1100)]}
 async def main():
     global CFG
     srv=subprocess.Popen(["python3","-m","http.server","8775","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
@@ -138,8 +142,9 @@ async def main():
             chk("bio: platform authenticator, verification required",await p.evaluate("__bio.copt.publicKey.authenticatorSelection.authenticatorAttachment=='platform'&&__bio.copt.publicKey.authenticatorSelection.userVerification=='required'"))
             await p.evaluate("lockPut({s:'c'.repeat(32),h:'d'.repeat(64),b:true,t:0})")
             chk("bio: PIN change keeps credential",await p.evaluate("lockGet().cid")=="AQID")
-            await p.evaluate("lockShow('lock')");await p.wait_for_timeout(300)
-            chk("bio: button on lock screen",await p.locator("#lk button:has-text('Amprentă')").count()==1)
+            await p.evaluate("__bio.fail=true;__bio.g=0;lockShow('lock')");await p.wait_for_timeout(800)
+            chk("bio: asks the sensor by itself when locked",await p.evaluate("__bio.g")==1)
+            chk("bio: button on lock screen",await p.locator("#lk button:has-text('Amprentă sau față')").count()==1)
             await p.evaluate("__bio.fail=true");await p.click("#lk button:has-text('Amprentă')");await p.wait_for_timeout(300)
             chk("bio: failure keeps lock",await p.locator("#lk").count()==1 and "Scrie PIN-ul" in await p.inner_text("#lk"))
             await p.evaluate("__bio.fail=false");await p.click("#lk button:has-text('Amprentă')");await p.wait_for_timeout(300)
@@ -153,9 +158,9 @@ async def main():
             c,p,e=await mk(b,[],geo={"latitude":44.4361,"longitude":26.1027})
             seen=[]
             async def ovp(r):
-                seen.append(r.request.post_data or "")
+                seen.append(r.request.url)
                 await r.fulfill(status=200,content_type="application/json",headers={"Access-Control-Allow-Origin":"*"},body=json.dumps(OVP))
-            await c.route("**/overpass-api.de/**",ovp)
+            await c.route("**/photon.komoot.io/**",ovp)
             await p.evaluate("tab('free');FSEG='near';render()");await p.wait_for_timeout(300)
             t=await p.inner_text("#main")
             chk("near: no placeholder","Nu este disponibil încă" not in t and "Folosește locația mea" in t,t[:300])
@@ -165,7 +170,8 @@ async def main():
             chk("near: places listed","Parcul Test" in t and "Cinema Lumina" in t and "Loc de joacă" in t,t[:600])
             chk("near: unknown kinds dropped","Bar X" not in t)
             chk("near: duplicates merged",t.count("Cinema Lumina")==1)
-            chk("near: rounded position sent",seen and "44.44" in __import__("urllib.parse").parse.unquote_plus(seen[0]) and "44.4361" not in __import__("urllib.parse").parse.unquote_plus(seen[0]),seen[:1])
+            qq=__import__("urllib.parse").parse.unquote_plus(seen[0]) if seen else ""
+            chk("near: rounded position sent","lat=44.44&lon=26.1&" in qq and "44.4361" not in qq and "osm_tag=leisure:park" in qq,qq[:200])
             chk("near: attribution","OpenStreetMap" in t)
             chk("near: distance shown",("m" in t) and ("110 m" in t or "100 m" in t or "150 m" in t),t[:400])
             await p.click("#main .chips button:has-text('Cinematografe')");await p.wait_for_timeout(300)
@@ -173,11 +179,12 @@ async def main():
             chk("near: filter","Cinema Lumina" in t and "Parcul Test" not in t)
             await p.click("#main .grp button:has-text('Salvează')");await p.wait_for_timeout(300)
             chk("near: saved to Saved",await p.evaluate("S.saved.some(x=>x.t=='Cinema Lumina'&&/Cinematograf/.test(x.d))"))
-            await p.unroute("**/overpass-api.de/**");await c.route("**/overpass-api.de/**",lambda r:r.abort());await c.route("**/overpass.kumi.systems/**",lambda r:r.abort())
-            await p.evaluate("window.__fn.near=async(b)=>({at:'2026-11-27',items:[{n:'Muzeul Server',c:'museum',la:44.44,lo:26.1,m:500,o:'',w:''}],_b:b})")
-            await p.click("#main button:has-text('Caută din nou de aici')");await p.wait_for_timeout(1500)
+            await c.unroute("**/photon.komoot.io/**");await c.route("**/photon.komoot.io/**",lambda r:r.abort())
+            await p.evaluate("window.__rpc.near_start=async(a)=>{window.__ns=a;return{status:'wait'}};window.__rpc.near_poll=async()=>({status:'ok',data:{at:'2026-11-27',items:[{n:'Muzeul Server',c:'museum',la:44.44,lo:26.1,m:500,o:'',w:''}]}})")
+            await p.click("#main button:has-text('Caută din nou de aici')");await p.wait_for_timeout(3500)
             chk("near: server fallback","Muzeul Server" in await p.inner_text("#main"))
-            await p.evaluate("delete window.__fn.near");await p.evaluate("NEAR=null;render()")
+            chk("near: server gets rounded position",await p.evaluate("window.__ns&&__ns.p_lat==44.44&&__ns.p_lon==26.1"))
+            await p.evaluate("delete window.__rpc.near_start;delete window.__rpc.near_poll");await p.evaluate("NEAR=null;render()")
             await p.click("#main button:has-text('Folosește locația mea')");await p.wait_for_timeout(1500)
             t=await p.inner_text("#main")
             chk("near: clear error when all fail","Nu am putut încărca locurile" in t,t[:400])
@@ -195,6 +202,12 @@ async def main():
             await p.click("#main button[aria-label='Memento-uri pe e-mail']");await p.wait_for_timeout(2600)
             rp=await p.evaluate("window.__rp")
             chk("mail: schedule sent with mail flag",await p.evaluate("S.nt.mail===true") and rp and rp[-1] and all(x.get("mail") is True for x in rp[-1]) and len(rp[-1])>0,rp[-1:] if rp else rp)
+            await p.evaluate(f"S.items=[{{id:'c1',g:'auto',t:'itp',n:'B 1 XYZ',d:{plus}(1)}}];S.nt.d=7;S.nt.day=false;store()")
+            cu=await p.evaluate("remPlan()")
+            chk("reminder: catch-up when the early reminder already passed",len(cu)==1 and ("mâine" in cu[0]["body"] or "azi" in cu[0]["body"]) and await p.evaluate("(s=>new Date(s)>new Date())(%s)"%json.dumps(cu[0]["at"])),cu)
+            await p.evaluate(f"S.items=[{{id:'c2',g:'auto',t:'itp',n:'B 2 XYZ',d:{plus}(30)}}];store()")
+            cu=await p.evaluate("remPlan()")
+            chk("reminder: normal 7 days before, no extra",len(cu)==1 and "7 zile" in cu[0]["body"],cu)
             chk("no errors 6",not e,e)
             await c.close()
             await b.close()

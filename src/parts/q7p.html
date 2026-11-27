@@ -14,7 +14,12 @@ function pushState(){
 /* programul: următoarele 60 de zile, câte o notificare pe oră de memento (termenele din aceeași oră se adună) */
 function remPlan(){
  const now=Date.now(),end=now+60*DAY,by={},en=S.lang=="en",pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0;
- S.items.filter(x=>!x.ex&&okDate(x.d)).forEach(x=>remDays(x).forEach(k=>{const t=+remAt(x.d,k);if(t<=now+60000||t>end||t<pz)return;(by[t]=by[t]||[]).push([x,k])}));
+ S.items.filter(x=>!x.ex&&okDate(x.d)).forEach(x=>{let miss=false,has=false;
+  remDays(x).forEach(k=>{const t=+remAt(x.d,k);if(t<=now+60000){if(k>0)miss=true;return}if(t>end||t<pz)return;if(k>0)has=true;(by[t]=by[t]||[]).push([x,k])});
+  /* termen adăugat prea aproape: memento-ul „cu N zile înainte” a trecut deja, deci vine unul la următoarea oră a memento-urilor, dacă e încă înainte de termen */
+  if(miss&&!has){const due=pd(x.d),[h,m]=ntH().split(":").map(Number),s=new Date();s.setHours(h,m,0,0);if(+s<=now+60000)s.setDate(s.getDate()+1);
+   const s0=new Date(s);s0.setHours(0,0,0,0);const k=Math.round((+due-+s0)/DAY),t=+s;
+   if(k>=0&&t<=end&&t>=pz&&!(by[t]||[]).some(y=>y[0]===x))(by[t]=by[t]||[]).push([x,k])}});
  return Object.keys(by).map(Number).sort((a,b)=>a-b).slice(0,200).map(t=>{
   const l=by[t].sort((a,b)=>a[1]-b[1]),[x,k]=l[0],nd=nice(x.d).replace(/\.$/,""),m=l.length-1;
   const b=en?(k==0?"Due today.":"Due "+(k==1?"tomorrow":"in "+k+" days")+", on "+nd+".")+(m>0?" And "+m+" more.":""):(k==0?"Termenul e azi.":"Termenul e "+(k==1?"mâine":"în "+k+" zile")+", pe "+nd+".")+(m>0?" Și încă "+m+(m==1?" termen.":" termene."):"");

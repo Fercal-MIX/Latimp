@@ -101,6 +101,8 @@ if(WEB){
   if(!o||!o.cid){lockDraw("Scrie PIN-ul.");return}
   try{if(await bioCheck(o.cid)){lockHide();remCheck();return}}catch(e){}
   lockDraw("Nu am putut verifica. Scrie PIN-ul.")};
+ const ls0=lockShow;lockShow=function(mode){ls0(mode);const o=lockGet();if((mode||"lock")=="lock"&&o&&o.b&&o.cid&&BIOAV&&$("lk"))setTimeout(()=>{if($("lk")&&LKM=="lock"&&!LKIN)lockBio()},350)};
+ const ld0=lockDraw;lockDraw=function(msg){ld0(msg);const b=document.querySelector('#lk button[onclick="lockBio()"]');if(b)b.textContent="Amprentă sau față"};
  const lr0=lockRows;lockRows=function(){return lr0().replace("În prototip, butonul doar simulează amprenta.",BIOAV?"Folosește senzorul telefonului. PIN-ul rămâne varianta de rezervă.":"Nu e disponibilă pe acest telefon sau în acest browser.")};
 }
 
@@ -112,24 +114,28 @@ const NC1={park:"Parc",play:"Loc de joacă",museum:"Muzeu sau galerie",cinema:"C
 const kmTxt=m=>m<1000?Math.max(50,Math.round(m/50)*50)+" m":(m/1000).toFixed(m<10000?1:0).replace(".",",")+" km";
 function nearDist(x){if(!NPOS)return x.m;const r=Math.PI/180,a=(x.lo-NPOS.lo)*r*Math.cos((x.la+NPOS.la)/2*r),b=(x.la-NPOS.la)*r;return Math.round(Math.sqrt(a*a+b*b)*6371000)}
 function nearList(){return NEAR&&Array.isArray(NEAR.items)?NEAR.items.map((x,i)=>({...x,i,d:nearDist(x)})).filter(x=>NC[x.c]).sort((a,b)=>a.d-b.d):[]}
-/* căutarea în OpenStreetMap (Overpass), direct de pe telefon; dacă serverele publice sunt ocupate, încearcă prin serverul nostru */
-const OVP=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
-function ovpQuery(la,lo){const a=r=>`(around:${r},${la},${lo})`;return `[out:json][timeout:25];(nwr["leisure"="park"]["name"]${a(3000)};nwr["leisure"="garden"]["name"]["access"!~"private"]${a(3000)};nwr["leisure"="playground"]${a(1500)};nwr["tourism"~"^(museum|gallery)$"]["name"]${a(6000)};nwr["amenity"~"^(cinema|theatre)$"]["name"]${a(6000)};nwr["tourism"="zoo"]["name"]${a(15000)};nwr["leisure"="water_park"]["name"]${a(15000)};nwr["leisure"="swimming_pool"]["name"]["access"!~"private|customers|no"]${a(6000)};nwr["leisure"="sports_centre"]["sport"~"swimming"]["name"]${a(6000)};nwr["tourism"="viewpoint"]["name"]${a(8000)};nwr["amenity"="library"]["name"]${a(3000)};);out center tags 400;`}
-function ovpCat(t){return t.leisure=="playground"?"play":t.leisure=="park"||t.leisure=="garden"?"park":t.tourism=="museum"||t.tourism=="gallery"?"museum":t.amenity=="cinema"?"cinema":t.amenity=="theatre"?"theatre":t.tourism=="zoo"||t.leisure=="water_park"?"zoo":t.leisure=="swimming_pool"||t.leisure=="sports_centre"?"pool":t.tourism=="viewpoint"?"view":t.amenity=="library"?"library":null}
-function ovpParse(raw,la,lo){
- const seen=new Set(),per={},P={la,lo};
- return(Array.isArray(raw&&raw.elements)?raw.elements:[]).map(e=>{const t=e.tags||{},c=ovpCat(t),p=e.center||(e.lat!=null?{lat:e.lat,lon:e.lon}:null);if(!c||!p)return null;
-   const n=String(t["name:ro"]||t.name||(c=="play"?"Loc de joacă":"")).trim().slice(0,80);if(!n)return null;
-   const x={n,c,la:Math.round(p.lat*1e5)/1e5,lo:Math.round(p.lon*1e5)/1e5,o:String(t.opening_hours||"").slice(0,80),w:okUrl(t.website||"")?String(t.website).slice(0,200):""};
-   const r=Math.PI/180,a=(x.lo-P.lo)*r*Math.cos((x.la+P.la)/2*r),b=(x.la-P.la)*r;x.m=Math.round(Math.sqrt(a*a+b*b)*6371000);return x})
-  .filter(x=>{if(!x)return false;const k=x.c+"|"+x.n.toLowerCase()+"|"+Math.round(x.la*500)+","+Math.round(x.lo*500);if(seen.has(k))return false;seen.add(k);return true})
+/* căutarea în OpenStreetMap prin Photon (komoot): două cereri, locurile cele mai apropiate de poziția rotunjită; dacă nu răspunde, prin serverul nostru */
+const PHQ=[["leisure:park","leisure:garden","leisure:playground"],["tourism:museum","tourism:gallery","amenity:cinema","amenity:theatre","tourism:zoo","leisure:water_park","leisure:swimming_pool","tourism:viewpoint","amenity:library"]];
+function phCat(k,v){const t={};t[k]=v;return ovpCat(Object.assign(t,{name:"x"}))}
+function ovpCat(t){if(t.leisure=="sports_centre"&&!/swim/.test(t.sport||""))return null;if((t.leisure=="garden"||t.leisure=="swimming_pool")&&/^(private|customers|no)$/.test(t.access||""))return null;return t.leisure=="playground"?"play":t.leisure=="park"||t.leisure=="garden"?"park":t.tourism=="museum"||t.tourism=="gallery"?"museum":t.amenity=="cinema"?"cinema":t.amenity=="theatre"?"theatre":t.tourism=="zoo"||t.leisure=="water_park"?"zoo":t.leisure=="swimming_pool"||t.leisure=="sports_centre"?"pool":t.tourism=="viewpoint"?"view":t.amenity=="library"?"library":null}
+function phParse(fs,la,lo){
+ const seen=new Set(),per={};
+ return fs.map(f=>{const p=f&&f.properties||{},g=f&&f.geometry&&f.geometry.coordinates;if(!Array.isArray(g)||g.length<2)return null;const c=phCat(String(p.osm_key||""),String(p.osm_value||""));if(!c)return null;
+   const n=String(p.name||(c=="play"?"Loc de joacă":"")).trim().slice(0,80);if(!n)return null;
+   const x={n,c,la:Math.round(+g[1]*1e5)/1e5,lo:Math.round(+g[0]*1e5)/1e5,o:"",w:""};const r=Math.PI/180,a=(x.lo-lo)*r*Math.cos((x.la+la)/2*r),b=(x.la-la)*r;x.m=Math.round(Math.sqrt(a*a+b*b)*6371000);return x})
+  .filter(x=>{if(!x||x.m>4000)return false;const k=x.c+"|"+x.n.toLowerCase()+"|"+Math.round(x.la*500)+","+Math.round(x.lo*500);if(seen.has(k))return false;seen.add(k);return true})
   .sort((a,b)=>a.m-b.m).filter(x=>(per[x.c]=(per[x.c]||0)+1)<=(x.c=="play"?8:12))}
 async function ovpDirect(la,lo){
- for(const ep of OVP){
-  try{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),22000);
-   const r=await fetch(ep,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(ovpQuery(la,lo)),signal:ctl.signal});clearTimeout(tm);
-   if(r.ok){const j=await r.json();return ovpParse(j,la,lo)}}catch(e){}}
- return null}
+ try{const all=[];
+  for(const tags of PHQ){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),10000);
+   const u="https://photon.komoot.io/reverse?lat="+la+"&lon="+lo+"&radius=4&limit=40&"+tags.map(t=>"osm_tag="+encodeURIComponent(t)).join("&");
+   const r=await fetch(u,{signal:ctl.signal});clearTimeout(tm);if(!r.ok)return null;const j=await r.json();if(!j||!Array.isArray(j.features))return null;all.push(...j.features)}
+  return phParse(all,la,lo)}catch(e){return null}}
+/* rezerva prin serverul nostru: cererea pleacă de pe server, rezultatul vine în câteva secunde */
+async function nearSrv(la,lo){
+ try{let{data,error}=await SB.rpc("near_start",{p_lat:la,p_lon:lo});if(error||!data)return null;
+  for(let i=0;i<14&&data.status=="wait";i++){await new Promise(r=>setTimeout(r,1500));({data,error}=await SB.rpc("near_poll",{p_lat:la,p_lon:lo}));if(error||!data)return null}
+  return data.status=="ok"&&data.data&&Array.isArray(data.data.items)?data.data.items:null}catch(e){return null}}
 async function nearGo(){
  if(NBUSY)return;
  if(!("geolocation" in navigator)){NERR="Telefonul sau browserul nu oferă locația.";render();return}
@@ -139,7 +145,7 @@ async function nearGo(){
   const p=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(ok,no,{enableHighAccuracy:false,timeout:15000,maximumAge:600000}));
   NPOS={la:p.coords.latitude,lo:p.coords.longitude};
   const la=Math.round(NPOS.la*100)/100,lo=Math.round(NPOS.lo*100)/100;let items=await ovpDirect(la,lo);
-  if(!items&&SB){try{const{data,error}=await SB.functions.invoke("near",{body:{lat:la,lon:lo}});if(!error&&data&&Array.isArray(data.items))items=data.items}catch(e){}}
+  if(!items&&SB)items=await nearSrv(la,lo);
   if(!items)throw new Error("srv");
   NEAR={at:new Date().toISOString().slice(0,10),items:items.slice(0,150).map(x=>({n:clip(x.n,80),c:String(x.c||""),la:+x.la||0,lo:+x.lo||0,m:+x.m||0,o:clip(x.o,80),w:okUrl(x.w)?String(x.w).slice(0,200):""})).filter(x=>x.n&&NC[x.c])};
   lsSet("latimp.near",NEAR);NCAT="";tap("near_go")}
