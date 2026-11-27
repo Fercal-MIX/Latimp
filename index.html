@@ -2681,7 +2681,7 @@ function legalFill(s,lg,v){return s.replace(/\{op\}/g,v.op).replace(/\{ad\}/g,v.
 /* HTML pentru o secțiune; folosit și la construirea paginilor publice */
 function legalHtml(k,lg,v,tag){tag=tag||"h3";return LEGAL[k][lg].map(([h,b])=>`<${tag}>${h}</${tag}>`+(Array.isArray(b)?(b.length>1?`<ul>${b.map(x=>`<li>${legalFill(x,lg,v)}</li>`).join("")}</ul>`:`<p>${legalFill(b[0],lg,v)}</p>`):`<p>${legalFill(b,lg,v)}</p>`)).join("")}
 function legalVals(lg){const L=(typeof CFGW!="undefined"&&CFGW&&CFGW.legal)||{},f=(typeof CFG!="undefined"&&CFG.f)||{},F=LEGAL_FILL[lg],t=x=>esc(String(x||"").trim().slice(0,200));
- return{op:t(L.operator||f.co_n)||(lg=="en"?"the operator of the LaTimp app":"operatorul aplicației LaTimp")+" "+F,ad:(a=>a?(lg=="en"?", registered at ":", cu sediul la ")+a:"")(t(L.address||f.co_a)),ml:t(L.email||f.mail)||F}}
+ return{op:(o=>lg=="en"?o.replace("(persoană fizică)","(private individual)"):o)(t(L.operator||f.co_n))||(lg=="en"?"the operator of the LaTimp app":"operatorul aplicației LaTimp")+" "+F,ad:(a=>a?(lg=="en"?", registered at ":", cu sediul la ")+a:"")(t(L.address||f.co_a)),ml:t(L.email||f.mail)||F}}
 legalTxt=function(k){const lg=S.lang=="en"?"en":"ro";return legalHtml(k=="priv"?"priv":"terms",lg,legalVals(lg))};
 legal=function(k){
  const en=S.lang=="en",t=k=="priv"?(en?"Privacy policy":"Politica de confidențialitate"):(en?"Terms and conditions":"Termeni și condiții");
