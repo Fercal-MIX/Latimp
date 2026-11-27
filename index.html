@@ -384,7 +384,7 @@ html{-webkit-tap-highlight-color:transparent}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.9.1",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.10",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -2508,6 +2508,166 @@ if(WEB){
 }
 </script>
 <script>
+/* ---------- Legături cu panoul (doar în versiunea web): erori, rapoarte cu răspuns, statistici, conținut ---------- */
+let CNT=lsGet("latimp.cnt"),RPL=[],ERQ=[],ERN=0;
+const plat=()=>"web-"+(isIOS()?"ios":/android/i.test(navigator.userAgent||"")?"android":"desktop")+(standalone()?"-app":"");
+/* erorile neprinse ajung în fila Erori din panou (fără date personale: doar mesajul tehnic) */
+function errSend(m,st){
+ if(!WEB)return;m=String(m||"").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,"[e-mail]").slice(0,500);if(!m||ERN>=10)return;
+ if(ERQ.some(e=>e.message==m))return;ERN++;
+ const row={ver:VER,platform:plat(),screen:(TAB||"")+"/"+(VIEW||""),message:m,stack:String(st||"").slice(0,2000)};ERQ.push(row);errFlush()}
+async function errFlush(){if(!SB)return;while(ERQ.length){const r=ERQ.shift();try{await SB.from("app_errors").insert(r)}catch(e){}}}
+if(WEB){
+ addEventListener("error",e=>{if(e&&e.message&&!/^Script error/.test(e.message))errSend(e.message,e.error&&e.error.stack||(e.filename||"")+":"+(e.lineno||""))});
+ addEventListener("unhandledrejection",e=>{const r=e&&e.reason;if(!r)return;const m=r.message||String(r);if(/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m))return;errSend(m,r.stack||"")});
+}
+/* conținutul din panou: provocarea lunii, ideile de rezervă, propuneri pentru liste */
+async function cntLoad(){if(!SB)return;try{const{data}=await SB.from("app_config").select("value").eq("key","content").maybeSingle();if(data&&data.value){CNT=data.value;lsSet("latimp.cnt",CNT);soft()}}catch(e){}}
+const cntCh=()=>{const c=CNT&&CNT.challenge;return c&&c.month==mKey()&&(c.title||c.text)?c:null};
+const cntFb=()=>{const a=CNT&&Array.isArray(CNT.fallback_ideas)?CNT.fallback_ideas:[];return a.map(x=>typeof x=="string"?{t:x,d:"",c:"",m:""}:x&&typeof x=="object"?{t:String(x.t||x.title||x.name||""),d:String(x.d||x.text||x.desc||""),c:"",m:""}:null).filter(x=>x&&x.t).map(x=>({t:x.t.slice(0,80),d:x.d.slice(0,240),c:"",m:""}))};
+const cntTl=()=>(CNT&&Array.isArray(CNT.try_lists)?CNT.try_lists:[]).filter(l=>l&&l.name&&Array.isArray(l.items)&&l.items.length).slice(0,6);
+if(WEB){
+ const ch0=chCard;
+ chCard=function(){let h=ch0();const c=cntCh();if(!c)return h;const t=esc(String(c.title||"").slice(0,60)),x=esc(String(c.text||"").slice(0,200));
+  const st=Array.isArray(c.steps)&&c.steps.length?`<ul class="f" style="margin:8px 0 0">${c.steps.slice(0,5).map(s=>`<li>${esc(String(s).slice(0,100))}</li>`).join("")}</ul>`:"";
+  h=h.replace("Ceva nou luna asta: un loc, o activitate, o rețetă.",(t?"<strong>"+t+"</strong>. ":"")+x);
+  h=h.replace("O ieșire sau o activitate pe care n-ai mai făcut-o. Bifezi când ai făcut-o. Fără notificări.",(t?"Luna asta: <strong>"+t+"</strong>. ":"")+"O ieșire sau o activitate pe care n-ai mai făcut-o. Bifezi când ai făcut-o. Fără notificări.");
+  if(st&&S.ch&&S.ch.on){const i=h.indexOf('<div class="acts">');if(i>0)h=h.slice(0,i)+st+h.slice(i)}
+  return h};
+ const fb0=fallback;fallback=function(){const a=cntFb();if(!a.length)return fb0();const s=a.slice();for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]]}return s.slice(0,6)};
+ const lv0=listsView;
+ listsView=function(){let h=lv0();const L=cntTl();if(!L.length)return h;const have=new Set((S.tl||[]).map(x=>String(x.n).toLowerCase()));
+  const blk=L.map((l,i)=>{const it=l.items.map((x,j)=>[String(x).slice(0,80),j]).filter(([x])=>x&&!have.has(x.toLowerCase())).slice(0,12);return it.length?`<div class="sgl"><div class="mu sm">${esc(String(l.name).slice(0,60))}</div><div class="chips">${it.map(([x,j])=>`<button onclick="tlPick(${i},${j})" aria-label="Adaugă ${esc(x)}">+ ${esc(x)}</button>`).join("")}</div></div>`:""}).join("");
+  return blk?h+`<div class="gt">Propuneri pentru liste</div><div class="card">${blk}<div class="note">Atinge o propunere ca s-o pui în lista deschisă acum.</div></div>`:h};
+}
+function tlPick(i,j){const l=cntTl()[i],n=l&&String(l.items[j]||"").slice(0,80);if(!n)return;S.tl=Array.isArray(S.tl)?S.tl:[];if(S.tl.length>=300){toast("Lista e plină. Șterge ce ai încercat.");return}S.tl.unshift({id:uid(),k:TLF,n,dn:false});save();render();toast("Adăugat la "+((TLK.find(k=>k[0]==TLF)||TLK[0])[1]).toLowerCase())}
+/* rapoarte: se trimit în fila Rapoarte din panou, cu captură opțională; răspunsurile apar în aplicație */
+const RKS={"Problemă":"bug","Idee":"idea","Altceva":"other"};
+if(WEB){
+ drawReport=function(msg){
+  const can=!!(SB&&SBU);
+  let h=`<h2>Raportează o problemă</h2><div class="mu">Spune-ne ce n-a mers sau ce ți-ar plăcea să existe.</div><div class="chips">${["Problemă","Idee","Altceva"].map(k=>`<button class="${RK==k?"on":""}" onclick="repGrab();RK='${k}';drawReport()">${k}</button>`).join("")}</div><label for="rt">Descriere</label><textarea id="rt" maxlength="1000" placeholder="Ce ai făcut și ce s-a întâmplat?">${esc(RTXT)}</textarea>`;
+  if(can)h+=`<label for="rs">Captură de ecran (opțional)</label><input id="rs" type="file" accept="image/png,image/jpeg,image/webp" onchange="repShot(this.files[0])"><div class="note" id="rss">${SHOT?"Captură atașată ("+Math.round(SHOT.size/1024)+" KB)":""}</div><div class="sg"><b>Atenție la datele personale</b>Captura poate conține nume, numere sau adrese. Acoperă-le înainte. O vede doar echipa aplicației.</div>`;
+  else h+=`<div class="note">${SB?"Ca să trimiți un raport și să primești răspuns, conectează-te la cont.":"Trimiterea are nevoie de internet."}</div>`;
+  if(msg)h+=`<div class="note dg" role="alert">${esc(msg)}</div>`;
+  openSheet(h+`<div style="margin-top:14px">${can?`<button class="btn" onclick="repSend()"${RBUSY?" disabled":""}>${RBUSY?"Se trimite…":"Trimite raportul"}</button>`:SB?`<button class="btn" onclick="repGrab();acctOpen('Ca să trimiți un raport și să primești răspuns, ai nevoie de un cont.',()=>drawReport())">Conectează-te</button>`:""}<button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"rep")};
+ repSend=async function(){
+  repGrab();const tx=RTXT.trim();
+  if(tx.length<5){toast("Scrie câteva cuvinte");return}
+  if(Date.now()-LASTR<20000){toast("Așteaptă puțin înainte de alt raport");return}
+  RBUSY=true;drawReport();
+  try{
+   let sp=null;
+   if(SHOT){try{const p=SBU.id+"/"+Date.now().toString(36)+(SHOT.type=="image/png"?".png":".jpg");const{error}=await SB.storage.from("report-shots").upload(p,SHOT,{contentType:SHOT.type||"image/jpeg",upsert:false});if(!error)sp=p}catch(e){}}
+   const{error}=await SB.from("reports").insert({user_id:SBU.id,kind:RKS[RK]||"other",body:tx.slice(0,2000),meta:{v:VER,tab:TAB,w:innerWidth+"x"+innerHeight,lang:S.lang||"ro",platform:plat()},shot_path:sp});
+   if(error)throw error;
+   LASTR=Date.now();RBUSY=false;const nos=SHOT&&!sp;SHOT=null;closeSheet();toast(nos?"Raport trimis, dar fără captură":"Raport trimis, mulțumim. Răspunsul apare în Mai mult.")}
+  catch(e){RBUSY=false;drawReport(e&&/Prea multe/.test(e.message||"")?"Ai trimis multe rapoarte în ultima oră. Încearcă mai târziu.":"Nu am putut trimite raportul. Încearcă din nou.")}};
+}
+async function rplLoad(){if(!SB||!SBU){RPL=[];return}try{const{data}=await SB.from("reports").select("id,kind,body,reply,replied_at,created_at").not("reply","is",null).order("replied_at",{ascending:false}).limit(20);RPL=Array.isArray(data)?data.filter(r=>r.reply):[];softMore()}catch(e){}}
+const rplNew=()=>RPL.filter(r=>!S.rps||String(r.replied_at)>String(S.rps)).length;
+function rplOpen(){
+ openSheet(`<h2>Răspunsuri la rapoarte</h2>${RPL.map(r=>`<div class="card" style="margin-top:12px"><div class="mu sm">Ai scris${r.created_at?" pe "+esc(nice(String(r.created_at).slice(0,10)).replace(/\.$/,"")):""}:</div><div style="margin:4px 0 10px">${esc(String(r.body).slice(0,300))}</div><div class="mu sm">Răspunsul echipei:</div><div>${esc(String(r.reply).slice(0,1000))}</div></div>`).join("")}<button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"rpl");
+ if(RPL.length){S.rps=RPL[0].replied_at;store();softMore()}}
+if(WEB){
+ const mo1=more;
+ more=function(){const h=mo1();if(VIEW!="main"||!RPL.length)return h;const n=rplNew(),i=h.indexOf('<div class="gt">');
+  const c=`<button class="card rowc" onclick="rplOpen()"><span><strong>${n?"Ai "+(n==1?"un răspuns nou":n+" răspunsuri noi"):"Răspunsuri la rapoarte"}</strong><span class="mu"> · de la echipa LaTimp</span></span><span class="mu" aria-hidden="true">›</span></button>`;
+  return i<0?h+c:h.slice(0,i)+c+h.slice(i)};
+}
+/* statistici de folosire, doar cu acordul din Mai mult (fără conținutul agendei) */
+const ustSync=writer(async()=>{
+ if(!WEB||!SB||!SBU)return;
+ if(!S.stats){if(ustSync.on){try{await SB.from("usage_stats").delete().eq("user_id",SBU.id)}catch(e){}ustSync.on=false}return}
+ const s=S.st||{},t=s.taps||{},a=typeof accNow=="function"?accNow():{},d={v:VER,platform:plat(),first:s.first||"",days:Object.keys(s.days||{}).length,items:S.items.filter(x=>!x.ex).length,adds:s.adds||0,reads:s.reads||0,push:S.nt&&S.nt.push?1:0,lang:S.lang||"ro"};
+ Object.keys(t).slice(0,40).forEach(k=>{if(/^[a-z_]{2,24}$/.test(k)&&+t[k]>0)d[k]=+t[k]});
+ if(a.ab&&a.ab.group)d.ab=a.ab.group;
+ const j=JSON.stringify(d);if(j==ustSync.last)return;
+ try{const{error}=await SB.from("usage_stats").upsert({user_id:SBU.id,data:d,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(!error){ustSync.last=j;ustSync.on=true}}catch(e){}},8000);
+if(WEB){
+ const sv3=save;save=function(){sv3();ustSync()};
+ const aL2=accLoad;accLoad=async function(){await aL2();errFlush();cntLoad();rplLoad();ustSync.last="";ustSync.on=true;ustSync()};
+}
+</script>
+<style>.sgl+.sgl{margin-top:10px;padding-top:10px;border-top:1px solid var(--ln)}</style>
+<script>
+/* ---------- Vot cu prietenii și familie prin Supabase (doar în versiunea web) ---------- */
+const onCloud=()=>!!(SB&&SBU);
+/* vot: votul tău se citește la intrarea în Salvate și la fiecare 30 de secunde cât stai acolo */
+async function pvLoad(){
+ if(!onCloud()||!S.poll)return;
+ try{const{data,error}=await SB.from("poll_votes").select("opt,tm,name").eq("poll_owner",SBU.id);if(error)throw error;
+  const v=(data||[]).map(r=>({o:r.opt,t:r.tm,n:r.name}));if(JSON.stringify(v)!=JSON.stringify(POLLV)){POLLV=v;if(FSEG=="saved"&&TAB=="free")soft()}}catch(e){}}
+if(WEB){
+ pollSub=function(){if(!S.poll||!onCloud())return;if(!pollSub.t){pollSub.t=setInterval(()=>{if(document.visibilityState=="visible"&&TAB=="free"&&FSEG=="saved"&&S.poll)pvLoad()},30000);pvLoad()}};
+ pollNew=function(){
+  if(needAcct("Ca să pornești un vot, ai nevoie de un cont. Așa vezi voturile prietenilor.",pollNew))return;
+  if(!SB){toast("Votul are nevoie de internet");return}
+  const a=(S.saved||[]).slice(0,12);
+  if(a.length<2){toast("Salvează cel puțin două idei, apoi pornește votul");return}
+  openSheet(`<h2>Vot cu prietenii</h2><label>Ideile (2–4)</label>${a.map((x,i)=>`<label class="ck"><input type="checkbox" class="po" value="${i}"${i<2?" checked":""}> ${esc(x.t)}</label>`).join("")}<label>Când (opțional)</label>${PTIMES.map((t,i)=>`<label class="ck"><input type="checkbox" class="pt" value="${i}"> ${t}</label>`).join("")}<div style="margin-top:14px"><button class="btn" id="pm_go" onclick="pollMake()">Creează votul</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div><div class="note">Oricine are codul vede ideile; numele celor care au votat le vezi doar tu.</div>`,"poll")};
+ pollMake=async function(){
+  const o=[...document.querySelectorAll("#sheet .po:checked")].map(e=>(S.saved[+e.value]||{}).t).filter(Boolean).map(t=>String(t).slice(0,80)),t=[...document.querySelectorAll("#sheet .pt:checked")].map(e=>PTIMES[+e.value]);
+  if(o.length<2||o.length>4){toast("Alege între 2 și 4 idei");return}
+  const b=$("pm_go");if(b){b.disabled=true;b.textContent="Se creează…"}
+  try{const{data,error}=await SB.rpc("open_poll",{p_options:o,p_times:t});if(error||!data||!data.code)throw error;
+   S.poll={c:data.code,o,t,at:Date.now()};POLLV=[];save();closeSheet();render();pollCopy()}
+  catch(e){if(b){b.disabled=false;b.textContent="Creează votul"}toast("Nu am putut crea votul. Încearcă din nou.")}};
+ pollEnd=async function(){try{if(onCloud())await SB.from("polls").delete().eq("owner",SBU.id)}catch(e){}S.poll=null;POLLV=[];save();render();toast("Votul s-a închis")};
+ pollFind=async function(){
+  const raw=($("pj_c")||{}).value||"",c=pCode(raw);
+  if(!/^[A-HJ-NP-Z2-9]{8}$/.test(c)){pollJoin("Codul are 8 caractere, de forma XXXX-XXXX.",raw);return}
+  if(needAcct("Ca să votezi, ai nevoie de un cont. Așa fiecare votează o singură dată.",()=>pollJoin("",raw)))return;
+  if(!SB){pollJoin("Votul nu poate fi verificat acum. Conectează-te la internet.",raw);return}
+  try{const{data,error}=await SB.rpc("find_poll",{p_code:c});if(error)throw error;
+   if(!data||!Array.isArray(data.options)||data.options.length<2){pollJoin("Nu am găsit niciun vot cu acest cod.",raw);return}
+   if(data.mine){closeSheet();FSEG="saved";render();toast("Este votul tău. Îl vezi aici, în Salvate.");return}
+   PJ={u:"x",o:data.options.slice(0,4).map(x=>String(x).slice(0,80)),t:(Array.isArray(data.times)?data.times:[]).map(x=>String(x).slice(0,20)),c,sel:0,tm:-1};pollBallot()}
+  catch(e){pollJoin("Nu am putut căuta votul. Încearcă din nou.",raw)}};
+ pollVote=async function(){
+  const p=PJ;if(!p)return;const n=(($("pj_n")||{}).value||"").trim().slice(0,20);
+  if(!n){toast("Scrie-ți numele, ca prietenii să știe cine a votat");return}
+  try{const{data,error}=await SB.rpc("vote_poll",{p_code:p.c,p_opt:p.sel,p_tm:p.tm>=0?p.tm:null,p_name:n});if(error||!data)throw error;
+   if(!data.ok){const E={invalid:"Votul nu mai este disponibil.",own:"Este votul tău. Îl vezi în Salvate.",rate:"Prea multe încercări. Mai așteaptă un minut."};toast(E[data.err]||"Nu am putut trimite votul.");return}
+   PJ=null;closeSheet();toast("Vot trimis")}
+  catch(e){toast("Nu am putut trimite votul. Încearcă din nou.")}};
+}
+/* familie: același pachet criptat pe telefon, păstrat în family_blobs (serverul vede doar amprenta codului) */
+let FAMT=0;
+async function famPull(){
+ if(!onCloud()||!S.fam||!FKEY||!FH)return;const tk=FTK;
+ try{const{data,error}=await SB.from("family_blobs").select("user_id,blob").eq("group_hash",FH);if(error)throw error;
+  const out=[];for(const r of data||[]){if(r.user_id==SBU.id)continue;try{const p=await decr(FKEY,r.blob);out.push({u:r.user_id,w:clip(p.w,30),it:(Array.isArray(p.it)?p.it:[]).slice(0,100),gc:(Array.isArray(p.gc)?p.gc:[]).slice(0,50)})}catch(e){}}
+  if(tk!=FTK)return;if(JSON.stringify(out)!=JSON.stringify(FAMV)){FAMV=out;soft()}}catch(e){}}
+const famPush=writer(async()=>{
+ if(!onCloud()||!S.fam||!FKEY)return;
+ const it=S.items.filter(x=>x.sh&&x.g!="sub").slice(0,100).map(x=>({n:ttl(x),d:x.d,t:x.t,g:x.g,rep:x.rep||0,a:x.auto?1:0})),gc=famGifts(),sig=JSON.stringify([FH,S.fam.who,it,gc]);
+ if(sig==lastFam)return;
+ const b=await encr(FKEY,{w:S.fam.who,it,gc});
+ const{error}=await SB.from("family_blobs").upsert({user_id:SBU.id,group_hash:FH,blob:b,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+ if(!error){lastFam=sig;famPull()}},1500);
+if(WEB){
+ famSetup=async function(){
+  const tk=++FTK;FAMV=[];FKEY=null;FH="";
+  if(!S.fam||!onCloud()||!cryptoOk())return;
+  try{const d=await derive(S.fam.code);if(tk!=FTK)return;FKEY=d.key;FH=d.h;lastFam="";famPush();await famPull()}catch(e){}};
+ famOpen=function(){FM={};
+  if(!S.pro){toast("Familia face parte din Control.");openPlan("agenda");return}
+  if(needAcct("Pentru familie ai nevoie de un cont, ca să vă găsiți unii pe alții.",famOpen))return;
+  if(!cryptoOk()||!SB){openSheet(`<h2>Familie</h2><div class="mu">Familia are nevoie de internet. Încearcă din nou când ești online.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam");return}
+  drawFam()};
+ famLeave=async function(){
+  if(!FM.leave){FM.leave=1;drawFam();return}
+  FM={};S.fam=null;S.items.forEach(x=>{delete x.sh});lastFam="";save();
+  if(onCloud()){try{await SB.from("family_blobs").delete().eq("user_id",SBU.id)}catch(e){}}
+  await famSetup();closeSheet();render();toast("Ai ieșit din familie")};
+ const sv4=save;save=function(){sv4();famPush()};
+ const aL3=accLoad;accLoad=async function(){await aL3();if(S.fam&&!FKEY)famSetup();else famPull();if(S.poll)pvLoad()};
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible"){famPull();if(TAB=="free"&&FSEG=="saved")pvLoad()}});
+ const ao3=acctOut;acctOut=async function(){const r=await ao3();if(!S.acct){FTK++;FAMV=[];FKEY=null;FH=""}return r};
+}
+</script>
+<script>
 /* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
 const I18N={d:{},r:[]};
 const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
@@ -2781,6 +2941,9 @@ I18N.r.unshift([/^Am trimis un e-mail la (.+)\. Apasă linkul din el ca să te c
 Object.assign(I18N.d,{"LaTimp revine imediat":"LaTimp will be right back","Facem câteva îmbunătățiri. Revenim imediat.":"We're making a few improvements. We'll be right back.","Încearcă din nou":"Try again","Totul e gratuit acum":"Everything is free right now","În această perioadă poți folosi toate funcțiile LaTimp fără abonament. Te anunțăm înainte de orice schimbare.":"For now you can use every LaTimp feature without a subscription. We'll let you know before anything changes.","Abonamentul nu este disponibil încă. Te anunțăm când pornește.":"The subscription isn't available yet. We'll let you know when it starts.","Pachetele de scântei nu sunt disponibile încă.":"Spark packs aren't available yet.","Plata nu este disponibilă încă în versiunea web.":"Payment isn't available yet in the web version.","Accesul prin invitație se încheie la data codului.":"Invitation access ends on the code's date.","Codurile de invitație nu sunt disponibile acum.":"Invitation codes aren't available right now.","Ca să folosești un cod de invitație, ai nevoie de un cont.":"To use an invitation code you need an account.","Codul nu poate fi verificat acum. Conectează-te la internet și încearcă din nou.":"The code can't be checked right now. Connect to the internet and try again.","Recomandările nu sunt disponibile acum.":"Referrals aren't available right now.","Ai nevoie de internet pentru recomandări.":"Referrals need the internet.","Ai primit un cod de la un prieten?":"Got a code from a friend?","Folosește codul":"Use the code","Codurile de la prieteni sunt pentru conturile noi.":"Friend codes are for new accounts.","Prea multe încercări. Mai așteaptă un minut.":"Too many attempts. Wait a minute."});
 Object.assign(I18N.d,{"Telefonul sau browserul acesta nu primește notificări de la aplicații web.":"This phone or browser doesn't receive notifications from web apps.","Ca să primești memento-uri pe telefon, ai nevoie de un cont. Așa știe serverul când să ți le trimită.":"To get reminders on your phone you need an account. That's how the server knows when to send them.","Ai nevoie de internet ca să pornești notificările.":"You need the internet to turn on notifications.","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului.":"Notifications are blocked for LaTimp. Turn them on in your phone's settings.","Notificările nu au fost pornite.":"Notifications weren't turned on.","Notificările sunt pornite":"Notifications are on","Nu am putut porni notificările. Încearcă din nou.":"Couldn't turn on notifications. Try again.","Notificările pe acest telefon sunt oprite":"Notifications on this phone are off","Notificări pe iPhone":"Notifications on iPhone","Pe iPhone, notificările merg doar după ce adaugi LaTimp pe ecranul principal.":"On iPhone, notifications work only after you add LaTimp to your Home Screen.","Deschide LaTimp de pe ecranul principal și pornește notificările din Mai mult, Notificări.":"Open LaTimp from the Home Screen and turn on notifications in More, Notifications.","Ți-am trimis o notificare de test":"We sent you a test notification","Nu am putut afișa notificarea":"Couldn't show the notification","Memento-urile vin ca notificări, chiar și cu aplicația închisă.":"Reminders arrive as notifications, even with the app closed.","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului (Aplicații, LaTimp sau browserul, Notificări).":"Notifications are blocked for LaTimp. Turn them on in your phone's settings (Apps, LaTimp or the browser, Notifications).","Pe iPhone, notificările merg după ce adaugi LaTimp pe ecranul principal.":"On iPhone, notifications work after you add LaTimp to your Home Screen.","Browserul acesta nu primește notificări de la aplicații web.":"This browser doesn't receive notifications from web apps.","Cum fac":"How to","Oprește":"Turn off"});
 Object.assign(I18N.d,{"Ora":"Hour","Minutul":"Minute"});
+Object.assign(I18N.d,{"Propuneri pentru liste":"Suggestions for your lists","Atinge o propunere ca s-o pui în lista deschisă acum.":"Tap a suggestion to put it in the list that's open now.","Ca să trimiți un raport și să primești răspuns, conectează-te la cont.":"To send a report and get a reply, sign in to your account.","Trimiterea are nevoie de internet.":"Sending needs the internet.","Ca să trimiți un raport și să primești răspuns, ai nevoie de un cont.":"To send a report and get a reply, you need an account.","Conectează-te":"Sign in","Raport trimis, mulțumim. Răspunsul apare în Mai mult.":"Report sent, thank you. The reply will appear in More.","Ai trimis multe rapoarte în ultima oră. Încearcă mai târziu.":"You've sent many reports in the last hour. Try again later.","Răspunsuri la rapoarte":"Replies to your reports","Ai un răspuns nou":"You have a new reply","Răspunsul echipei:":"The team's reply:"," · de la echipa LaTimp":" · from the LaTimp team"});
+I18N.r.unshift([/^Ai (\d+) răspunsuri noi$/,"You have $1 new replies"],[/^Ai scris pe (.+):$/,"You wrote on $1:"],[/^Adăugat la (.+)$/,"Added to $1"]);
+Object.assign(I18N.d,{"Ca să pornești un vot, ai nevoie de un cont. Așa vezi voturile prietenilor.":"To start a vote you need an account. That's how you see your friends' votes.","Votul are nevoie de internet":"Voting needs the internet","Oricine are codul vede ideile; numele celor care au votat le vezi doar tu.":"Anyone with the code sees the ideas; only you see who voted.","Se creează…":"Creating…","Nu am putut crea votul. Încearcă din nou.":"Couldn't create the vote. Try again.","Ca să votezi, ai nevoie de un cont. Așa fiecare votează o singură dată.":"To vote you need an account. That way everyone votes once.","Votul nu poate fi verificat acum. Conectează-te la internet.":"The vote can't be checked right now. Connect to the internet.","Este votul tău. Îl vezi aici, în Salvate.":"This is your vote. You'll find it here, in Saved.","Nu am putut trimite votul. Încearcă din nou.":"Couldn't send the vote. Try again.","Nu am putut trimite votul.":"Couldn't send the vote.","Familia are nevoie de internet. Încearcă din nou când ești online.":"Family needs the internet. Try again when you're online."});
 </script>
 <script>
 /* ---------- Opțiuni dezvoltator (doar administratori) ---------- */
