@@ -10,7 +10,7 @@ python3 - "$W" "$VER" <<'PY'
 import sys,json
 W,VER=sys.argv[1],sys.argv[2]
 body=open("/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/new.html").read()
-body=body.replace('<title>LaTimp</title>\n','').replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
+body=body.replace('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">','<style>@font-face{font-family:"Plus Jakarta Sans";src:url("fonts/plus-jakarta-sans.woff") format("woff");font-weight:200 800;font-style:normal;font-display:swap}</style>').replace('<title>LaTimp</title>\n','').replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
 head=f'''<!doctype html><html lang="ro"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>LaTimp</title>
@@ -43,6 +43,15 @@ open(W+"/.nojekyll","w").write("")
 open(W+"/404.html","w").write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./"><title>LaTimp</title>')
 PY
 cp $D/site/prezentare.html $D/site/*.webp $D/site/logo-*.svg $W/
+mkdir -p $W/fonts && cp $D/fonts/plus-jakarta-sans.woff $D/fonts/OFL.txt $W/fonts/
+python3 - $W/prezentare.html <<'PY2'
+import sys
+p=sys.argv[1];s=open(p).read()
+s=s.replace('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n','')
+s=s.replace('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">','<style>@font-face{font-family:\"Plus Jakarta Sans\";src:url(\"fonts/plus-jakarta-sans.woff\") format(\"woff\");font-weight:200 800;font-style:normal;font-display:swap}</style>')
+assert 'fonts.g' not in s
+open(p,'w').write(s)
+PY2
 node $D/site/gen_legal.js $D/q7l.html $W
 node --check $W/sw.js
 echo web built: $(ls $W) VER=$VER
