@@ -2,9 +2,9 @@
 /* ---------- pornire ---------- */
 /* ecranul de încărcare: stă cel puțin cât ține animația (mai puțin la reveniri) și până e gata aplicația */
 function splashOff(){return new Promise(res=>{
- const e=document.getElementById("spl");if(!e){res();return}
+ const e=document.getElementById("spl"),rdy=()=>document.documentElement.dataset.rdy="1";if(!e){rdy();res();return}
  const q=e.classList.contains("q"),rm=matchMedia("(prefers-reduced-motion:reduce)").matches,min=rm?300:q?700:1700;
- setTimeout(()=>{try{localStorage.setItem("latimp.sp","1")}catch(x){}e.classList.add("off");res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
+ setTimeout(()=>{try{localStorage.setItem("latimp.sp","1")}catch(x){}e.classList.add("off");rdy();res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
 (async function boot(){
  theme();langApply();render();
  await caps();

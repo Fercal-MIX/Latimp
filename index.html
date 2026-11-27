@@ -444,6 +444,9 @@ input[type=checkbox]{box-shadow:none}
 @keyframes pop{0%{transform:scale(.86)}55%{transform:scale(1.08)}100%{transform:scale(1)}}
 #main.go>*{animation:in .6s var(--sp) both;animation-delay:calc(var(--i,0)*40ms)}
 
+/* la pornire culorile se pun direct, fără tranziție: tranziția culorilor recalculează toată pagina la fiecare cadru; rămâne doar pentru schimbarea planului */
+html:not([data-rdy]){transition:none!important}
+
 /* ---- ecranul de pornire: emblema în relief se ridică, simbolul se desenează, o lumină trece o dată ---- */
 #spl{background:radial-gradient(110% 70% at 50% 36%,#ffffff21,#ffffff00 62%),radial-gradient(150% 110% at 50% 50%,#00000000 52%,#0000004d),linear-gradient(160deg,var(--br1),var(--br2))}
 .spw{gap:26px}
@@ -478,7 +481,7 @@ html[data-motion=off] #spl .d{stroke-dasharray:none;stroke-dashoffset:0}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.16",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.17",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -3351,9 +3354,9 @@ Object.assign(I18N.d,{"Amprentă sau față":"Fingerprint or face"});
 /* ---------- pornire ---------- */
 /* ecranul de încărcare: stă cel puțin cât ține animația (mai puțin la reveniri) și până e gata aplicația */
 function splashOff(){return new Promise(res=>{
- const e=document.getElementById("spl");if(!e){res();return}
+ const e=document.getElementById("spl"),rdy=()=>document.documentElement.dataset.rdy="1";if(!e){rdy();res();return}
  const q=e.classList.contains("q"),rm=matchMedia("(prefers-reduced-motion:reduce)").matches,min=rm?300:q?700:1700;
- setTimeout(()=>{try{localStorage.setItem("latimp.sp","1")}catch(x){}e.classList.add("off");res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
+ setTimeout(()=>{try{localStorage.setItem("latimp.sp","1")}catch(x){}e.classList.add("off");rdy();res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
 (async function boot(){
  theme();langApply();render();
  await caps();

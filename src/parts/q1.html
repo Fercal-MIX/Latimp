@@ -425,6 +425,9 @@ input[type=checkbox]{box-shadow:none}
 @keyframes pop{0%{transform:scale(.86)}55%{transform:scale(1.08)}100%{transform:scale(1)}}
 #main.go>*{animation:in .6s var(--sp) both;animation-delay:calc(var(--i,0)*40ms)}
 
+/* la pornire culorile se pun direct, fără tranziție: tranziția culorilor recalculează toată pagina la fiecare cadru; rămâne doar pentru schimbarea planului */
+html:not([data-rdy]){transition:none!important}
+
 /* ---- ecranul de pornire: emblema în relief se ridică, simbolul se desenează, o lumină trece o dată ---- */
 #spl{background:radial-gradient(110% 70% at 50% 36%,#ffffff21,#ffffff00 62%),radial-gradient(150% 110% at 50% 50%,#00000000 52%,#0000004d),linear-gradient(160deg,var(--br1),var(--br2))}
 .spw{gap:26px}
