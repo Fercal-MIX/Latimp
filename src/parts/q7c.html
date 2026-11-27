@@ -1,0 +1,93 @@
+<script>
+/* ---------- Legături cu panoul (doar în versiunea web): erori, rapoarte cu răspuns, statistici, conținut ---------- */
+let CNT=lsGet("latimp.cnt"),RPL=[],ERQ=[],ERN=0;
+const plat=()=>"web-"+(isIOS()?"ios":/android/i.test(navigator.userAgent||"")?"android":"desktop")+(standalone()?"-app":"");
+/* erorile neprinse ajung în fila Erori din panou (fără date personale: doar mesajul tehnic) */
+function errSend(m,st){
+ if(!WEB)return;m=String(m||"").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,"[e-mail]").slice(0,500);if(!m||ERN>=10)return;
+ if(ERQ.some(e=>e.message==m))return;ERN++;
+ const row={ver:VER,platform:plat(),screen:(TAB||"")+"/"+(VIEW||""),message:m,stack:String(st||"").slice(0,2000)};ERQ.push(row);errFlush()}
+async function errFlush(){if(!SB)return;while(ERQ.length){const r=ERQ.shift();try{await SB.from("app_errors").insert(r)}catch(e){}}}
+if(WEB){
+ addEventListener("error",e=>{if(e&&e.message&&!/^Script error/.test(e.message))errSend(e.message,e.error&&e.error.stack||(e.filename||"")+":"+(e.lineno||""))});
+ addEventListener("unhandledrejection",e=>{const r=e&&e.reason;if(!r)return;const m=r.message||String(r);if(/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m))return;errSend(m,r.stack||"")});
+}
+/* conținutul din panou: provocarea lunii, ideile de rezervă, propuneri pentru liste */
+async function cntLoad(){if(!SB)return;try{const{data}=await SB.from("app_config").select("value").eq("key","content").maybeSingle();if(data&&data.value){CNT=data.value;lsSet("latimp.cnt",CNT);soft()}}catch(e){}}
+const cntCh=()=>{const c=CNT&&CNT.challenge;return c&&c.month==mKey()&&(c.title||c.text)?c:null};
+/* ideile de rezervă din panou: „categorie | titlu | descriere | cost” (categoria și restul sunt opționale) */
+const CNTK={"acasa":"home","home":"home","afara":"out","out":"out","cu cineva":"soc","soc":"soc","social":"soc","pentru mine":"me","pentru tine":"me","me":"me"};
+const cntFb=()=>{const a=CNT&&Array.isArray(CNT.fallback_ideas)?CNT.fallback_ideas:[];return a.map(x=>{
+  if(typeof x=="string"){const p=x.split("|").map(y=>y.trim());let k="";const k0=(p[0]||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");if(p.length>1&&CNTK[k0]){k=CNTK[k0];p.shift()}return{k,t:p[0]||"",d:p[1]||"",c:p[2]||"",m:""}}
+  if(x&&typeof x=="object")return{k:CNTK[String(x.k||x.cat||"").toLowerCase()]||"",t:String(x.t||x.title||x.name||""),d:String(x.d||x.text||x.desc||""),c:String(x.c||x.cost||""),m:String(x.m||"")};return null})
+ .filter(x=>x&&x.t).map(x=>({k:x.k,t:x.t.slice(0,80),d:x.d.slice(0,240),c:x.c.slice(0,24),m:cleanQ(x.m)}))};
+const cntTl=()=>(CNT&&Array.isArray(CNT.try_lists)?CNT.try_lists:[]).filter(l=>l&&l.name&&Array.isArray(l.items)&&l.items.length).slice(0,6);
+if(WEB){
+ const ch0=chCard;
+ chCard=function(){let h=ch0();const c=cntCh();if(!c)return h;const t=esc(String(c.title||"").slice(0,60)),x=esc(String(c.text||"").slice(0,200));
+  const st=Array.isArray(c.steps)&&c.steps.length?`<ul class="f" style="margin:8px 0 0">${c.steps.slice(0,5).map(s=>`<li>${esc(String(s).slice(0,100))}</li>`).join("")}</ul>`:"";
+  h=h.replace("Ceva nou luna asta: un loc, o activitate, o rețetă.",(t?"<strong>"+t+"</strong>. ":"")+x);
+  h=h.replace("O ieșire sau o activitate pe care n-ai mai făcut-o. Bifezi când ai făcut-o. Fără notificări.",(t?"Luna asta: <strong>"+t+"</strong>. ":"")+"O ieșire sau o activitate pe care n-ai mai făcut-o. Bifezi când ai făcut-o. Fără notificări.");
+  if(st&&S.ch&&S.ch.on){const i=h.indexOf('<div class="acts">');if(i>0)h=h.slice(0,i)+st+h.slice(i)}
+  return h};
+ const fb0=fallback;fallback=function(){const k=sitObj().c.k;if(k=="say")return fb0();
+  let a=cntFb().filter(x=>!x.k||x.k==k);if(!a.length)return fb0();
+  if(BUD=="Gratis"){const g=a.filter(x=>/gratis/i.test(x.c));if(g.length>=3)a=g}
+  const seen=new Set((IDEAS||[]).map(x=>x.t));const fresh=a.filter(x=>!seen.has(x.t));if(fresh.length>=3)a=fresh;
+  const s=a.slice();for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]]}
+  return s.slice(0,6).map(x=>({t:x.t,d:x.d,c:x.c,m:x.m}))};
+ const lv0=listsView;
+ listsView=function(){let h=lv0();const L=cntTl();if(!L.length)return h;const have=new Set((S.tl||[]).map(x=>String(x.n).toLowerCase()));
+  const blk=L.map((l,i)=>{const it=l.items.map((x,j)=>[String(x).slice(0,80),j]).filter(([x])=>x&&!have.has(x.toLowerCase())).slice(0,12);return it.length?`<div class="sgl"><div class="mu sm">${esc(String(l.name).slice(0,60))}</div><div class="chips">${it.map(([x,j])=>`<button onclick="tlPick(${i},${j})" aria-label="Adaugă ${esc(x)}">+ ${esc(x)}</button>`).join("")}</div></div>`:""}).join("");
+  return blk?h+`<div class="gt">Propuneri pentru liste</div><div class="card">${blk}<div class="note">Atinge o propunere ca s-o pui în lista deschisă acum.</div></div>`:h};
+}
+function tlPick(i,j){const l=cntTl()[i],n=l&&String(l.items[j]||"").slice(0,80);if(!n)return;S.tl=Array.isArray(S.tl)?S.tl:[];if(S.tl.length>=300){toast("Lista e plină. Șterge ce ai încercat.");return}S.tl.unshift({id:uid(),k:TLF,n,dn:false});save();render();toast("Adăugat la "+((TLK.find(k=>k[0]==TLF)||TLK[0])[1]).toLowerCase())}
+/* rapoarte: se trimit în fila Rapoarte din panou, cu captură opțională; răspunsurile apar în aplicație */
+const RKS={"Problemă":"bug","Idee":"idea","Altceva":"other"};
+if(WEB){
+ drawReport=function(msg){
+  const can=!!(SB&&SBU);
+  let h=`<h2>Raportează o problemă</h2><div class="mu">Spune-ne ce n-a mers sau ce ți-ar plăcea să existe.</div><div class="chips">${["Problemă","Idee","Altceva"].map(k=>`<button class="${RK==k?"on":""}" onclick="repGrab();RK='${k}';drawReport()">${k}</button>`).join("")}</div><label for="rt">Descriere</label><textarea id="rt" maxlength="1000" placeholder="Ce ai făcut și ce s-a întâmplat?">${esc(RTXT)}</textarea>`;
+  if(can)h+=`<label for="rs">Captură de ecran (opțional)</label><input id="rs" type="file" accept="image/png,image/jpeg,image/webp" onchange="repShot(this.files[0])"><div class="note" id="rss">${SHOT?"Captură atașată ("+Math.round(SHOT.size/1024)+" KB)":""}</div><div class="sg"><b>Atenție la datele personale</b>Captura poate conține nume, numere sau adrese. Acoperă-le înainte. O vede doar echipa aplicației.</div>`;
+  else h+=`<div class="note">${SB?"Ca să trimiți un raport și să primești răspuns, conectează-te la cont.":"Trimiterea are nevoie de internet."}</div>`;
+  if(msg)h+=`<div class="note dg" role="alert">${esc(msg)}</div>`;
+  openSheet(h+`<div style="margin-top:14px">${can?`<button class="btn" onclick="repSend()"${RBUSY?" disabled":""}>${RBUSY?"Se trimite…":"Trimite raportul"}</button>`:SB?`<button class="btn" onclick="repGrab();acctOpen('Ca să trimiți un raport și să primești răspuns, ai nevoie de un cont.',()=>drawReport())">Conectează-te</button>`:""}<button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"rep")};
+ repSend=async function(){
+  repGrab();const tx=RTXT.trim();
+  if(tx.length<5){toast("Scrie câteva cuvinte");return}
+  if(Date.now()-LASTR<20000){toast("Așteaptă puțin înainte de alt raport");return}
+  RBUSY=true;drawReport();
+  try{
+   let sp=null;
+   if(SHOT){try{const p=SBU.id+"/"+Date.now().toString(36)+(SHOT.type=="image/png"?".png":".jpg");const{error}=await SB.storage.from("report-shots").upload(p,SHOT,{contentType:SHOT.type||"image/jpeg",upsert:false});if(!error)sp=p}catch(e){}}
+   const{error}=await SB.from("reports").insert({user_id:SBU.id,kind:RKS[RK]||"other",body:tx.slice(0,2000),meta:{v:VER,tab:TAB,w:innerWidth+"x"+innerHeight,lang:S.lang||"ro",platform:plat()},shot_path:sp});
+   if(error)throw error;
+   LASTR=Date.now();RBUSY=false;const nos=SHOT&&!sp;SHOT=null;closeSheet();toast(nos?"Raport trimis, dar fără captură":"Raport trimis, mulțumim. Răspunsul apare în Mai mult.")}
+  catch(e){RBUSY=false;drawReport(e&&/Prea multe/.test(e.message||"")?"Ai trimis multe rapoarte în ultima oră. Încearcă mai târziu.":"Nu am putut trimite raportul. Încearcă din nou.")}};
+}
+async function rplLoad(){if(!SB||!SBU){RPL=[];return}try{const{data}=await SB.from("reports").select("id,kind,body,reply,replied_at,created_at").not("reply","is",null).order("replied_at",{ascending:false}).limit(20);RPL=Array.isArray(data)?data.filter(r=>r.reply):[];softMore()}catch(e){}}
+const rplNew=()=>RPL.filter(r=>!S.rps||String(r.replied_at)>String(S.rps)).length;
+function rplOpen(){
+ openSheet(`<h2>Răspunsuri la rapoarte</h2>${RPL.map(r=>`<div class="card" style="margin-top:12px"><div class="mu sm">Ai scris${r.created_at?" pe "+esc(nice(String(r.created_at).slice(0,10)).replace(/\.$/,"")):""}:</div><div style="margin:4px 0 10px">${esc(String(r.body).slice(0,300))}</div><div class="mu sm">Răspunsul echipei:</div><div>${esc(String(r.reply).slice(0,1000))}</div></div>`).join("")}<button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"rpl");
+ if(RPL.length){S.rps=RPL[0].replied_at;store();softMore()}}
+if(WEB){
+ const mo1=more;
+ more=function(){const h=mo1();if(VIEW!="main"||!RPL.length)return h;const n=rplNew(),i=h.indexOf('<div class="gt">');
+  const c=`<button class="card rowc" onclick="rplOpen()"><span><strong>${n?"Ai "+(n==1?"un răspuns nou":n+" răspunsuri noi"):"Răspunsuri la rapoarte"}</strong><span class="mu"> · de la echipa LaTimp</span></span><span class="mu" aria-hidden="true">›</span></button>`;
+  return i<0?h+c:h.slice(0,i)+c+h.slice(i)};
+}
+/* statistici de folosire, doar cu acordul din Mai mult (fără conținutul agendei) */
+const ustSync=writer(async()=>{
+ if(!WEB||!SB||!SBU)return;
+ if(!S.stats){if(ustSync.on){try{await SB.from("usage_stats").delete().eq("user_id",SBU.id)}catch(e){}ustSync.on=false}return}
+ const s=S.st||{},t=s.taps||{},a=typeof accNow=="function"?accNow():{},d={v:VER,platform:plat(),first:s.first||"",days:Object.keys(s.days||{}).length,items:S.items.filter(x=>!x.ex).length,adds:s.adds||0,reads:s.reads||0,push:S.nt&&S.nt.push?1:0,lang:S.lang||"ro"};
+ Object.keys(t).slice(0,40).forEach(k=>{if(/^[a-z_]{2,24}$/.test(k)&&+t[k]>0)d[k]=+t[k]});
+ if(a.ab&&a.ab.group)d.ab=a.ab.group;
+ const j=JSON.stringify(d);if(j==ustSync.last)return;
+ try{const{error}=await SB.from("usage_stats").upsert({user_id:SBU.id,data:d,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(!error){ustSync.last=j;ustSync.on=true}}catch(e){}},8000);
+if(WEB){
+ const sv3=save;save=function(){sv3();ustSync()};
+ const aL2=accLoad;accLoad=async function(){await aL2();errFlush();cntLoad();rplLoad();ustSync.last="";ustSync.on=true;ustSync()};
+}
+</script>
+<style>.sgl+.sgl{margin-top:10px;padding-top:10px;border-top:1px solid var(--ln)}</style>

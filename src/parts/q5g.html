@@ -1,0 +1,73 @@
+<script>
+/* ---------- Etapa 7: acord pentru idei, abonamentul tău, politica și termenii ---------- */
+/* acord pentru serviciul de inteligență artificială la idei și cadouri (cerut o singură dată) */
+function aiAsk(next){
+ AINX=next;
+ openSheet(`<h2>Înainte de prima idee</h2><div class="mu">Ideile și sugestiile de cadouri vin de la un serviciu de inteligență artificială.</div><div class="sg"><b>Ce se trimite</b>Situația aleasă, filtrele, ce scrii în Detalii și, când ceri idei pentru o persoană sau pentru weekend, notele despre persoană și titlurile termenelor din weekend. Nu se trimit restul agendei, numele contului sau adresa de e-mail.</div><div class="note">Nu scrie CNP, numere de card sau alte date sensibile. Poți retrage acordul oricând din Mai mult.</div><div style="margin-top:14px"><button class="btn" onclick="aiOk()">Sunt de acord</button><button class="btn alt" onclick="AINX=null;closeSheet()">Nu acum</button></div>`,"aiq")}
+let AINX=null;
+function aiOk(){S.aiq=Date.now();save();closeSheet();const n=AINX;AINX=null;if(n)setTimeout(n,120)}
+function aiOff(){S.aiq=0;save();render();toast("Acord retras. Îl vom cere din nou la următoarea idee.")}
+const aiG=f=>{const g=async(...a)=>{if(!S.aiq){aiAsk(()=>g(...a));return}return f(...a)};return g};
+askIdeas=aiG(askIdeas);moreLike=aiG(moreLike);idPlan=aiG(idPlan);askGifts=aiG(askGifts);
+
+/* abonamentul tău: starea planului, reînnoirea, anularea (simulate) și restaurarea achizițiilor */
+const sp0=setPro;
+setPro=function(v){const was=!!S.pro;sp0(v);if(v&&S.pro&&!was&&!invOn()&&!bonusOn()){S.sub={pl:PLAN=="m"?"m":"y",since:fmt(td()),ren:fmt(addM(td(),PLAN=="m"?1:12)),auto:true};save()}if(!v){S.sub=null;save()}};
+function subExp(){
+ const s=S.sub;if(!s||!okDate(s.ren)||s.ren>=fmt(td()))return;
+ if(s.auto){let d=pd(s.ren),n=0;while(fmt(d)<fmt(td())&&n++<240)d=addM(d,s.pl=="m"?1:12);s.ren=fmt(d);store();return}
+ S.sub=null;if(!invOn()&&!bonusOn())S.pro=false;store();setTimeout(()=>toast("Abonamentul s-a încheiat. Ai revenit la planul gratuit."),0)}
+function subBox(){
+ const s=S.sub;
+ if(!s)return `<button class="btn alt" onclick="setPro(false)">Revino la gratuit (demo)</button>`;
+ return `<div class="sg"><b>Abonamentul tău</b>${s.pl=="m"?"Lunar":"Anual"}, activ din ${esc(nice(s.since).replace(/\.$/,""))}. ${s.auto?"Se reînnoiește pe "+esc(nice(s.ren))+" "+pd(s.ren).getFullYear()+".":"Nu se mai reînnoiește. Ai acces până pe "+esc(nice(s.ren))+" "+pd(s.ren).getFullYear()+"."}</div>${s.auto?`<button class="btn alt" onclick="subAuto(false)">Anulează reînnoirea (demo)</button>`:`<button class="btn alt" onclick="subAuto(true)">Reia reînnoirea (demo)</button>`}<div class="note">În aplicația reală, abonamentul se gestionează din contul de App Store sau Google Play. Accesul rămâne până la sfârșitul perioadei plătite.</div>`}
+function subAuto(v){if(!S.sub)return;S.sub.auto=!!v;save();openPlan("agenda");toast(v?"Reînnoirea a fost reluată (demo)":"Reînnoirea a fost anulată (demo). Ai acces până la sfârșitul perioadei.")}
+const restBtn=()=>`<button class="btn alt" onclick="restoreBuy()">Restaurează achizițiile</button>`;
+function restoreBuy(){
+ if(needAcct("Achizițiile sunt legate de cont. Conectează-te ca să le restaurezi.",restoreBuy))return;
+ closeSheet();toast("Achizițiile contului "+S.acct.e+" sunt la zi.")}
+
+/* politica de confidențialitate și termenii (texte de lucru; de verificat cu un jurist înainte de publicare) */
+function coName(){return (CFG.f.co_n||"").trim()||"[numele firmei]"}
+function coAddr(){return (CFG.f.co_a||"").trim()||"[adresa firmei]"}
+function coMail(){return (CFG.f.mail||"").trim()||"[adresa de e-mail de contact]"}
+function legalTxt(k){
+ const en=S.lang=="en",co=esc(coName()),ad=esc(coAddr()),ml=esc(coMail()),P=(h,t)=>`<h3>${h}</h3><p>${t}</p>`;
+ if(k=="priv")return en?
+  P("Who we are",`LaTimp is provided by ${co}, ${ad}. Contact: ${ml}.`)+
+  P("What data we use",`Your agenda (dates, amounts, notes, attached documents), people and gifts, lists, settings; your account (sign-in provider, email, name); usage statistics only if you turn them on; reports you send. Photos you read are not kept. The PIN stays only on your phone.`)+
+  P("Where it is kept",`On your phone. If you sign in, a copy is kept in your account so you can find it on other phones. Family data is encrypted with the family code before it leaves the phone.`)+
+  P("Who receives it",`The hosting and database provider; the artificial intelligence service, only for the text or photo you send for ideas or reading, with your consent; app stores for payments. Partners receive nothing unless you open their link.`)+
+  P("Why",`To provide the service (contract), with your consent (statistics, ideas, photo reading) and for security and abuse prevention (legitimate interest).`)+
+  P("How long",`While you have an account. “Delete account” and “Delete all data” remove your data; statistics are deleted when you turn them off.`)+
+  P("Your rights",`Access, correction, deletion, portability (“Backup to a file”), objection and withdrawing consent at any time in More. You can complain to the Romanian data protection authority (ANSPDCP).`)+
+  P("Children",`LaTimp is not meant for children under 16.`)
+ :
+  P("Cine suntem",`LaTimp este oferită de ${co}, ${ad}. Contact: ${ml}.`)+
+  P("Ce date folosim",`Agenda ta (termene, sume, note, documente atașate), persoanele și cadourile, listele, setările; contul (furnizorul de conectare, e-mailul, numele); statisticile de utilizare doar dacă le pornești; rapoartele pe care le trimiți. Pozele citite nu se păstrează. PIN-ul rămâne doar pe telefon.`)+
+  P("Unde se păstrează",`Pe telefonul tău. Dacă te conectezi, o copie se păstrează în cont, ca s-o regăsești pe alte telefoane. Datele de familie sunt criptate cu codul familiei înainte să plece de pe telefon.`)+
+  P("Cine le primește",`Furnizorul de găzduire și de bază de date; serviciul de inteligență artificială, doar pentru textul sau poza pe care le trimiți pentru idei sau citire, cu acordul tău; magazinele de aplicații, pentru plăți. Partenerii nu primesc nimic decât dacă deschizi linkul lor.`)+
+  P("De ce",`Ca să funcționeze serviciul (contract), cu acordul tău (statistici, idei, citirea pozelor) și pentru securitate și prevenirea abuzurilor (interes legitim).`)+
+  P("Cât timp",`Cât timp ai cont. „Șterge contul” și „Șterge toate datele” elimină datele; statisticile se șterg când le oprești.`)+
+  P("Drepturile tale",`Acces, rectificare, ștergere, portabilitate („Copie într-un fișier”), opoziție și retragerea acordului oricând, din Mai mult. Poți depune plângere la ANSPDCP (Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal).`)+
+  P("Copii",`LaTimp nu este destinată copiilor sub 16 ani.`);
+ return en?
+  P("The service",`LaTimp helps you keep track of due dates and payments and gives ideas for free time. Reminders help you, but you remain responsible for meeting your deadlines.`)+
+  P("Account",`The account is optional. Keep your sign-in details safe. You can delete the account at any time.`)+
+  P("Plans and payments",`Control is a subscription that renews automatically until you cancel it in your app store account. Sparks are a one-time purchase and don't expire. Refunds follow the app store's rules and the law.`)+
+  P("Codes",`Invitation and referral codes give temporary access and can be withdrawn if misused.`)+
+  P("Ideas and partners",`Ideas come from an artificial intelligence service and are suggestions, not verified advice. Check prices, opening hours and conditions. Sponsored places and affiliate links are clearly marked.`)+
+  P("Your content",`What you write stays yours. Don't add other people's sensitive data without their consent.`)+
+  P("Changes and law",`We will announce important changes in the app. Romanian law applies. Contact: ${ml}.`)
+ :
+  P("Serviciul",`LaTimp te ajută să ții evidența termenelor și a plăților și îți dă idei pentru timpul liber. Memento-urile te ajută, dar respectarea termenelor rămâne în grija ta.`)+
+  P("Contul",`Contul este opțional. Păstrează în siguranță datele de conectare. Poți șterge contul oricând.`)+
+  P("Planuri și plăți",`Control este un abonament care se reînnoiește automat până îl anulezi din contul magazinului de aplicații. Scânteile sunt o plată unică și nu expiră. Rambursările urmează regulile magazinului și legea.`)+
+  P("Coduri",`Codurile de invitație și de recomandare dau acces temporar și pot fi retrase dacă sunt folosite abuziv.`)+
+  P("Idei și parteneri",`Ideile vin de la un serviciu de inteligență artificială și sunt propuneri, nu sfaturi verificate. Verifică prețurile, programul și condițiile. Locurile sponsorizate și linkurile afiliate sunt marcate clar.`)+
+  P("Conținutul tău",`Ce scrii rămâne al tău. Nu adăuga date sensibile ale altor persoane fără acordul lor.`)+
+  P("Modificări și lege",`Schimbările importante le anunțăm în aplicație. Se aplică legea română. Contact: ${ml}.`)}
+function legal(k){
+ const en=S.lang=="en",t=k=="priv"?(en?"Privacy policy":"Politica de confidențialitate"):(en?"Terms and conditions":"Termeni și condiții");
+ openSheet(`<div data-nt><h2>${t}</h2><div class="lgl">${legalTxt(k)}</div><div class="note">${en?"Working text in the prototype, to be checked by a lawyer before publishing.":"Text de lucru în prototip, de verificat cu un jurist înainte de publicare."}</div><button class="btn alt" onclick="closeSheet()">${en?"Close":"Închide"}</button></div>`,"legal")}
+</script>

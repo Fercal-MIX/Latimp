@@ -1,0 +1,24 @@
+<script>
+/* ---------- Versiunea web instalabilă (PWA): activă doar când pagina e servită ca aplicație web ---------- */
+const WEB=!!window.LT_WEB;
+const standalone=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}};
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform=="MacIntel"&&navigator.maxTouchPoints>1);
+let BIP=null,INSTD=false;
+if(WEB){
+ addEventListener("beforeinstallprompt",e=>{e.preventDefault();BIP=e;softMore()});
+ addEventListener("appinstalled",()=>{BIP=null;INSTD=true;softMore();toast("LaTimp a fost instalată")});
+ const pc0=phoneCard;phoneCard=function(){return ""};
+ const mo0=more;more=function(){const h=mo0();if(VIEW!="main"||standalone()||INSTD||S.ih)return h;const i=h.indexOf('<div class="gt">');return i<0?h:h.slice(0,i)+instCard()+h.slice(i)};
+ const rw0=render;render=function(){rw0();clearTimeout(render.tc);render.tc=setTimeout(themeMeta,950)};
+}
+function themeMeta(){const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",getComputedStyle(document.body).backgroundColor)}
+function instCard(){return `<div class="card ins"><div class="top"><strong>Instalează LaTimp pe telefon</strong><button class="x" aria-label="Ascunde" onclick="S.ih=1;save();render()">✕</button></div><div class="mu" style="margin-top:4px">Se deschide ca o aplicație, de pe ecranul principal, și merge și fără internet.</div><div class="acts"><button onclick="instGo()">Instalează</button></div></div>`}
+async function instGo(){
+ if(BIP){try{BIP.prompt();const r=await BIP.userChoice;if(r&&r.outcome=="accepted"){BIP=null;INSTD=true;render()}}catch(e){}return}
+ const st=isIOS()?["Deschide pagina în Safari.","Apasă butonul Partajare (pătratul cu săgeată în sus).","Alege „Adaugă pe ecranul principal”, apoi „Adaugă”."]:["Deschide meniul browserului (cele trei puncte).","Alege „Instalează aplicația” sau „Adaugă pe ecranul de pornire”.","Confirmă cu „Instalează”."];
+ openSheet(`<h2>Instalează LaTimp</h2><div class="mu">${isIOS()?"Pe iPhone, aplicația se adaugă din Safari.":"Din browser, în trei pași."}</div><ol class="ist">${st.map(x=>`<li>${x}</li>`).join("")}</ol><button class="btn alt" onclick="closeSheet()">Am înțeles</button>`,"inst")}
+</script>
+<style>
+.ins{border-left:4px solid var(--brc)}
+.ist{margin:14px 0 6px;padding-left:22px}.ist li{margin:8px 0;font-size:15px}
+</style>

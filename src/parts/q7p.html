@@ -1,0 +1,74 @@
+<script>
+/* ---------- Memento-uri reale pe telefon (doar în versiunea web): web push trimis de server la ora memento-ului ---------- */
+const VAPID="BDh-9I14jyPTFDeKJaSrp7hnPaXEHAt5-7MG20ajqGbdoOA6gu4gC_216eT23MOXICQpcd-FU2Usf5qPFgw7NAE";
+let PUSHS=null,PBUSY=false;
+const pushOk=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function swReg(){try{return await Promise.race([navigator.serviceWorker.ready,new Promise((_,r)=>setTimeout(()=>r(0),4000))])}catch(e){return null}}
+async function pushRead(){if(!WEB||!pushOk())return null;const r=await swReg();if(!r)return null;try{PUSHS=await r.pushManager.getSubscription()}catch(e){PUSHS=null}return PUSHS}
+function pushState(){
+ if(!pushOk())return isIOS()&&!standalone()?"ios":"unsupported";
+ if(isIOS()&&!standalone())return "ios";
+ if(Notification.permission=="denied")return "denied";
+ return PUSHS&&S.nt&&S.nt.push?"on":"off"}
+/* programul: următoarele 60 de zile, câte o notificare pe oră de memento (termenele din aceeași oră se adună) */
+function remPlan(){
+ const now=Date.now(),end=now+60*DAY,by={},en=S.lang=="en",pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0;
+ S.items.filter(x=>!x.ex&&okDate(x.d)).forEach(x=>remDays(x).forEach(k=>{const t=+remAt(x.d,k);if(t<=now+60000||t>end||t<pz)return;(by[t]=by[t]||[]).push([x,k])}));
+ return Object.keys(by).map(Number).sort((a,b)=>a-b).slice(0,200).map(t=>{
+  const l=by[t].sort((a,b)=>a[1]-b[1]),[x,k]=l[0],nd=nice(x.d).replace(/\.$/,""),m=l.length-1;
+  const b=en?(k==0?"Due today.":"Due "+(k==1?"tomorrow":"in "+k+" days")+", on "+nd+".")+(m>0?" And "+m+" more.":""):(k==0?"Termenul e azi.":"Termenul e "+(k==1?"mâine":"în "+k+" zile")+", pe "+nd+".")+(m>0?" Și încă "+m+(m==1?" termen.":" termene."):"");
+  return{at:new Date(t).toISOString(),title:String(ttl(x)||"LaTimp").slice(0,120),body:b.slice(0,300),tag:"lt-"+t}})}
+const remSync=writer(async()=>{
+ if(!WEB||!SB||!SBU||!S.nt||!(S.nt.push||S.nt.mail))return;
+ const p=remPlan().map(r=>Object.assign(r,{mail:!!S.nt.mail})),sig=JSON.stringify(p);if(sig==remSync.last)return;
+ try{const{error}=await SB.rpc("set_reminders",{p});if(!error)remSync.last=sig}catch(e){}},2000);
+async function pushOn(){
+ if(PBUSY)return;
+ if(pushState()=="ios"){pushHelp();return}
+ if(!pushOk()){toast("Telefonul sau browserul acesta nu primește notificări de la aplicații web.");return}
+ if(needAcct("Ca să primești memento-uri pe telefon, ai nevoie de un cont. Așa știe serverul când să ți le trimită.",()=>{notifGo()}))return;
+ if(!SB){toast("Ai nevoie de internet ca să pornești notificările.");return}
+ PBUSY=true;
+ try{
+  const perm=await Notification.requestPermission();
+  if(perm!="granted"){toast(perm=="denied"?"Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului.":"Notificările nu au fost pornite.");return}
+  const r=await swReg();if(!r)throw 0;
+  let s=await r.pushManager.getSubscription();
+  if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)});
+  const j=s.toJSON();
+  const{error}=await SB.from("push_subs").upsert({user_id:SBU.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,ua:String(navigator.userAgent||"").slice(0,120),lang:S.lang=="en"?"en":"ro"},{onConflict:"endpoint"});
+  if(error)throw error;
+  PUSHS=s;S.nt.push=true;save();remSync.last="";remSync();
+  try{r.showNotification("LaTimp",{body:S.lang=="en"?"Notifications are on. Your reminders will arrive here.":"Notificările sunt pornite. Memento-urile vin aici.",icon:"icons/icon-192.png",tag:"lt-on"}).catch(()=>{})}catch(e){}
+  render();toast("Notificările sunt pornite")}
+ catch(e){toast("Nu am putut porni notificările. Încearcă din nou.")}
+ finally{PBUSY=false}}
+async function pushOff(keep){
+ try{const s=PUSHS||await pushRead();if(s){const ep=s.endpoint;try{await s.unsubscribe()}catch(e){}if(SB&&SBU)try{await SB.from("push_subs").delete().eq("endpoint",ep)}catch(e){}}}catch(e){}
+ PUSHS=null;if(!keep){S.nt.push=false;save();if(SB&&SBU){if(S.nt.mail){remSync.last="";remSync()}else try{await SB.rpc("set_reminders",{p:[]})}catch(e){}}render();toast("Notificările pe acest telefon sunt oprite")}}
+function pushHelp(){openSheet(`<h2>Notificări pe iPhone</h2><div class="mu">Pe iPhone, notificările merg doar după ce adaugi LaTimp pe ecranul principal.</div><ol class="ist"><li>Deschide pagina în Safari.</li><li>Apasă butonul Partajare (pătratul cu săgeată în sus).</li><li>Alege „Adaugă pe ecranul principal”, apoi „Adaugă”.</li><li>Deschide LaTimp de pe ecranul principal și pornește notificările din Mai mult, Notificări.</li></ol><button class="btn alt" onclick="closeSheet()">Am înțeles</button>`,"inst")}
+async function pushTest(){
+ if(pushState()!="on"){pushBanner("RCA · Mașina mea","Aceasta este o notificare de test.");return}
+ const r=await swReg();try{await r.showNotification("RCA · Mașina mea",{body:S.lang=="en"?"This is a test notification.":"Aceasta este o notificare de test.",icon:"icons/icon-192.png",tag:"lt-test"});toast("Ți-am trimis o notificare de test")}catch(e){toast("Nu am putut afișa notificarea")}}
+if(WEB){
+ const nv1=notifView;
+ notifView=function(){
+  let h=nv1();const st=pushState(),old=rw("Pe telefon","Notificări chiar și cu aplicația închisă. Vin cu aplicația instalată.",`<span class="tag">în curând</span>`);
+  const A=s=>`<span class="acts" style="margin:0">${s}</span>`;
+  const row=st=="on"?rw("Pe telefon","Memento-urile vin ca notificări, chiar și cu aplicația închisă.",A(`<span class="tag ok">activ</span><button class="g" onclick="pushOff()">Oprește</button>`),1)
+   :st=="denied"?rw("Pe telefon","Notificările sunt blocate pentru LaTimp. Le pornești din setările telefonului (Aplicații, LaTimp sau browserul, Notificări).","",1)
+   :st=="ios"?rw("Pe telefon","Pe iPhone, notificările merg după ce adaugi LaTimp pe ecranul principal.",A(`<button onclick="pushHelp()">Cum fac</button>`),1)
+   :st=="unsupported"?rw("Pe telefon","Browserul acesta nu primește notificări de la aplicații web.","",1)
+   :rw("Pe telefon","Memento-urile vin ca notificări, chiar și cu aplicația închisă.",A(`<button onclick="pushOn()">Pornește</button>`),1);
+  h=h.replace(old,row);
+  h=h.replace(`onclick="pushBanner('RCA · Mașina mea','Termenul e în ${Math.round(+S.nt.d)||0} zile. Aceasta este o notificare de test.')"`,`onclick="pushTest()"`);
+  return h};
+ const sv2=save;save=function(){sv2();remSync()};
+ const sD1=sbDone;sbDone=function(m,n){sD1(m,n);pushRead().then(s=>{if(s&&S.nt.push&&SB&&SBU){const j=s.toJSON();SB.from("push_subs").upsert({user_id:SBU.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,ua:String(navigator.userAgent||"").slice(0,120),lang:S.lang=="en"?"en":"ro"},{onConflict:"endpoint"}).then(()=>{remSync.last="";remSync()})}})};
+ const aO2=acctOut;acctOut=async function(){if(AC&&AC.out&&SBU&&S.nt&&S.nt.push)await pushOff(true);return aO2()};
+ pushRead().then(()=>{if(TAB=="more"&&VIEW=="notif")soft()});
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible"){remSync.last="";remSync()}});
+ if(typeof accBoot=="function"){const aB=accLoad;accLoad=async function(){await aB();remSync()}}
+}
+</script>

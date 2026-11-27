@@ -1,0 +1,33 @@
+<script>
+/* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
+const I18N={d:{},r:[]};
+const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
+const isEn=()=>S&&S.lang=="en";
+function tr(s){
+ if(typeof s!="string")return null;const m=/^(\s*)([\s\S]*?)(\s*)$/.exec(s),core=m[2];if(!core||!/[A-Za-zĂÂÎȘȚăâîșț]/.test(core))return null;
+ let v=Object.prototype.hasOwnProperty.call(I18N.d,core)?I18N.d[core]:undefined;
+ if(v===undefined){for(const r of I18N.r){if(r[0].test(core)){v=core.replace(r[0],r[1]);break}}}
+ return v===undefined||v===core?null:m[1]+v+m[3]}
+function trText(n){
+ const p=n.parentNode;if(!p||p.nodeType!=1||p.closest("script,style,textarea,[data-nt]"))return;
+ const cur=n.nodeValue;if(SETV.get(n)===cur)return;
+ const v=tr(cur);if(v!==null){ORIG.set(n,cur);SETV.set(n,v);n.nodeValue=v}}
+function trAttr(e,a){
+ const k="_o"+a,cur=e.getAttribute(a);if(cur==null||e["_s"+a]===cur)return;
+ const v=tr(cur);if(v!==null){e[k]=cur;e["_s"+a]=v;e.setAttribute(a,v)}}
+function trTree(root){
+ if(root.nodeType==3){trText(root);return}
+ if(root.nodeType!=1||root.closest("script,style,[data-nt]"))return;
+ TRA.forEach(a=>{if(root.hasAttribute(a))trAttr(root,a)});
+ const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let c;
+ while(c=w.nextNode()){if(c.nodeType==3)trText(c);else TRA.forEach(a=>{if(c.hasAttribute(a))trAttr(c,a)})}}
+function unTree(root){
+ const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let c;
+ while(c=w.nextNode()){
+  if(c.nodeType==3){if(ORIG.has(c)&&SETV.get(c)===c.nodeValue)c.nodeValue=ORIG.get(c);SETV.delete(c)}
+  else TRA.forEach(a=>{if(c["_o"+a]!==undefined&&c.getAttribute(a)===c["_s"+a])c.setAttribute(a,c["_o"+a]);delete c["_s"+a]})}}
+const LOBS=new MutationObserver(ms=>{if(!isEn())return;for(const m of ms){
+ if(m.type=="childList")m.addedNodes.forEach(trTree);else if(m.type=="characterData")trText(m.target);else if(m.type=="attributes")trAttr(m.target,m.attributeName)}});
+LOBS.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:TRA});
+function langApply(){document.documentElement.lang=isEn()?"en":"ro";if(isEn())trTree(document.body);else unTree(document.body)}
+</script>

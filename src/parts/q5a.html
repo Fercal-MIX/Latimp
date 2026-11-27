@@ -1,0 +1,69 @@
+<script>
+/* ---------- Mai mult: cont, setări, informații, ajutor ---------- */
+let RST=false,VT=0,VTT=0;
+function seg(k,o){return `<div class="seg">${o.map(x=>`<button class="${S[k]==x[0]?"on":""}" onclick="set('${k}',${typeof x[0]=="number"?x[0]:"'"+x[0]+"'"})">${x[1]}</button>`).join("")}</div>`}
+function set(k,v){S[k]=v;save();if(k=="theme")theme();render();if(k=="lang")langApply()}
+function setStats(v){S.stats=v;if(v)touch();else{S.st={first:"",days:{},adds:0,reads:0,taps:{}};lastSt=""}save();render();toast(v?"Statisticile sunt pornite":"Statisticile sunt oprite, iar cele trimise se șterg")}
+const ago=t=>{const m=Math.round((Date.now()-t)/6e4);return m<1?"acum":"acum "+m+" min"};
+function more(){
+ if(VIEW=="notif")return notifView();
+ const row=(t,d,c,k)=>`<div class="it${k?" stk":""}"><span><b>${t}</b><div class="mu">${d}</div></span>${c}</div>`;
+ const lnk=(t,fn)=>`<button class="it" onclick="${fn}"><b>${t}</b><span class="mu">›</span></button>`;
+ const ext=(t,u,m)=>okUrl(u)?`<a class="it" style="color:inherit" href="${esc(u.trim())}" target="_blank" rel="noopener noreferrer"><b>${t}</b><span class="mu">›</span></a>`:lnk(t,`toast('${m}')`);
+ const sy=!S.acct?(REM?"Ai o agendă salvată în cont. Conectează-te ca s-o aduci pe acest telefon.":"Doar pe acest telefon. Cu un cont o regăsești pe orice telefon."):!cloudOn()?(window.LT_WEB?"Se conectează la cont…":"Doar pe acest dispozitiv. Nu ești conectat."):DBOFF?"Doar pe acest dispozitiv. Contul tău nu poate salva copii aici.":SY.ok?"Copie salvată în cont, "+ago(SY.t):SY.ok===false?"Nu am putut salva copia. Încerc la următoarea modificare.":"Se verifică…";
+ return head("Mai mult","Cont, setări și ajutor")+
+ `<div class="gt">Cont și copie de siguranță</div><div class="grp">`+(S.acct?row("Cont",esc(PROV[S.acct.p]||"")+" · "+esc(S.acct.e),`<span class="acts" style="margin:0"><button onclick="acctOpen()">Gestionează</button></span>`):`<button class="it" onclick="acctOpen()"><span><b>Creează un cont sau conectează-te</b><div class="mu">Opțional. Google, Apple, Microsoft sau e-mail.</div></span><span class="mu">›</span></button>`)+row("Copie de siguranță",sy,"")+lnk("Copie într-un fișier","bkOpen()")+lnk("Restaurează achizițiile","restoreBuy()")+(DL?lnk("Exportă agenda (CSV)","exportCsv()"):"")+(invOn()?row("Acces prin invitație",invLine(),`<span class="acts" style="margin:0"><button onclick="invOpen()">Detalii</button></span>`):lnk("Ai un cod de invitație?","invOpen()"))+`<button class="it" onclick="refOpen()"><span><b>Invită un prieten</b><div class="mu">${bonusOn()?"Acces complet până la "+esc(nice(S.bx)):"Amândoi primiți "+RFD+" de zile de acces complet."}</div></span><span class="mu">›</span></button>`+lnk("Anul tău în LaTimp","yrShow()")+`</div>
+ <div class="note">Dacă te conectezi pe alt dispozitiv, agenda se regăsește. Dacă ai modificat-o în două locuri, rămâne ultima modificare.</div>
+ <div class="gt">Setări</div><div class="grp">`+
+ row("Temă","Cum arată aplicația",seg("theme",[["auto","Auto"],["light","Zi"],["dark","Noapte"]]))+
+ row("Limba","Language",`<div class="seg" data-nt>${[["ro","Română"],["en","English"]].map(x=>`<button class="${(S.lang||"ro")==x[0]?"on":""}" onclick="set('lang','${x[0]}')">${x[1]}</button>`).join("")}</div>`)+
+
+ `<button class="it" onclick="notifGo()"><span><b>Notificări</b><div class="mu">${esc(remSum())}</div></span><span class="mu">›</span></button>`+
+ row("Statistici de utilizare","Câte termene ai, când revii, ce sugestii deschizi. Fără conținutul agendei.",`<button class="sw${S.stats?" on":""}" role="switch" aria-checked="${!!S.stats}" aria-label="Statistici de utilizare" onclick="setStats(${!S.stats})"></button>`)+
+ row("Idei și cadouri",S.aiq?"Ai dat acordul. Ce scrii pentru idei și cadouri este trimis către un serviciu de inteligență artificială.":"Acordul se cere la prima idee.",S.aiq?`<span class="acts" style="margin:0"><button onclick="aiOff()">Retrage</button></span>`:`<span class="mu">Nedat</span>`)+
+ row("Citire din poză",S.aic?"Ai dat acordul. Poza aleasă este trimisă către un serviciu de inteligență artificială, ca să fie citită.":"Acordul se cere la prima poză citită.",S.aic?`<span class="acts" style="margin:0"><button onclick="setAic()">Retrage</button></span>`:`<span class="mu">Nedat</span>`)+
+ `</div><div class="gt">Afișare</div><div class="grp">`+uiRows()+`</div><div class="gt">Securitate</div><div class="grp">`+lockRows()+`</div><div class="gt">Informații</div><div class="grp">
+ <details><summary>Cum funcționează</summary><p>Agenda ține la un loc abonamentele, termenele auto (ITP, RCA, rovinietă, ulei) și zilele importante. Primești alertă înainte de fiecare termen. În Timp liber găsești idei de activități și de cadouri.</p></details>
+ <details><summary>Ce se întâmplă cu datele mele</summary><p>Agenda se salvează pe acest dispozitiv. Dacă ești conectat, o copie se păstrează în contul tău, ca s-o regăsești pe alt dispozitiv. Când ceri idei sau citești o poză, textul sau poza sunt trimise către un serviciu de inteligență artificială, care le procesează ca să-ți răspundă. Poza nu este păstrată de aplicație. Nu scrie în Detalii CNP, numere de card sau alte date sensibile, iar în poze acoperă-le.</p></details>
+ <details><summary>Cum sunt generate ideile</summary><p>Când serviciul de inteligență artificială este pornit, ideile și sugestiile de cadouri vin de la el, pe baza detaliilor tale; altfel vin dintr-o listă pregătită de noi. Sunt propuneri, nu recomandări verificate. Serviciul nu alege linkuri și nu stabilește prețuri: căutările pentru cadouri sunt create de aplicație.</p></details>
+ <details><summary>Sponsorizat, afiliat, exemplu</summary><p>„Sponsorizat” înseamnă că un partener plătește pentru loc. „Link afiliat” înseamnă că aplicația poate primi un comision, fără cost în plus pentru tine. „Exemplu” marchează un loc care încă nu are partener.</p></details>
+ <details><summary>Cum se calculează economia</summary><p>Adunăm costul lunar al abonamentelor marcate „de anulat”. Pentru cele anuale împărțim prețul la 12.</p></details>
+ <details><summary>Statisticile de utilizare</summary><p>Dacă le pornești, aplicația păstrează cifre: câte termene ai, în ce zile ai deschis-o și ce tipuri de sugestii ai deschis. Nu păstrează numele termenelor. Sunt legate de un identificator tehnic, nu de numele tău. Când le oprești, se șterg.</p></details></div>
+ <div class="gt">Ajutor</div><div class="grp">`+
+ (CFG.flags.rep!==false?lnk("Raportează o problemă","reportOpen()"):"")+
+ (okUrl(CFG.f.terms)?ext("Termeni și condiții",CFG.f.terms,""):lnk("Termeni și condiții","legal('terms')"))+(okUrl(CFG.f.priv)?ext("Politica de confidențialitate",CFG.f.priv,""):lnk("Politica de confidențialitate","legal('priv')"))+
+ `</div>`+
+ `<div class="gt">Date</div><div class="grp"><button class="it dg" onclick="wipe()"><b>${RST?"Apasă din nou ca să ștergi tot":"Șterge toate datele"}</b></button></div>
+ <div class="mu" style="text-align:center;margin:20px 0">LaTimp, versiune ${window.LT_WEB?"de test":"prototip"} ${VER}<br>${S.items.filter(x=>!x.ex).length} termene în agendă</div>`}
+async function wipe(){
+ if(!RST){RST=true;render();setTimeout(()=>{RST=false;if(TAB=="more")render()},4000);return}
+ RST=false;
+ if(DBU()){for(const p of["data/users/"+UID+"/state","stats/"+UID,"fam/"+UID,"reports/"+UID,"redeemed/"+UID,"polls/"+UID,"pv/"+UID,"rc/"+UID,"ru/"+UID]){try{await DB.doc(p).delete()}catch(e){}}}
+ S=fresh();IDEAS=[];GL=[];lastSt="";lastFam="";FM={};store();theme();await famSetup();render();toast("Toate datele din aplicație au fost șterse");setTimeout(onboard,500)}
+/* ---------- Raportează o problemă ---------- */
+let SHOT=null,RK="Problemă",RTXT="",RBUSY=false,LASTR=0;
+function reportOpen(){SHOT=null;RTXT="";RK="Problemă";RBUSY=false;drawReport()}
+function repGrab(){const t=$("rt");if(t)RTXT=t.value}
+function drawReport(msg){
+ const can=!!(DB&&UID&&!DBOFF);
+ let h=`<h2>Raportează o problemă</h2><div class="mu">Spune-ne ce n-a mers sau ce ți-ar plăcea să existe.</div><div class="chips">${["Problemă","Idee","Altceva"].map(k=>`<button class="${RK==k?"on":""}" onclick="repGrab();RK='${k}';drawReport()">${k}</button>`).join("")}</div><label for="rt">Descriere</label><textarea id="rt" maxlength="1000" placeholder="Ce ai făcut și ce s-a întâmplat?">${esc(RTXT)}</textarea>`;
+ if(AS)h+=`<label for="rs">Captură de ecran (opțional)</label><input id="rs" type="file" accept="image/png,image/jpeg,image/webp" onchange="repShot(this.files[0])"><div class="note" id="rss">${SHOT?"Captură atașată ("+Math.round(SHOT.size/1024)+" KB)":""}</div>`;
+ h+=`<div class="sg"><b>Atenție la datele personale</b>Captura poate conține nume, numere sau adrese. Acoperă-le înainte. O vede doar echipa aplicației.</div>`;
+ if(!can)h+=`<div class="note dg">Trimiterea nu e disponibilă pentru contul tău în prototip.${(CFG.f.mail||"").trim()?" Scrie la "+esc(CFG.f.mail.trim())+".":""}</div>`;
+ if(msg)h+=`<div class="note dg" role="alert">${esc(msg)}</div>`;
+ openSheet(h+`<div style="margin-top:14px"><button class="btn" onclick="repSend()"${can&&!RBUSY?"":" disabled"}>${RBUSY?"Se trimite…":"Trimite raportul"}</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"rep")}
+async function repShot(f){if(!f)return;try{SHOT=await shrink(f,1280,.8);$("rss").textContent="Captură atașată ("+Math.round(SHOT.size/1024)+" KB)"}catch(e){SHOT=null;$("rss").textContent="Nu am putut citi imaginea."}}
+async function repSend(){
+ repGrab();const tx=RTXT.trim();
+ if(tx.length<5){toast("Scrie câteva cuvinte");return}
+ if(Date.now()-LASTR<20000){toast("Așteaptă puțin înainte de alt raport");return}
+ RBUSY=true;drawReport();
+ try{
+  let shot=null;
+  if(SHOT&&AS){try{shot=(await AS.upload(SHOT)).id}catch(e){}}
+  const rid=uid()+Date.now().toString(36),it={k:RK,x:tx,ts:Date.now(),v:VER,tab:TAB,w:innerWidth+"x"+innerHeight,st:"new"};if(shot)it.s=shot;
+  const r=DB.doc("reports/"+UID),s=await r.get();
+  if(s.exists)await r.update({items:{[rid]:it}});else await r.set({items:{[rid]:it}});
+  LASTR=Date.now();RBUSY=false;const nos=SHOT&&!shot;SHOT=null;closeSheet();toast(nos?"Raport trimis, dar fără captură":"Raport trimis, mulțumim")}
+ catch(e){RBUSY=false;drawReport("Nu am putut trimite raportul. Încearcă din nou.")}}
+</script>

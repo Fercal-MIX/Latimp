@@ -1,0 +1,58 @@
+<script>
+/* ---------- Coduri de invitație: le creează doar administratorii; dau acces complet fără abonament ---------- */
+let IVL={},RDM=[],IV={n:"",max:1,days:365},IVR="",IVT={n:0,t:0},IVB=false,IVCHK=0;
+const IVRE=/^LT[A-HJ-NP-Z2-9]{10}$/,IVHR=/^[0-9a-f]{40}$/;
+const invFmt=c=>c.slice(0,2)+"-"+c.slice(2,7)+"-"+c.slice(7);
+const invNorm=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const invOn=()=>!!(S.inv&&S.inv.h&&(!S.inv.exp||S.inv.exp>=fmt(td())));
+const invYear=d=>nice(d)+" "+pd(d).getFullYear();
+const invLine=()=>S.inv&&S.inv.exp?"Acces complet până la "+invYear(S.inv.exp):"Acces complet, fără dată de încheiere";
+const invNote=()=>`<div class="sg"><b>Acces complet prin invitație</b>${esc(invLine())}. Nu ai nevoie de abonament sau de scântei cât timp codul este valabil.</div>`;
+const invLink=()=>invOn()?"":`<button class="btn alt" onclick="invOpen()">Ai un cod de invitație?</button>`;
+function invGen(){const b=crypto.getRandomValues(new Uint8Array(10));let c="LT";b.forEach(x=>c+=FA[x&31]);return c}
+async function invHash(code){
+ const en=new TextEncoder(),base=await crypto.subtle.importKey("raw",en.encode(code),"PBKDF2",false,["deriveBits"]);
+ return hex(await crypto.subtle.deriveBits({name:"PBKDF2",salt:en.encode("latimp-inv-h1"),iterations:120000,hash:"SHA-256"},base,256)).slice(0,40)}
+/* o singură citire dintr-o interogare, cu limită de timp */
+function once(q,ms){return new Promise((res,rej)=>{
+ let un=null,done=false;
+ const t=setTimeout(()=>fin(rej,new Error("timeout")),ms||10000);
+ const fin=(f,v)=>{if(done)return;done=true;clearTimeout(t);try{un&&un()}catch(e){}f(v)};
+ try{un=q.onSnapshot(s=>fin(res,s),e=>fin(rej,e||new Error("err")));if(done){try{un&&un()}catch(e){}}}catch(e){fin(rej,e)}})}
+/* ---- utilizator: introduce un cod ---- */
+function invOpen(msg,val){
+ if(invOn()){openSheet(`<h2>Acces prin invitație</h2><div class="sg"><b>Activ</b>${esc(invLine())}</div><div class="mu" style="margin-top:12px">Ai acces complet, fără abonament, cât timp codul este valabil. Dacă renunți, revii la planul pe care îl aveai înainte.</div><div style="margin-top:14px"><button class="btn alt" onclick="closeSheet()">Închide</button><button class="btn alt dg" onclick="invEnd('Ai renunțat la acces.')">Renunț la acces</button></div>`,"inv");return}
+ openSheet(`<h2>Cod de invitație</h2><div class="mu">Ai primit un cod? Îl introduci aici și primești acces complet, fără abonament.</div><label for="ivc">Codul tău</label><input id="ivc" value="${esc(val||"")}" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="LT-XXXXX-XXXXX" onkeydown="if(event.key=='Enter')invGo()">${msg?`<div class="note dg" role="alert">${esc(msg)}</div>`:""}<div style="margin-top:14px"><button class="btn" id="ivb" onclick="invGo()">Activează</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div><div class="note">Codul se verifică online. Nu-l da mai departe: poate fi folosit de un număr limitat de persoane.</div>`,"inv")}
+async function invGo(){
+ if(IVB)return;
+ const el=$("ivc"),raw=el?el.value:"",c=invNorm(raw);
+ if(!IVRE.test(c)){invOpen("Codul nu arată corect. Are forma LT-XXXXX-XXXXX.",raw);return}
+ if(IVT.t&&Date.now()<IVT.t){invOpen("Prea multe încercări. Mai așteaptă "+Math.ceil((IVT.t-Date.now())/1000)+" de secunde.",raw);return}
+ if(!DBU()||!cryptoOk()){invOpen("Codul nu poate fi verificat acum. Conectează-te și încearcă din nou.",raw);return}
+ IVB=true;const b=$("ivb");if(b){b.disabled=true;b.textContent="Se verifică…"}
+ const fail=m=>{IVB=false;invOpen(m,raw)};
+ try{
+  const h=await invHash(c),cs=await DB.doc("codes/"+h).get();
+  if(!cs.exists){if(++IVT.n>=5){IVT.t=Date.now()+60000;IVT.n=0}return fail("Cod invalid sau retras.")}
+  const d=cs.data()||{},ex=okDate(d.exp)?d.exp:"";
+  if(ex&&ex<fmt(td()))return fail("Codul a expirat.");
+  const max=Math.max(1,Math.min(1000,+d.max||1)),snap=await once(DB.collection("redeemed").where("h","==",h)),used=snap.docs.filter(x=>x.id!=UID).length;
+  if(used>=max)return fail("Codul a fost deja folosit de numărul maxim de persoane.");
+  await DB.doc("redeemed/"+UID).set({h,ts:Date.now()});
+  const was=S.inv&&S.inv.h?!!S.inv.was:!!S.pro;
+  S.inv={h,exp:ex,at:Date.now(),was};S.pro=true;IVT.n=0;IVB=false;save();closeSheet();render();toast("Cod activat. Ai acces complet.")}
+ catch(e){fail("Nu am putut verifica codul. Încearcă din nou.")}}
+function invEnd(msg){
+ if(!S.inv)return;
+ const was=!!S.inv.was;S.inv=null;S.pro=was;
+ if(DBU()){try{DB.doc("redeemed/"+UID).delete().catch(()=>{})}catch(e){}}
+ save();closeSheet();render();if(msg)toast(msg)}
+/* expirarea se vede local, fără rețea */
+function invExp(){
+ if(S.inv&&S.inv.exp&&S.inv.exp<fmt(td())){const was=!!S.inv.was;S.inv=null;S.pro=was;save();if(DBU()){try{DB.doc("redeemed/"+UID).delete().catch(()=>{})}catch(e){}}setTimeout(()=>toast("Accesul prin invitație s-a încheiat."),0)}}
+/* retragerea se află online: la pornire și când aplicația revine în față */
+async function invCheck(){
+ if(!S.inv||!DBU()||Date.now()-IVCHK<30000)return;IVCHK=Date.now();
+ try{const s=await DB.doc("codes/"+S.inv.h).get();if(S.inv&&s&&!s.exists&&!(s.metadata&&s.metadata.fromCache))invEnd("Accesul prin invitație a fost retras.")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)invCheck()});
+</script>

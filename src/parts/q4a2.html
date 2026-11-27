@@ -1,0 +1,85 @@
+<script>
+/* ---------- Timp liber, partea 2: cereri către serviciul de idei, salvate, cadouri, lângă mine ---------- */
+async function aiCall(p){if(!AI)return null;try{const o=await AI(p,{cache:false});return parseJ(o.text)}catch(e){return null}}
+const clip=(v,n)=>String(v==null?"":v).slice(0,n);
+const cleanQ=s=>String(s||"").replace(/[^\p{L}\p{N}\s-]/gu,"").replace(/\s+/g," ").trim().slice(0,50);
+const NOQ="Ai folosit ideile gratuite de azi. Ia scântei sau revino mâine.";
+function ctx(){
+ const {c,s}=sitObj(),f=FW.filter(x=>FLT[x[0]]).map(x=>x[1].toLowerCase()+": "+FLT[x[0]]).join("; ");
+ return {c,s,txt:`Situația: ${s[2]}. ${f?"Context: "+f+". ":""}Detalii: ${DET||"niciunul"}. ${c.k=="say"?"":"Buget: "+BUD+". "}`}}
+function ideaPrompt(n,skip){
+ const {c,txt}=ctx(),no=skip&&skip.length?" Nu repeta aceste idei: "+skip.map(x=>x.t).join("; ")+".":"";
+ if(c.k=="say")return `Ești un prieten calm și bun la comunicare. Răspunde în română. ${txt}Dă ${n} formulări gata de folosit, cu tonuri diferite, scurte, naturale, fără să te dai drept altcineva.${no} Răspunde DOAR cu JSON, fără alt text: [{"t":"tonul, în 2-3 cuvinte","d":"formularea, maximum 30 de cuvinte","c":""}]`;
+ return `Ești un prieten practic și creativ. Răspunde în română. ${txt}Dă ${n} idei concrete și realiste, diferite între ele.${no} Nu inventa adrese, programe sau prețuri exacte. Răspunde DOAR cu JSON, fără alt text: [{"t":"titlu scurt","d":"explicație de maximum 25 de cuvinte","c":"cost estimat, de exemplu gratis sau ~30 lei","m":"2-3 cuvinte pentru căutare pe hartă, de exemplu parc sau cafenea jocuri; gol dacă ideea se face acasă"}]`}
+function cleanIdeas(r,max){
+ if(!Array.isArray(r))return[];
+ return r.slice(0,max).map(x=>({t:clip(x&&x.t,80),d:clip(x&&x.d,260),c:clip(x&&x.c,24),m:cleanQ(x&&x.m)})).filter(x=>x.t&&x.d)}
+function fallback(){
+ const {c,s}=sitObj(),k=c.k,a=FB[k]||FB.home;
+ return a.map(x=>({t:x[0],d:x[1],c:x[2]||"",m:x[3]||""}))}
+async function askIdeas(){
+ if(BUSY)return;
+ if(!canPay(COST.idea,true)){toast(NOQ);openPlan("free");return}
+ BUSY=true;BM=false;render();
+ const {c,s}=ctx(),r=await aiCall(ideaPrompt(4)),a=cleanIdeas(r,5);
+ if(a.length){SRC="ai";pay(COST.idea,true);save()}else{SRC="local";a.push(...fallback())}
+ a.forEach(x=>x.nw=1);NI=0;IDEAS=a;IMETA=s[1];BUSY=false;render();IDEAS.forEach(x=>delete x.nw)}
+async function moreLike(i){
+ if(BUSY)return;const x=IDEAS[i];if(!x)return;
+ if(!canPay(COST.more,true)){toast(NOQ);openPlan("free");return}
+ BUSY=true;BM=true;render();
+ const base=ideaPrompt(3,IDEAS).replace("Dă 3 idei concrete","Dă 3 idei asemănătoare cu „"+x.t.replace(/[„”"]/g,"")+"”, concrete").replace("Dă 3 formulări","Dă 3 formulări asemănătoare cu „"+x.t.replace(/[„”"]/g,"")+"”"),
+  a=cleanIdeas(await aiCall(base),3).filter(y=>!IDEAS.some(z=>z.t.toLowerCase()==y.t.toLowerCase()));
+ if(a.length){pay(COST.more,true);save();NI=IDEAS.length;a.forEach(y=>y.nw=1);IDEAS=IDEAS.concat(a);BUSY=false;BM=false;render();IDEAS.forEach(y=>delete y.nw)}
+ else{BUSY=false;BM=false;render();toast("Nu am găsit alte idei acum. Nu s-a consumat nimic.")}}
+async function idPlan(i){
+ const x=IDEAS[i];if(!x||x.pb)return;
+ if(x.plan){x.sh=!x.sh;render();return}
+ if(!invOn()&&!ideasFree()&&S.credits<COST.plan){toast("Planul pe ore costă "+COST.plan+" scântei.");openPlan("free");return}
+ x.pb=1;render();
+ const {txt}=ctx(),r=await aiCall(`Ești un organizator practic. Răspunde în română. Fă un plan pe ore pentru ideea „${x.t}” (${x.d}). ${txt}Dă 4-6 pași, fiecare cu ora (HH:MM) și o propoziție scurtă, maximum 15 cuvinte. Nu inventa prețuri, adrese sau nume de locuri. Răspunde DOAR cu JSON, fără alt text: [{"o":"10:00","t":"ce faceți"}]`);
+ x.pb=0;
+ const a=Array.isArray(r)?r.slice(0,7).map(p=>({o:clip(p&&p.o,12),t:clip(p&&p.t,140)})).filter(p=>p.o&&p.t):[];
+ if(a.length){x.plan=a;x.sh=1;if(!invOn())S.credits-=COST.plan;save();render();return}
+ render();toast("Nu am putut face planul acum. Nu s-a consumat nimic.")}
+function saveIdea(i){
+ const x=IDEAS[i];if(!x)return;S.saved=S.saved||[];
+ const j=S.saved.findIndex(y=>y.t==x.t);
+ if(j>=0){S.saved.splice(j,1);toast("Scoasă din salvate")}
+ else{if(S.saved.length>=60){toast("Ai 60 de idei salvate. Șterge câteva.");return}S.saved.unshift({t:x.t,d:x.d,c:x.c||"",m:x.m||"",ts:Date.now()});toast("Salvată")}
+ save();render()}
+function unsave(i){S.saved.splice(i,1);save();render();toast("Ștearsă")}
+function toAgenda(i,sv){
+ const x=(sv?S.saved:IDEAS)[i];if(!x)return;
+ if(!S.pro&&S.items.filter(y=>!y.ex).length>=FREE_ITEMS){toast("Agenda are deja "+FREE_ITEMS+" de termene. Fă loc în Agendă și revino.");return}
+ cur={g:"per",t:"ev",n:clip(x.t,60),d:plus(7),rep:0,auto:false,note:""};drawItem(false)}
+/* ---------- cadouri: serviciul de idei dă doar expresii de căutare; linkurile le face aplicația ---------- */
+const affTpl=()=>{const t=(CFG.f.aff||"").trim();return okUrl(t)&&t.includes("{q}")?t:""};
+function shopLinks(k){
+ const e=encodeURIComponent(k),t=affTpl();
+ if(t)return[{n:(CFG.f.aff_n||"").trim()||"Vezi oferta",u:t.split("{q}").join(e),a:1}];
+ return[{n:"eMAG",u:"https://www.emag.ro/search/"+e.replace(/%20/g,"+")},{n:"Google Shopping",u:"https://www.google.com/search?tbm=shop&q="+e}]}
+function giftsView(){
+ const gch=(k,l)=>`<div class="chips f">${l.map(v=>`<button class="${GIFT[k]==v?"on":""}" onclick="GIFT.${k}='${v}';render()">${v}</button>`).join("")}</div>`,aff=!!affTpl();
+ let h=`<div class="hero"><div class="lb">Cadouri</div><h2>Ce cadou să iau?</h2><div class="s">Spune pentru cine și primești idei, cu căutări gata făcute.</div></div>
+ ${pplChips()}<label style="margin-top:4px">Încearcă un exemplu</label><div class="chips f">${GEX.map((e,i)=>`<button onclick="gex(${i})">${e[0]}</button>`).join("")}</div>
+ <label>Pentru cine</label>${gch("who",GW)}<label>Ocazie</label>${gch("occ",GO)}<label>Buget</label>${gch("bud",GB)}
+ <label for="gdet">Detalii (opțional)</label><input id="gdet" value="${esc(GIFT.det)}" maxlength="200" placeholder="Hobby-uri, vârstă, ce are deja" oninput="GIFT.det=this.value">`;
+ h+=paywall()+`<div style="margin-top:16px"><button class="btn" onclick="askGifts()"${BUSY?" disabled":""}>${BUSY?'Mă gândesc <span class="dots"><i></i><i></i><i></i></span>':"Dă-mi idei de cadouri"}</button></div><div class="mu" style="margin:10px 0 16px">${qline()}</div>`;
+ if(BUSY)return h+SKEL;
+ if(GL.length)h+=GL.map((x,i)=>`<div class="card${NEW?" pop":""}" style="--i:${i}"><strong>${esc(x.t)}</strong><div style="margin-top:6px">${esc(x.d)}</div>${x.q.map(k=>`<div class="acts"><span class="mu">Caută: ${esc(k)}</span>${shopLinks(k).map(l=>`<a href="${esc(l.u)}" target="_blank" rel="noopener noreferrer sponsored" onclick="tap('gift')">${esc(l.n)}</a>`).join("")}<span class="tag">${aff?"link afiliat":"căutare"}</span></div>`).join("")}${gSave(i)}</div>`).join("")+`<div class="note">${GSRC=="local"?"Idei de bază: serviciul de idei nu a fost disponibil, deci nu s-a consumat nimic. ":""}${aff?"Linkurile marcate „link afiliat” pot aduce aplicației un comision, fără cost în plus pentru tine. ":"Sunt căutări simple, fără afiliere. "}Prețurile le vezi în magazin: aplicația nu le inventează.</div>`;
+ return h}
+function gex(i){Object.assign(GIFT,GEX[i][1]);render()}
+async function askGifts(){
+ if(BUSY)return;
+ if(!canPay(COST.idea,true)){toast(NOQ);openPlan("free");return}
+ BUSY=true;render();
+ const r=await aiCall(`Ești un consultant de cadouri. Răspunde în română. Cadoul este pentru: ${GIFT.who}. Ocazie: ${GIFT.occ}. Buget aproximativ: ${GIFT.bud}. Detalii: ${GIFT.det||"niciunul"}. Dă 4 idei de cadouri de tipuri diferite. Pentru fiecare dă 2 expresii scurte de căutare (2-4 cuvinte), potrivite pentru un magazin online din România. Nu include prețuri, linkuri sau nume de magazine. Răspunde DOAR cu JSON, fără alt text: [{"t":"ideea, pe scurt","d":"de ce se potrivește, maximum 20 de cuvinte","q":["expresie 1","expresie 2"]}]`);
+ let a=[];
+ if(Array.isArray(r))a=r.slice(0,5).map(x=>({t:clip(x&&x.t,80),d:clip(x&&x.d,200),q:(Array.isArray(x&&x.q)?x.q:[]).map(cleanQ).filter(Boolean).slice(0,2)})).filter(x=>x.t&&x.d&&x.q.length);
+ if(a.length){GSRC="ai";GL=a;pay(COST.idea,true);save()}else{GSRC="local";GL=GF}
+ BUSY=false;NEW=true;render();NEW=false}
+function nearView(){
+ return `<div class="hero"><div class="lb">În apropiere</div><h2>Lângă mine</h2><div class="s">Evenimente și oferte din apropiere.</div></div><div class="card"><strong>Nu este disponibil încă</strong><div class="mu" style="margin-top:6px">Ar avea nevoie de locația ta și de date de la parteneri reali, pe care nu le avem acum. De aceea nu afișăm exemple inventate.</div><button class="btn alt" onclick="nearInt()"${S.int?" disabled":""}>${S.int?"Notat, mulțumim":"Mă interesează"}</button><div class="note">Apăsarea se numără doar dacă ai activat statisticile din Mai mult.</div></div>`}
+function nearInt(){S.int=1;if(S.stats)bump("","nearby");else save();render();toast(S.stats?"Notat, mulțumim":"Notat doar aici. Activează statisticile din Mai mult ca să se numere.")}
+</script>

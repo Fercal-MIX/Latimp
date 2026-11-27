@@ -1,0 +1,76 @@
+<script>
+/* ---------- Timp liber: idei (situații, filtre, sugestii), cadouri, salvate + planul Scântei ---------- */
+const COST={idea:1,more:1,plan:2};
+const CATS=[
+{k:"home",n:"Acasă",s:[["h1","Seară în doi","o seară acasă în doi"],["h2","Cu copiii","timp liber acasă cu copiii"],["h3","Seară de jocuri","o seară de jocuri acasă"],["h4","Gătim ceva nou","gătit împreună acasă"]]},
+{k:"out",n:"Afară",s:[["o1","Plimbare","o plimbare sau o ieșire în natură"],["o2","Excursie de o zi","o excursie de o zi"],["o3","Weekend ieftin","un weekend ieftin"],["o4","Cu copiii afară","timp liber cu copiii, afară"]]},
+{k:"soc",n:"Cu cineva",s:[["s1","Prima întâlnire","o primă întâlnire"],["s2","Seară cu prietenii","o seară cu prietenii"],["s3","Vizită la rude","o vizită la bunici sau rude"],["s4","Petrecere mică","o petrecere mică"]]},
+{k:"me",n:"Pentru mine",s:[["m1","După o zi grea","relaxare după o zi grea"],["m2","Hobby nou","un hobby nou de încercat"],["m3","Învăț ceva în 1 oră","ceva de învățat într-o oră"],["m4","Mișcare fără sală","mișcare fără sală"]]},
+{k:"say",n:"Ce spun",s:[["c1","Cum refuz","cum refuz politicos o cerere"],["c2","Mesaj de felicitare","un mesaj de felicitare"],["c3","Cer o favoare","cum cer o favoare"],["c4","Îmi cer scuze","cum îmi cer scuze"]]}];
+const FB={
+home:[["Cort din pături în sufragerie","Cearșafuri, scaune și lanterne. Apoi cineva doarme în cort.","gratis"],["Atelier de pizza acasă","Fiecare își face pizza mică, cu ce are prin frigider.","~30 lei"],["Seară de jocuri de societate","Alegeți un joc vechi și puneți un premiu simbolic.","gratis"]],
+out:[["Misiunea „frunze de 5 culori”","Parc, o listă de găsit și desertul ales de câștigător.","gratis","parc"],["Drumeție de o zi","Un traseu ușor și sandvișuri de acasă.","~30 lei"],["Tren spre un oraș apropiat","Plecați dimineața, vă întoarceți seara. Fără cazare.","~80 lei"]],
+soc:[["Plimbare și înghețată","Relaxat, ușor de scurtat dacă nu merge conversația.","~25 lei","înghețată"],["Cafenea cu jocuri de societate","Jocul rupe tăcerile și vă arată cum gândiți.","~60 lei","cafenea jocuri de societate"],["Piață sau târg local","Gustați lucruri împreună și aveți mereu despre ce vorbi.","~40 lei","piață"]],
+me:[["Zece minute fără ecran","Un ceai, o fereastră deschisă și nimic altceva.","gratis"],["Un episod dintr-o carte audio","Plimbare scurtă cu căștile pe urechi.","gratis"],["Stretching de 15 minute","Fără echipament, cu muzică liniștită.","gratis"]],
+say:[["Scurt și cald","„Mulțumesc că te-ai gândit la mine, dar acum nu pot.” Fără explicații lungi.",""],["Cu o alternativă","„În weekend nu pot, dar joi seara te ajut.”",""],["Sincer, cu răbdare","„Acum nu am loc, mă mai întrebi peste o lună?”",""]]};
+const FW=[["who","Cu cine",["Singur","În doi","Cu copiii","Cu prietenii","Familie"]],["time","Cât timp",["1 oră","O seară","O zi","Weekend"]],["wx","Vremea",["Senin","Ploaie","Frig","Cald"]],["en","Energie",["Liniștit","Activ"]]];
+const BUDS=["Orice buget","Gratis","Sub 50 lei","Sub 150 lei"];
+const EXS=[["Plouă, 2 copii de 4 și 7 ani",{cat:"home",sit:"h2",det:"2 copii de 4 și 7 ani",wx:"Ploaie"}],["Prima întâlnire, buget mic",{cat:"soc",sit:"s1",bud:"Sub 50 lei"}],["Duminică liniștită, singur",{cat:"me",sit:"m2",who:"Singur",time:"O zi",en:"Liniștit"}],["Cu prietenii, fără să cheltuim",{cat:"soc",sit:"s2",bud:"Gratis"}]];
+const GW=["Mamă","Tată","Partener","Prieten","Copil","Coleg"],GO=["Zi de naștere","Onomastică","Crăciun","Aniversare","Mulțumire"],GB=["Sub 100 lei","100–200 lei","200–500 lei","Peste 500 lei"];
+const GEX=[["Pentru tata, pasionat de pescuit",{who:"Tată",det:"pasionat de pescuit"}],["Pentru o colegă care pleacă din firmă",{who:"Coleg",occ:"Mulțumire",det:"colegă care pleacă din firmă"}],["Crăciun pentru un copil de 6 ani",{who:"Copil",occ:"Crăciun",det:"băiat de 6 ani, îi plac mașinile"}],["Pentru partener, aniversare de 5 ani",{who:"Partener",occ:"Aniversare",det:"5 ani împreună"}]];
+const GF=[{t:"O experiență împreună",d:"Un atelier, un spectacol sau o seară specială, în loc de încă un obiect.",q:["card cadou experiență","bilet spectacol cadou"]},{t:"Ceva personalizat",d:"Un obiect cu nume, dată sau fotografie, făcut special.",q:["cadou personalizat","ramă foto personalizată"]},{t:"Un consumabil de calitate",d:"Cafea, ceai sau dulciuri bune, într-un set frumos ambalat.",q:["set cadou cafea","set cadou ceai"]}];
+let NI=0,CAT="home",SIT="h1",FLT={who:"",time:"",wx:"",en:""},DET="",BUD="Orice buget",ADJ=false,IDEAS=[],IMETA="",SRC="",BUSY=false,BM=false,NEW=false,SUGS=[];
+let GIFT={who:"Partener",occ:"Zi de naștere",bud:"100–200 lei",det:""},GL=[],GSRC="";
+const sitObj=()=>{for(const c of CATS){const s=c.s.find(x=>x[0]==SIT);if(s)return{c,s}}return{c:CATS[0],s:CATS[0].s[0]}};
+/* lansare gratuită: când aplicația e gratuită pentru toți sau scânteile sunt oprite din panou, ideile nu se mai numără */
+function ideasFree(){try{if(!window.LT_WEB||typeof accNow!="function")return false;return accNow().source=="free"||!MONC().sparks}catch(e){return false}}
+const quota=()=>{const t=fmt(td());return Math.max(0,FREE_IDEAS-(S.day==t?S.used:0))};
+const canPay=(c,fr)=>invOn()||ideasFree()||(fr&&c==1&&quota()>0)||S.credits>=c;
+function pay(c,fr){if(invOn()||ideasFree())return;if(fr&&c==1&&quota()>0){const t=fmt(td());if(S.day!=t){S.day=t;S.used=0}S.used++}else S.credits-=c}
+const qline=()=>{const q=quota();return ideasFree()?"Idei nelimitate în perioada de lansare.":invOn()?"Acces complet prin invitație.":q?q+" din "+FREE_IDEAS+" gratuite rămase azi":S.credits?"Cele gratuite de azi s-au terminat. Se folosește o scânteie.":""};
+const paywall=()=>canPay(1,true)?"":`<div class="card"><div class="top"><strong>Gata cu ideile gratuite de azi</strong><span class="tag">0 din ${FREE_IDEAS}</span></div><div class="mu" style="margin-top:4px">Revino mâine pentru alte ${FREE_IDEAS}, sau ia scântei. Nu expiră niciodată.</div><button class="btn" style="margin-top:10px" onclick="openPlan('free')">Vezi pachetele</button></div>`;
+const SKEL=`<div class="sk"></div><div class="sk"></div><div class="sk"></div>`;
+const greet=()=>{const h=new Date().getHours();return h<12?"Bună dimineața":h<18?"Bună ziua":"Bună seara"};
+function nowSug(){
+ const n=new Date(),d=n.getDay(),h=n.getHours(),m=n.getMonth(),we=d==0||d==6,o=[];
+ if(m==10||m==11)o.push(["Târguri și luminițe de iarnă",{cat:"out",sit:"o1",det:"iarnă, luminițe și târguri de sărbători",wx:"Frig"}]);
+ if(m>=5&&m<=7)o.push(["Seară de vară afară",{cat:"out",sit:"o1",wx:"Cald",time:"O seară"}]);
+ if(we&&h<14)o.push(["Excursie de o zi",{cat:"out",sit:"o2",time:"O zi"}]);
+ if(!we&&h>=17)o.push(["Seară liniștită acasă",{cat:"home",sit:"h1",time:"O seară",en:"Liniștit"}]);
+ if(we&&h>=17)o.push(["Ieșim cu prietenii",{cat:"soc",sit:"s2",time:"O seară"}]);
+ o.push(["Zece minute pentru mine",{cat:"me",sit:"m1",time:"1 oră"}]);
+ return o.slice(0,2)}
+function free(){
+ const segs=[["ideas","Idei"]];if(CFG.flags.gifts!==false)segs.push(["gifts","Cadouri"]);segs.push(["saved","Salvate"+((S.saved||[]).length?" "+S.saved.length:"")]);if(CFG.flags.near!==false)segs.push(["near","Lângă mine"]);
+ if(!segs.some(s=>s[0]==FSEG))FSEG="ideas";
+ const idx=segs.findIndex(s=>s[0]==FSEG),prev=Math.min(PSEG,segs.length-1);PSEG=idx;
+ let h=head("Timp liber","Idei, cadouri și planuri",invOn()?"✦ Invitație":"✦ "+S.credits+" scântei","openPlan('free')");
+ h+=`<div class="seg full" style="--n:${segs.length};--i:${prev}" data-i="${idx}">${segs.map(s=>`<button class="${FSEG==s[0]?"on":""}" onclick="FSEG='${s[0]}';swap()">${s[1]}</button>`).join("")}</div>`;
+ return h+newsCard()+(FSEG=="ideas"?ideasView():FSEG=="gifts"?giftsView():FSEG=="saved"?savedView():nearView())}
+function ideasView(){
+ const {c,s}=sitObj(),say=c.k=="say",nf=Object.values(FLT).filter(Boolean).length;
+ SUGS=nowSug().concat(EXS.slice(0,3));
+ let h=`<div class="hero"><div class="lb">${new Date().toLocaleDateString(LOC(),{weekday:"long",day:"numeric",month:"long"})}</div><h2>${greet()}. Ce faci acum?</h2><div class="s">Alege situația și primești idei concrete.</div></div>
+ <label style="margin-top:4px">Sugestii pentru tine</label><div class="chips f sc">${SUGS.map((x,i)=>`<button onclick="useSug(${i})">${x[0]}</button>`).join("")}</div>
+ <label>Categorie</label><div class="chips f sc">${CATS.map(x=>`<button class="${x.k==c.k?"on":""}" onclick="setCat('${x.k}')">${x.n}</button>`).join("")}</div>
+ <div class="chips f sc" style="margin-top:0">${c.s.map(x=>`<button class="${x[0]==SIT?"on":""}" onclick="SIT='${x[0]}';swap()">${x[1]}</button>`).join("")}</div>`;
+ if(!say)h+=`<details class="card" style="margin-top:12px"${ADJ?" open":""} ontoggle="ADJ=this.open"><summary>Ajustează${nf?" · "+nf:""}</summary>${FW.map(f=>`<label>${f[1]}</label><div class="chips f">${f[2].map(v=>`<button class="${FLT[f[0]]==v?"on":""}" onclick="tg('${f[0]}','${v}')">${v}</button>`).join("")}</div>`).join("")}<label for="bud">Buget</label><select id="bud" onchange="BUD=this.value">${BUDS.map(b=>`<option${b==BUD?" selected":""}>${b}</option>`).join("")}</select></details>`;
+ h+=`<div><label for="det">Detalii (opțional)</label><input id="det" value="${esc(DET)}" maxlength="200" placeholder="${say?"Despre cine e vorba, ce s-a întâmplat":"De exemplu: 2 copii de 4 și 7 ani, plouă"}" oninput="DET=this.value"></div>`;
+ h+=paywall()+`<div class="two" style="margin-top:16px"><button class="btn" onclick="askIdeas()"${BUSY?" disabled":""}>${BUSY&&!BM?'Mă gândesc <span class="dots"><i></i><i></i><i></i></span>':"Dă-mi idei"}</button><button class="btn alt" onclick="surprise()"${BUSY?" disabled":""}>Surprinde-mă</button></div><div class="mu" style="margin:-4px 0 16px">${qline()}</div>`;
+ if(BUSY&&!BM)return h+SKEL;
+ if(IDEAS.length)h+=`<div class="gt">${say?"Formulări":"Idei"} · ${esc(IMETA)}</div>`+IDEAS.map((x,i)=>ideaCard(x,i,false)).join("")+(BUSY?`<div class="sk"></div>`:"")+`<div class="note">${SRC=="local"?(window.LT_WEB&&!AI?"Idei alese din lista LaTimp. ":"Idei de bază: serviciul de idei nu a fost disponibil, deci nu s-a consumat nimic. "):""}${say?"":"Costurile sunt estimări. Verifică prețurile și programul."}</div>`;
+ return h+forYou()}
+function ideaCard(x,i,saved){
+ const sv=!saved&&(S.saved||[]).some(y=>y.t==x.t),say=!saved&&sitObj().c.k=="say",map=x.m?`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.m)}" target="_blank" rel="noopener noreferrer" onclick="tap('map')">Pe hartă</a>`:"";
+ let acts=saved?`<button onclick="toAgenda(${i},1)">Pune în agendă</button>${map}<button class="g" onclick="unsave(${i})">Șterge</button>`
+  :`<button onclick="saveIdea(${i})">${sv?"Salvată":"Salvează"}</button>${say?"":`<button onclick="toAgenda(${i})">Pune în agendă</button>`}${map}${say||(window.LT_WEB&&!AI)?"":`<button onclick="moreLike(${i})">Mai multe ca asta ${(invOn()||ideasFree())?"":`<span class="cs">${COST.more} ✦</span>`}</button><button onclick="idPlan(${i})">${x.pb?'Plan <span class="dots"><i></i><i></i><i></i></span>':x.plan?(x.sh?"Ascunde planul":"Arată planul"):`Plan pe ore ${(invOn()||ideasFree())?"":`<span class="cs">${COST.plan} ✦</span>`}`}</button>`}`;
+ const pl=!saved&&x.plan&&x.sh?`<ul class="tl">${x.plan.map(p=>`<li><b>${esc(p.o)}</b><span>${esc(p.t)}</span></li>`).join("")}</ul>`:"";
+ return `<div class="card${x.nw&&!saved?" pop":""}" style="--i:${x.nw?Math.max(0,i-(NI||0)):i}"><div class="top"><strong>${esc(x.t)}</strong>${x.c?`<span class="tag">${esc(x.c)}</span>`:""}</div><div style="margin-top:6px">${esc(x.d)}</div>${pl}<div class="acts">${acts}</div></div>`}
+function savedView(){
+ const a=S.saved||[];
+ return `<div class="hero"><div class="lb">Colecția ta</div><h2>Idei salvate</h2><div class="s">${a.length} ${a.length==1?"idee":"idei"}. Salvarea este gratuită.</div></div>`+(a.length?a.map((x,i)=>ideaCard(x,i,true)).join(""):`<div class="card"><div class="mu">Nu ai salvat nimic încă. Apasă „Salvează” la o idee și o găsești aici.</div></div>`)}
+function setCat(k){CAT=k;SIT=CATS.find(c=>c.k==k).s[0][0];swap()}
+function tg(k,v){FLT[k]=FLT[k]==v?"":v;ADJ=true;render()}
+function useSug(i){const o=SUGS[i][1];CAT=o.cat;SIT=o.sit;DET=o.det||"";FLT={who:o.who||"",time:o.time||"",wx:o.wx||"",en:o.en||""};BUD=o.bud||"Orice buget";ADJ=!!(o.who||o.time||o.wx||o.en);swap()}
+function surprise(){const c=CATS[Math.floor(Math.random()*4)];CAT=c.k;SIT=c.s[Math.floor(Math.random()*c.s.length)][0];FLT={who:"",time:"",wx:"",en:""};DET="";askIdeas()}
+</script>

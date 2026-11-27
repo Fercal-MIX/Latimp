@@ -1,0 +1,22 @@
+<script>
+/* ---------- Rafinare 5–12: sugestii restrânse, accesibilitate, viteză, detalii ---------- */
+/* sugestia de la termen (service, broker): deschisă când termenul e aproape, restrânsă în rest */
+const sg0=sugg;
+sugg=function(x,allow){const h=sg0(x,allow);if(!h)return"";const s=SG[x.t],n=left(x.d);return n<=7?h:`<details class="sgd"><summary>${esc(s?s.h:"Sfaturi")}</summary>${h}</details>`};
+
+/* foile de jos: focusul intră în foaie, fundalul devine inert, iar la închidere focusul revine unde era */
+let LASTF=null;const os0=openSheet,cs0=closeSheet;
+const bgInert=v=>{document.querySelectorAll(".w,.nav").forEach(e=>{e.inert=!!v;if(v)e.setAttribute("aria-hidden","true");else e.removeAttribute("aria-hidden")})};
+openSheet=function(h,k){const was=$("ov").classList.contains("on");if(!was)LASTF=document.activeElement;os0(h,k);bgInert(true);const t=$("sb").querySelector("h2")||$("sheet");if(!t.hasAttribute("tabindex"))t.setAttribute("tabindex","-1");try{t.focus({preventScroll:true})}catch(e){}};
+closeSheet=function(e){if(e&&e.target.id!="ov")return;const was=$("ov").classList.contains("on");cs0(e);bgInert(false);if(was&&LASTF&&document.contains(LASTF)&&LASTF!==document.body){try{LASTF.focus({preventScroll:true})}catch(x){}}LASTF=null};
+
+/* viteză: lista lungă se afișează pe bucăți, iar minivacanțele se calculează o dată pe zi */
+let LIM=60;
+function ledgerPage(a,allow){if(a.length<=LIM)return ledger(a,allow);return ledger(a.slice(0,LIM),allow)+`<button class="btn alt" onclick="LIM+=60;render()">Arată încă ${Math.min(60,a.length-LIM)} din ${a.length-LIM}</button>`}
+const br0=breaks;breaks=function(){const k=fmt(td());if(breaks.k!==k){breaks.k=k;breaks.v=br0()}return breaks.v};
+
+/* persoane cu același nume: avertizare în fișă */
+const po0=pOpen;
+pOpen=function(k){po0(k);const ds=pDates(k),dup=["zi","onom","anv"].some(t=>ds.filter(x=>x.t==t).length>1);
+ if(dup){const sb=$("sb"),h=sb&&sb.querySelector("h2");if(h)h.insertAdjacentHTML("afterend",`<div class="note dg">Ai două date de același fel pentru „${esc(S.ppl[k]?S.ppl[k].n:k)}”. Dacă sunt persoane diferite, schimbă numele unuia (de exemplu: Ana Pop și Ana, sora).</div>`)}};
+</script>

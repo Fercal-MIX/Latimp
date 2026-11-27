@@ -1,0 +1,154 @@
+<script>
+/* ---------- Etapa 3: weekend, minivacanțe, provocarea lunii, liste de încercat, plan cu prietenii, recomandări ---------- */
+const WD=d=>d.toLocaleDateString(LOC(),{weekday:"short",day:"numeric",month:"short"});
+/* zile libere legale în România (Codul muncii), calculate pentru anul trecut, anul curent și următorii doi */
+function easterOrth(y){const a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7,m=Math.floor((d+e+114)/31),day=(d+e+114)%31+1;const j=new Date(y,m-1,day);j.setDate(j.getDate()+13);return j}
+function holYear(y){const E=easterOrth(y),o=n=>{const d=new Date(E);d.setDate(d.getDate()+n);return fmt(d)},f=(m,d)=>y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+ return[[f(1,1),"Anul Nou"],[f(1,2),"A doua zi de Anul Nou"],[f(1,6),"Boboteaza"],[f(1,7),"Sfântul Ioan"],[f(1,24),"Ziua Unirii"],[o(-2),"Vinerea Mare"],[o(0),"Paștele"],[o(1),"A doua zi de Paște"],[f(5,1),"Ziua Muncii"],[f(6,1),"Ziua Copilului"],[o(49),"Rusaliile"],[o(50),"A doua zi de Rusalii"],[f(8,15),"Adormirea Maicii Domnului"],[f(11,30),"Sfântul Andrei"],[f(12,1),"Ziua Națională"],[f(12,25),"Crăciunul"],[f(12,26),"A doua zi de Crăciun"]]}
+const HOL=(()=>{const y=new Date().getFullYear(),m=new Map();[y-1,y,y+1,y+2].forEach(Y=>holYear(Y).forEach(([d,n])=>m.set(d,m.has(d)?m.get(d)+", "+n:n)));return[...m].sort((a,b)=>a[0]<b[0]?-1:1)})();
+const isOff=d=>{const w=d.getDay();return w==0||w==6||HOL.some(h=>h[0]==fmt(d))};
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+/* minivacanțe: zilele libere legate de fiecare sărbătoare din timpul săptămânii, plus varianta cu o zi de concediu */
+function breaks(){
+ const out=[],seen=new Set(),t=td();
+ HOL.forEach(([ds])=>{
+  const h=pd(ds);if(h<t||h.getDay()==0||h.getDay()==6)return;
+  let a=h,b=h;while(isOff(addD(a,-1)))a=addD(a,-1);while(isOff(addD(b,1)))b=addD(b,1);
+  const k=fmt(a);if(seen.has(k))return;seen.add(k);
+  const n=Math.round((b-a)/DAY)+1;let best=null;
+  [[addD(a,-1),-1],[addD(b,1),1]].forEach(([g,dir])=>{if(isOff(g))return;let e=addD(g,dir),m=0;while(isOff(e)){m++;e=addD(e,dir)}if(m)best=!best||m>best.m?{g,m,dir}:best});
+  const names=HOL.filter(x=>pd(x[0])>=a&&pd(x[0])<=b).map(x=>x[1]);
+  const o={a,b,n,names};
+  if(best){o.leave=best.g;o.ln=n+1+best.m;o.la=best.dir<0?addD(best.g,-best.m):a;o.lb=best.dir>0?addD(best.g,best.m):b}
+  out.push(o)});
+ return out.sort((x,y)=>x.a-y.a)}
+const rng=(a,b)=>WD(a)+" – "+WD(b);
+function breakLine(o){return `${esc(rng(o.a,o.b))}: ${o.n} ${o.n==1?"zi liberă":"zile libere"}${o.leave?`, sau ${o.ln} cu o zi de concediu (${esc(WD(o.leave))})`:""}`}
+function holShow(){
+ const l=breaks();
+ openSheet(`<h2>Zile libere și minivacanțe</h2><div class="mu">Sărbătorile legale din timpul săptămânii și cât de lungă poate fi pauza.</div>${l.map(o=>`<div class="ar" style="display:block"><b>${esc(o.names.join(", "))}</b><div class="mu">${breakLine(o)}</div></div>`).join("")||`<div class="mu">Nu mai sunt sărbători legale în timpul săptămânii în perioada calculată.</div>`}<div class="note">Zilele libere legale din Codul muncii, până la sfârșitul lui 2027. Unele firme au reguli proprii pentru zilele de punte.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"hol")}
+/* weekendul: ce ai deja în agendă, vremea aleasă de tine, idei potrivite */
+function wkndDays(){const t=td(),w=t.getDay();const sat=w==6?t:w==0?addD(t,-1):addD(t,6-w);return[sat,addD(sat,1)]}
+function wkndBusy(){const[s,u]=wkndDays();return S.items.filter(x=>!x.ex&&okDate(x.d)&&(x.d==fmt(s)||x.d==fmt(u))).map(x=>(x.d==fmt(s)?"sâmbătă":"duminică")+": "+ttl(x))}
+function forYou(){
+ const[s,u]=wkndDays(),busy=wkndBusy(),br=breaks().find(o=>(o.a-td())/DAY<=45),wx=FLT.wx;
+ let h=`<div class="card fy"><strong>Weekendul tău, ${esc(WD(s))} – ${esc(WD(u))}</strong><div class="mu" style="margin-top:4px">${busy.length?"Ai deja în agendă: "+esc(busy.join("; "))+".":"Nu ai nimic în agendă în weekend."}</div>${budWk()?`<div class="mu sm" style="margin-top:4px">Buget de ieșiri: cam ${money(budWk())} lei pe weekend.</div>`:""}<label>Cum e vremea?</label><div class="chips f">${FW[2][2].map(v=>`<button class="${wx==v?"on":""}" onclick="FLT.wx=FLT.wx=='${v}'?'':'${v}';render()">${v}</button>`).join("")}</div><div class="acts"><button onclick="wkndIdeas()">Idei pentru weekend</button></div>`;
+ if(br)h+=`<div class="fyb"><strong>Minivacanță: ${esc(br.names.join(", "))}</strong><div class="mu">${breakLine(br)}</div>${brNote(br)}<div class="acts"><button onclick="brIdeas()">Idei pentru minivacanță</button><button onclick="holShow()">Toate zilele libere</button></div></div>`;
+ else h+=`<div class="acts"><button onclick="holShow()">Zile libere și minivacanțe</button></div>`;
+ return h+`<div class="note">Prognoza automată vine cu aplicația instalată. Până atunci, alegi tu vremea.</div></div>`+chCard()}
+function wkndIdeas(){const b=wkndBusy(),bb=budBucket();if(bb)BUD=bb;FLT.time="O zi";DET=(b.length?"În weekend am deja: "+b.join("; ")+". ":"")+(FLT.wx?"Vremea: "+FLT.wx.toLowerCase()+".":"");DET=DET.slice(0,200);ADJ=true;askIdeas()}
+function brIdeas(){const o=breaks()[0];if(!o)return;FLT.time="Weekend";DET=("Avem "+o.n+" zile libere, "+rng(o.a,o.b)+". Vrem o mică vacanță sau ieșiri.").slice(0,200);ADJ=true;askIdeas()}
+
+/* provocarea lunii: o ieșire nouă pe lună, fără presiune */
+const mKey=(d=td())=>fmt(d).slice(0,7);
+const mName=k=>{const d=pd(k+"-01"),m=d.toLocaleDateString(LOC(),{month:"long"});return m.charAt(0).toUpperCase()+m.slice(1)};
+function chStreak(){const m=(S.ch&&S.ch.m)||{};let d=new Date(td().getFullYear(),td().getMonth(),1),n=0;if(!m[mKey(d)])d=addM(d,-1,1);while(m[mKey(d)]&&n<240){n++;d=addM(d,-1,1)}return n}
+function chCard(){
+ const c=S.ch||{};
+ if(!c.on)return `<div class="card xs"><div class="top"><strong>Provocare: ceva nou în fiecare lună</strong><button class="lkb" onclick="chSet(true)">Pornește</button></div><div class="mu" style="margin-top:4px">O ieșire sau o activitate pe care n-ai mai făcut-o. Bifezi când ai făcut-o. Fără notificări.</div></div>`;
+ const k=mKey(),done=c.m&&c.m[k],st=chStreak();
+ return `<div class="card ch"><div class="top"><strong>Provocarea lunii · ${mName(k)}</strong><span class="tag${done?" ok":""}">${done?"făcută":"încă nu"}</span></div><div class="mu" style="margin-top:4px">${done?"Ai făcut: "+esc(done.t)+".":"Ceva nou luna asta: un loc, o activitate, o rețetă."} ${st?"Serie: "+st+(st==1?" lună":" luni")+" la rând.":""}</div><div class="acts">${done?`<button onclick="chDone()">Schimbă</button>`:`<button onclick="chDone()">Am făcut-o</button>`}<button class="g" onclick="chSet(false)">Oprește provocarea</button></div></div>`}
+function chSet(v){S.ch=Object.assign({m:{}},S.ch||{},{on:!!v});save();render();toast(v?"Provocarea e pornită":"Provocarea e oprită. Ce ai bifat rămâne.")}
+function chDone(){
+ const sv=(S.saved||[]).slice(0,6),cur0=(S.ch&&S.ch.m&&S.ch.m[mKey()]||{}).t||"";
+ openSheet(`<h2>Ce ai făcut nou?</h2><label for="ch_t">Pe scurt</label><input id="ch_t" maxlength="80" value="${esc(cur0)}" placeholder="De exemplu: am fost la un atelier de ceramică">${sv.length?`<label>Sau alege din ideile salvate</label><div class="chips">${sv.map((x,i)=>`<button onclick="$('ch_t').value=(S.saved[${i}]||{}).t||''">${esc(x.t)}</button>`).join("")}</div>`:""}<div style="margin-top:14px"><button class="btn" onclick="chSave()">Bifează luna</button>${cur0?`<button class="btn alt dg" onclick="chSave(1)">Scoate bifa</button>`:""}<button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"ch")}
+function chSave(rm){
+ S.ch=Object.assign({on:true,m:{}},S.ch||{});S.ch.m=S.ch.m||{};const k=mKey();
+ if(rm){delete S.ch.m[k];save();closeSheet();render();return}
+ const t=(($("ch_t")||{}).value||"").trim().slice(0,80);if(!t){toast("Scrie pe scurt ce ai făcut");return}
+ S.ch.m[k]={t,d:fmt(td())};const ks=Object.keys(S.ch.m).sort();while(ks.length>60)delete S.ch.m[ks.shift()];
+ save();closeSheet();render();const st=chStreak();toast(st>1?"Bravo! "+st+" luni la rând.":"Bifat pentru "+mName(k).toLowerCase()+".")}
+
+/* liste „de încercat” */
+const TLK=[["film","Filme"],["carte","Cărți"],["rest","Restaurante"],["loc","Locuri"],["alt","Altele"]];
+let TLF="film";
+function listsView(){
+ const l=(Array.isArray(S.tl)?S.tl:[]).filter(x=>x.k==TLF),open=l.filter(x=>!x.dn),done=l.filter(x=>x.dn),nm=(TLK.find(k=>k[0]==TLF)||TLK[0])[1];
+ const row=x=>`<div class="it tli"><label class="ck" style="margin:0"><input type="checkbox"${x.dn?" checked":""} onchange="tlDone('${x.id}')"> <span${x.dn?' class="mu" style="text-decoration:line-through"':""}>${esc(x.n)}</span></label><button class="x" aria-label="Șterge ${esc(x.n)}" onclick="tlDel('${x.id}')">✕</button></div>`;
+ return `<div class="gt">Liste de încercat</div><div class="chips f sc">${TLK.map(k=>{const c=(S.tl||[]).filter(x=>x.k==k[0]&&!x.dn).length;return `<button class="${TLF==k[0]?"on":""}" onclick="TLF='${k[0]}';render()">${k[1]}${c?" "+c:""}</button>`}).join("")}</div>
+ <div class="qa"><input id="tl_n" maxlength="80" placeholder="Adaugă la ${esc(nm.toLowerCase())}" aria-label="Adaugă în listă" onkeydown="if(event.key=='Enter')tlAdd()"><button onclick="tlAdd()">Adaugă</button></div>
+ <div class="grp" style="margin-top:10px">${open.map(row).join("")||`<div class="it"><span class="mu">Nimic aici încă. Scrie ce vrei să încerci.</span></div>`}${done.length?done.slice(0,20).map(row).join(""):""}</div>${open.length?`<div class="acts"><button onclick="tlIdeas()">Idei din lista mea</button></div>`:""}`}
+function tlAdd(){const e=$("tl_n"),n=(e?e.value:"").trim().slice(0,80);if(!n){toast("Scrie ce vrei să adaugi");return}S.tl=Array.isArray(S.tl)?S.tl:[];if(S.tl.length>=300){toast("Lista e plină. Șterge ce ai încercat.");return}S.tl.unshift({id:uid(),k:TLF,n,dn:false});save();render();const f=$("tl_n");if(f)f.focus()}
+function tlDone(id){const x=(S.tl||[]).find(i=>i.id==id);if(!x)return;x.dn=!x.dn;save();render()}
+function tlDel(id){S.tl=(S.tl||[]).filter(i=>i.id!=id);save();render()}
+function tlIdeas(){const l=(S.tl||[]).filter(x=>x.k==TLF&&!x.dn).slice(0,5).map(x=>x.n);DET=("Vreau ceva din lista mea: "+l.join(", ")+".").slice(0,200);FSEG="ideas";ADJ=true;swap();toast("Am pus lista în Detalii. Alege situația și cere idei.")}
+
+/* plan cu prietenii: votați ideea și ora */
+let POLLV=[],PSUB=null,PJ=null;
+const PTIMES=["Vineri seara","Sâmbătă dimineața","Sâmbătă după-amiaza","Sâmbătă seara","Duminică"];
+const pCode=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function pollSub(){
+ if(PSUB||!S.poll||!DBU())return;
+ try{PSUB=DB.collection("pv").onSnapshot(s=>{POLLV=s.docs.map(d=>((d.data()||{}).v||{})[UID]).filter(v=>v&&Number.isInteger(v.o));if(FSEG=="saved"&&TAB=="free")soft()},()=>{})}catch(e){}}
+function pollCard(){
+ if(S.poll){pollSub();const p=S.poll,n=POLLV.length;
+  const cnt=(k,i)=>POLLV.filter(v=>v[k]===i).length,top=a=>a.map((x,i)=>[x,cnt(a===p.o?"o":"t",i)]);
+  return `<div class="card"><div class="top"><strong>Planul votat cu prietenii</strong><span class="tag">${n} ${n==1?"vot":"voturi"}</span></div><div class="mu" style="margin-top:4px">Codul: <b style="user-select:all">${esc(p.c.slice(0,4)+"-"+p.c.slice(4))}</b>. Prietenii îl introduc în LaTimp, la Timp liber › Salvate.</div>${top(p.o).map(([x,c])=>`<div class="ar"><span>${esc(x)}</span><b>${c}</b></div>`).join("")}${p.t.length?`<div class="mu sm" style="margin-top:8px">Când</div>`+top(p.t).map(([x,c])=>`<div class="ar"><span>${esc(x)}</span><b>${c}</b></div>`).join(""):""}${n?`<div class="mu sm" style="margin-top:8px">Au votat: ${esc(POLLV.map(v=>String(v.n||"Anonim").slice(0,20)).join(", "))}</div>`:""}<div class="acts">${n?`<button onclick="pollToAgenda()">Pune câștigătorul în agendă</button>`:""}<button onclick="pollCopy()">Copiază codul</button><button class="g" onclick="pollEnd()">Închide votul</button></div></div>`}
+ return `<div class="card"><strong>Alegeți împreună</strong><div class="mu" style="margin-top:4px">Pui 2–4 idei salvate la vot, prietenii aleg ideea și ora.</div><div class="acts"><button onclick="pollNew()">Pornește un vot</button><button onclick="pollJoin()">Am un cod de vot</button></div></div>`}
+function pollNew(){
+ if(!DBU()){toast("Votul are nevoie de conexiune la baza de date");return}
+ const a=(S.saved||[]).slice(0,12);
+ if(a.length<2){toast("Salvează cel puțin două idei, apoi pornește votul");return}
+ openSheet(`<h2>Vot cu prietenii</h2><label>Ideile (2–4)</label>${a.map((x,i)=>`<label class="ck"><input type="checkbox" class="po" value="${i}"${i<2?" checked":""}> ${esc(x.t)}</label>`).join("")}<label>Când (opțional)</label>${PTIMES.map((t,i)=>`<label class="ck"><input type="checkbox" class="pt" value="${i}"> ${t}</label>`).join("")}<div style="margin-top:14px"><button class="btn" onclick="pollMake()">Creează votul</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div><div class="note">Oricine are codul vede ideile și numele celor care au votat.</div>`,"poll")}
+async function pollMake(){
+ const o=[...document.querySelectorAll("#sheet .po:checked")].map(e=>(S.saved[+e.value]||{}).t).filter(Boolean).map(t=>String(t).slice(0,80)),t=[...document.querySelectorAll("#sheet .pt:checked")].map(e=>PTIMES[+e.value]);
+ if(o.length<2||o.length>4){toast("Alege între 2 și 4 idei");return}
+ const c=(()=>{const b=crypto.getRandomValues(new Uint8Array(8));let s="";b.forEach(x=>s+=FA[x&31]);return s})();
+ try{await DB.doc("polls/"+UID).set({c,o,t,at:Date.now()});S.poll={c,o,t,at:Date.now()};POLLV=[];save();closeSheet();render();pollCopy()}
+ catch(e){toast("Nu am putut crea votul")}}
+function pollCopy(){if(!S.poll)return;const c=S.poll.c.slice(0,4)+"-"+S.poll.c.slice(4);try{navigator.clipboard.writeText(c).then(()=>toast("Cod copiat: "+c),()=>toast("Codul: "+c))}catch(e){toast("Codul: "+c)}}
+async function pollEnd(){try{if(DBU())await DB.doc("polls/"+UID).delete()}catch(e){}S.poll=null;POLLV=[];try{PSUB&&PSUB()}catch(e){}PSUB=null;save();render();toast("Votul s-a închis")}
+function pollJoin(msg,val){
+ if(PJ&&!msg){pollBallot();return}
+ openSheet(`<h2>Cod de vot</h2><div class="mu">Ai primit un cod de la un prieten? Îl scrii aici și votezi ideea și ora.</div><label for="pj_c">Codul</label><input id="pj_c" maxlength="12" value="${esc(val||"")}" autocapitalize="characters" autocomplete="off" placeholder="XXXX-XXXX" onkeydown="if(event.key=='Enter')pollFind()"><div class="note dg" role="alert">${esc(msg||"")}</div><div style="margin-top:14px"><button class="btn" onclick="pollFind()">Caută votul</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"pj")}
+async function pollFind(){
+ const raw=($("pj_c")||{}).value||"",c=pCode(raw);
+ if(!/^[A-HJ-NP-Z2-9]{8}$/.test(c)){pollJoin("Codul are 8 caractere, de forma XXXX-XXXX.",raw);return}
+ if(!DBU()){pollJoin("Votul nu poate fi verificat acum.",raw);return}
+ try{const s=await once(DB.collection("polls").where("c","==",c)),d=s.docs[0];
+  if(!d){pollJoin("Nu am găsit niciun vot cu acest cod.",raw);return}
+  const v=d.data()||{};if(!Array.isArray(v.o)||v.o.length<2){pollJoin("Votul nu mai este disponibil.",raw);return}
+  PJ={u:d.id,o:v.o.slice(0,4).map(x=>String(x).slice(0,80)),t:(Array.isArray(v.t)?v.t:[]).filter(x=>PTIMES.includes(x)),c,sel:0,tm:-1};pollBallot()}
+ catch(e){pollJoin("Nu am putut căuta votul. Încearcă din nou.",raw)}}
+function pollBallot(){
+ const p=PJ;if(!p)return;
+ openSheet(`<h2>Votează</h2><label>Ce facem?</label><div class="chips">${p.o.map((x,i)=>`<button class="${p.sel==i?"on":""}" onclick="PJ.sel=${i};PJ.n=($('pj_n')||{}).value||PJ.n||'';pollBallot()">${esc(x)}</button>`).join("")}</div>${p.t.length?`<label>Când?</label><div class="chips">${p.t.map((x,i)=>`<button class="${p.tm==i?"on":""}" onclick="PJ.tm=${i};PJ.n=($('pj_n')||{}).value||PJ.n||'';pollBallot()">${esc(x)}</button>`).join("")}</div>`:""}<label for="pj_n">Numele tău</label><input id="pj_n" maxlength="20" value="${esc(p.n||(S.acct&&S.acct.n)||"")}" placeholder="Cum te știu prietenii"><div style="margin-top:14px"><button class="btn" onclick="pollVote()">Trimite votul</button><button class="btn alt" onclick="PJ=null;closeSheet()">Renunță</button></div><div class="note">Numele și votul tău le vede oricine are codul.</div>`,"pj")}
+async function pollVote(){
+ const p=PJ;if(!p||!DBU())return;const n=(($("pj_n")||{}).value||"").trim().slice(0,20);
+ if(!n){toast("Scrie-ți numele, ca prietenii să știe cine a votat");return}
+ if(p.u==UID){toast("Este votul tău. Îl vezi în Salvate.");return}
+ const v={o:p.sel,t:p.tm>=0?p.tm:null,n,ts:Date.now()};
+ try{const r=DB.doc("pv/"+UID),s=await r.get();if(s.exists)await r.update({v:{[p.u]:v}});else await r.set({v:{[p.u]:v}});PJ=null;closeSheet();toast("Vot trimis")}
+ catch(e){toast("Nu am putut trimite votul")}}
+
+/* recomandări: un cod personal; amândoi primiți 30 de zile de acces complet */
+let REFN=0,RSUB=null;
+const RFMAX=12,RFD=30;
+function bonusOn(){return !!(S.bx&&S.bx>=fmt(td()))}
+function bonusAdd(days){const t=fmt(td());if(!bonusOn()){S.bw=!!S.pro&&!invOn();S.bx=fmt(addD(td(),days))}else S.bx=fmt(addD(pd(S.bx),days));S.pro=true}
+function bonusExp(){if(S.bx&&S.bx<fmt(td())){S.bx=null;if(!invOn())S.pro=!!S.bw;S.bw=false;store();setTimeout(()=>toast("Zilele primite prin recomandări s-au încheiat."),0)}}
+function refSub(){
+ if(RSUB||!S.ref||!DBU())return;
+ try{RSUB=DB.collection("ru").where("by","==",UID).onSnapshot(s=>{REFN=s.docs.filter(d=>d.id!=UID).length;const g=Math.min(REFN,RFMAX)-(+S.rfg||0);if(g>0){S.rfg=(+S.rfg||0)+g;bonusAdd(g*RFD);save();toast(g==1?"Un prieten a folosit codul tău: ai primit "+RFD+" de zile.":g+" prieteni au folosit codul tău: ai primit "+g*RFD+" de zile.");soft()}else if(TAB=="more")soft()},()=>{})}catch(e){}}
+async function refOpen(msg){
+ if(needAcct("Ca să inviți prieteni și să primești zilele, ai nevoie de un cont.",refOpen))return;
+ if(!DBU()){openSheet(`<h2>Invită un prieten</h2><div class="mu">Recomandările au nevoie de conexiune la baza de date. Aici nu sunt disponibile.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"ref");return}
+ if(!S.ref){const b=crypto.getRandomValues(new Uint8Array(7));let c="R";b.forEach(x=>c+=FA[x&31]);try{await DB.doc("rc/"+UID).set({c});S.ref=c;save()}catch(e){toast("Nu am putut crea codul");return}}
+ refSub();
+ const c=S.ref.slice(0,4)+"-"+S.ref.slice(4);
+ openSheet(`<h2>Invită un prieten</h2><div class="mu">Când un prieten folosește codul tău, amândoi primiți ${RFD} de zile de acces complet. Cel mult ${RFMAX} prieteni.</div><div class="code">${esc(c)}</div><button class="btn" onclick="refCopy()">Copiază codul</button><div class="note">${REFN?REFN+(REFN==1?" prieten l-a folosit":" prieteni l-au folosit")+(bonusOn()?". Ai acces complet până la "+esc(nice(S.bx))+".":"."):"Încă nu l-a folosit nimeni."}</div>${S.rfu?"":`<label for="rf_c">Ai primit un cod de la un prieten?</label><div class="qa"><input id="rf_c" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="RXXX-XXXX" onkeydown="if(event.key=='Enter')refUse()"><button onclick="refUse()">Folosește</button></div>`}<div class="note dg" role="alert">${esc(msg||"")}</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"ref")}
+function refCopy(){const c=S.ref.slice(0,4)+"-"+S.ref.slice(4);try{navigator.clipboard.writeText(c).then(()=>toast("Cod copiat"),()=>toast("Codul: "+c))}catch(e){toast("Codul: "+c)}}
+async function refUse(){
+ const c=pCode(($("rf_c")||{}).value);
+ if(!/^R[A-HJ-NP-Z2-9]{7}$/.test(c)){refOpen("Codul are forma RXXX-XXXX.");return}
+ if(c==S.ref){refOpen("Acesta este codul tău. Trimite-l unui prieten.");return}
+ if(S.rfu){refOpen("Ai folosit deja un cod de la un prieten.");return}
+ try{const s=await once(DB.collection("rc").where("c","==",c)),d=s.docs[0];
+  if(!d||d.id==UID){refOpen("Nu am găsit acest cod.");return}
+  const me=await DB.doc("ru/"+UID).get();if(me.exists){S.rfu=1;save();refOpen("Ai folosit deja un cod de la un prieten.");return}
+  await DB.doc("ru/"+UID).set({c,by:d.id,ts:Date.now()});S.rfu=1;bonusAdd(RFD);save();closeSheet();render();toast("Gata: ai "+RFD+" de zile de acces complet.")}
+ catch(e){refOpen("Nu am putut verifica codul. Încearcă din nou.")}}
+function savedView(){
+ const a=S.saved||[];
+ return srBtn()+`<div class="hero"><div class="lb">Colecția ta</div><h2>Idei salvate</h2><div class="s">${a.length} ${a.length==1?"idee":"idei"}. Salvarea este gratuită.</div></div>`+(a.length?a.map((x,i)=>ideaCard(x,i,true)).join(""):`<div class="card"><div class="mu">Nu ai salvat nimic încă. Apasă „Salvează” la o idee și o găsești aici.</div></div>`)+pollCard()+listsView()}
+</script>

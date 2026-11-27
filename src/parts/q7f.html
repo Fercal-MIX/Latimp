@@ -1,0 +1,77 @@
+<script>
+/* ---------- Vot cu prietenii și familie prin Supabase (doar în versiunea web) ---------- */
+const onCloud=()=>!!(SB&&SBU);
+/* vot: votul tău se citește la intrarea în Salvate și la fiecare 30 de secunde cât stai acolo */
+async function pvLoad(){
+ if(!onCloud()||!S.poll)return;
+ try{const{data,error}=await SB.from("poll_votes").select("opt,tm,name").eq("poll_owner",SBU.id);if(error)throw error;
+  const v=(data||[]).map(r=>({o:r.opt,t:r.tm,n:r.name}));if(JSON.stringify(v)!=JSON.stringify(POLLV)){POLLV=v;if(FSEG=="saved"&&TAB=="free")soft()}}catch(e){}}
+if(WEB){
+ pollSub=function(){if(!S.poll||!onCloud())return;if(!pollSub.t){pollSub.t=setInterval(()=>{if(document.visibilityState=="visible"&&TAB=="free"&&FSEG=="saved"&&S.poll)pvLoad()},30000);pvLoad()}};
+ pollNew=function(){
+  if(needAcct("Ca să pornești un vot, ai nevoie de un cont. Așa vezi voturile prietenilor.",pollNew))return;
+  if(!SB){toast("Votul are nevoie de internet");return}
+  const a=(S.saved||[]).slice(0,12);
+  if(a.length<2){toast("Salvează cel puțin două idei, apoi pornește votul");return}
+  openSheet(`<h2>Vot cu prietenii</h2><label>Ideile (2–4)</label>${a.map((x,i)=>`<label class="ck"><input type="checkbox" class="po" value="${i}"${i<2?" checked":""}> ${esc(x.t)}</label>`).join("")}<label>Când (opțional)</label>${PTIMES.map((t,i)=>`<label class="ck"><input type="checkbox" class="pt" value="${i}"> ${t}</label>`).join("")}<div style="margin-top:14px"><button class="btn" id="pm_go" onclick="pollMake()">Creează votul</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div><div class="note">Oricine are codul vede ideile; numele celor care au votat le vezi doar tu.</div>`,"poll")};
+ pollMake=async function(){
+  const o=[...document.querySelectorAll("#sheet .po:checked")].map(e=>(S.saved[+e.value]||{}).t).filter(Boolean).map(t=>String(t).slice(0,80)),t=[...document.querySelectorAll("#sheet .pt:checked")].map(e=>PTIMES[+e.value]);
+  if(o.length<2||o.length>4){toast("Alege între 2 și 4 idei");return}
+  const b=$("pm_go");if(b){b.disabled=true;b.textContent="Se creează…"}
+  try{const{data,error}=await SB.rpc("open_poll",{p_options:o,p_times:t});if(error||!data||!data.code)throw error;
+   S.poll={c:data.code,o,t,at:Date.now()};POLLV=[];save();closeSheet();render();pollCopy()}
+  catch(e){if(b){b.disabled=false;b.textContent="Creează votul"}toast("Nu am putut crea votul. Încearcă din nou.")}};
+ pollEnd=async function(){try{if(onCloud())await SB.from("polls").delete().eq("owner",SBU.id)}catch(e){}S.poll=null;POLLV=[];save();render();toast("Votul s-a închis")};
+ pollFind=async function(){
+  const raw=($("pj_c")||{}).value||"",c=pCode(raw);
+  if(!/^[A-HJ-NP-Z2-9]{8}$/.test(c)){pollJoin("Codul are 8 caractere, de forma XXXX-XXXX.",raw);return}
+  if(needAcct("Ca să votezi, ai nevoie de un cont. Așa fiecare votează o singură dată.",()=>pollJoin("",raw)))return;
+  if(!SB){pollJoin("Votul nu poate fi verificat acum. Conectează-te la internet.",raw);return}
+  try{const{data,error}=await SB.rpc("find_poll",{p_code:c});if(error)throw error;
+   if(!data||!Array.isArray(data.options)||data.options.length<2){pollJoin("Nu am găsit niciun vot cu acest cod.",raw);return}
+   if(data.mine){closeSheet();FSEG="saved";render();toast("Este votul tău. Îl vezi aici, în Salvate.");return}
+   PJ={u:"x",o:data.options.slice(0,4).map(x=>String(x).slice(0,80)),t:(Array.isArray(data.times)?data.times:[]).map(x=>String(x).slice(0,20)),c,sel:0,tm:-1};pollBallot()}
+  catch(e){pollJoin("Nu am putut căuta votul. Încearcă din nou.",raw)}};
+ pollVote=async function(){
+  const p=PJ;if(!p)return;const n=(($("pj_n")||{}).value||"").trim().slice(0,20);
+  if(!n){toast("Scrie-ți numele, ca prietenii să știe cine a votat");return}
+  try{const{data,error}=await SB.rpc("vote_poll",{p_code:p.c,p_opt:p.sel,p_tm:p.tm>=0?p.tm:null,p_name:n});if(error||!data)throw error;
+   if(!data.ok){const E={invalid:"Votul nu mai este disponibil.",own:"Este votul tău. Îl vezi în Salvate.",rate:"Prea multe încercări. Mai așteaptă un minut."};toast(E[data.err]||"Nu am putut trimite votul.");return}
+   PJ=null;closeSheet();toast("Vot trimis")}
+  catch(e){toast("Nu am putut trimite votul. Încearcă din nou.")}};
+}
+/* familie: același pachet criptat pe telefon, păstrat în family_blobs (serverul vede doar amprenta codului) */
+let FAMT=0;
+async function famPull(){
+ if(!onCloud()||!S.fam||!FKEY||!FH)return;const tk=FTK;
+ try{const{data,error}=await SB.from("family_blobs").select("user_id,blob").eq("group_hash",FH);if(error)throw error;
+  const out=[];for(const r of data||[]){if(r.user_id==SBU.id)continue;try{const p=await decr(FKEY,r.blob);out.push({u:r.user_id,w:clip(p.w,30),it:(Array.isArray(p.it)?p.it:[]).slice(0,100),gc:(Array.isArray(p.gc)?p.gc:[]).slice(0,50)})}catch(e){}}
+  if(tk!=FTK)return;if(JSON.stringify(out)!=JSON.stringify(FAMV)){FAMV=out;soft()}}catch(e){}}
+const famPush=writer(async()=>{
+ if(!onCloud()||!S.fam||!FKEY)return;
+ const it=S.items.filter(x=>x.sh&&x.g!="sub").slice(0,100).map(x=>({n:ttl(x),d:x.d,t:x.t,g:x.g,rep:x.rep||0,a:x.auto?1:0})),gc=famGifts(),sig=JSON.stringify([FH,S.fam.who,it,gc]);
+ if(sig==lastFam)return;
+ const b=await encr(FKEY,{w:S.fam.who,it,gc});
+ const{error}=await SB.from("family_blobs").upsert({user_id:SBU.id,group_hash:FH,blob:b,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+ if(!error){lastFam=sig;famPull()}},1500);
+if(WEB){
+ famSetup=async function(){
+  const tk=++FTK;FAMV=[];FKEY=null;FH="";
+  if(!S.fam||!onCloud()||!cryptoOk())return;
+  try{const d=await derive(S.fam.code);if(tk!=FTK)return;FKEY=d.key;FH=d.h;lastFam="";famPush();await famPull()}catch(e){}};
+ famOpen=function(){FM={};
+  if(!S.pro){toast("Familia face parte din Control.");openPlan("agenda");return}
+  if(needAcct("Pentru familie ai nevoie de un cont, ca să vă găsiți unii pe alții.",famOpen))return;
+  if(!cryptoOk()||!SB){openSheet(`<h2>Familie</h2><div class="mu">Familia are nevoie de internet. Încearcă din nou când ești online.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam");return}
+  drawFam()};
+ famLeave=async function(){
+  if(!FM.leave){FM.leave=1;drawFam();return}
+  FM={};S.fam=null;S.items.forEach(x=>{delete x.sh});lastFam="";save();
+  if(onCloud()){try{await SB.from("family_blobs").delete().eq("user_id",SBU.id)}catch(e){}}
+  await famSetup();closeSheet();render();toast("Ai ieșit din familie")};
+ const sv4=save;save=function(){sv4();famPush()};
+ const aL3=accLoad;accLoad=async function(){await aL3();if(S.fam&&!FKEY)famSetup();else famPull();if(S.poll)pvLoad()};
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible"){famPull();if(TAB=="free"&&FSEG=="saved")pvLoad()}});
+ const ao3=acctOut;acctOut=async function(){const r=await ao3();if(!S.acct){FTK++;FAMV=[];FKEY=null;FH=""}return r};
+}
+</script>

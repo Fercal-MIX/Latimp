@@ -1,0 +1,8 @@
+<script>
+/* ---------- Culori după plan: gratuit = Grafit și Ocru, Control = Pădure și Teracotă ---------- */
+function planPal(){const r=document.documentElement,v=S.pro?"ctl":"free";if(r.dataset.plan!=v)r.dataset.plan=v}
+const rnd0=render;render=function(){rnd0();planPal()};
+const opl0=openPlan;openPlan=function(k){opl0(k);const s=$("sheet");if(k=="agenda")s.dataset.pal="ctl";else delete s.dataset.pal};
+const osh0=openSheet;openSheet=function(h,k){delete $("sheet").dataset.pal;osh0(h,k)};
+planPal();
+</script>

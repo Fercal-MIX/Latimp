@@ -1,0 +1,220 @@
+<script>
+/* ---------- Etapa 1: cont, memento-uri, afișare, blocare cu PIN, copie în fișier ---------- */
+const HM=/^([01]\d|2[0-3]):[0-5]\d$/,EMRE=/^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i;
+const LOGO=`<svg viewBox="84 84 344 344" aria-hidden="true"><circle cx="256" cy="256" r="150" fill="none" stroke="currentColor" stroke-width="28"/><path d="M256 106 A150 150 0 0 1 406 256" fill="none" stroke="#f29a6e" stroke-width="28" stroke-linecap="round"/><path d="M203 180V332H309" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const rw=(t,d,c,k)=>`<div class="it${k?" stk":""}"><span><b>${t}</b>${d?`<div class="mu">${d}</div>`:""}</span>${c}</div>`;
+const swb=(on,lab,fn)=>`<button class="sw${on?" on":""}" role="switch" aria-checked="${!!on}" aria-label="${lab}" onclick="${fn}"></button>`;
+/* în Mai mult nu se numesc planurile: funcțiile plătite trimit la planul din Agendă */
+const ctag=()=>S.pro?"":` <span class="tag k">plan Agendă</span>`;
+function planGo(){toast("Face parte din planul din Agendă");closeSheet();tab("agenda");setTimeout(()=>openPlan("agenda"),reduce()?50:420)}
+const backBtn=()=>`<button class="back" onclick="VIEW='main';render();enter(-1);scrollTo(0,0)">‹ Mai mult</button>`;
+
+/* ---- memento-uri ---- */
+const ntH=()=>HM.test(S.nt&&S.nt.h)?S.nt.h:"09:00";
+function ntFix(){const b=fresh();S.nt=Object.assign(b.nt,S.nt&&typeof S.nt=="object"?S.nt:{});S.ui=Object.assign(b.ui,S.ui&&typeof S.ui=="object"?S.ui:{})}
+let RCUT=false;
+function remDays(x){
+ const n=S.nt,own=x&&S.pro&&x.rd!==undefined&&x.rd!==null&&x.rd!==""&&isFinite(+x.rd),d=Math.max(0,Math.min(365,Math.round(own?+x.rd:+n.d)||0)),a=[d];RCUT=false;
+ if(S.pro&&n.rep){const i=Math.max(1,Math.min(60,Math.round(+n.i)||1)),c=Math.max(2,Math.min(10,Math.round(+n.n)||2));
+  for(let k=1;k<c;k++){const v=d-k*i;if(v<0){RCUT=true;break}a.push(v)}}
+ if(S.pro&&n.day&&!a.includes(0))a.push(0);
+ return a}
+const remAt=(ds,k)=>{const d=pd(ds);d.setDate(d.getDate()-k);const[h,m]=ntH().split(":").map(Number);d.setHours(h,m,0,0);return d};
+const dayW=k=>k==0?"în ziua termenului":k==1?"cu o zi înainte":k==7?"cu o săptămână înainte":"cu "+k+" zile înainte";
+const remSum=()=>{if(typeof pauseOn=="function"&&pauseOn())return "În pauză până la "+nice(S.np);const a=remDays();return (a.length>1?a.length+" memento-uri, primul ":"")+dayW(a[0])+", la "+ntH()};
+const dt=d=>d.toLocaleDateString(LOC(),{weekday:"short",day:"numeric",month:"short"})+", "+ntH();
+function ntSet(k,v){
+ const n=S.nt;
+ if(["rep","day","wk"].includes(k)){if(!S.pro){planGo();return}v=!n[k]}
+ else if(k=="d")v=Math.max(0,Math.min(365,Math.round(+v)||0));
+ else if(k=="h"){if(!HM.test(v)){toast("Alege o oră validă");render();return}}
+ else if(k=="n")v=Math.max(2,Math.min(10,Math.round(+v)||2));
+ else if(k=="i")v=Math.max(1,Math.min(60,Math.round(+v)||1));
+ else return;
+ n[k]=v;save();render()}
+/* ora memento-ului: două liste (oră, minut), nu ceasul telefonului, care pe unele Android-uri cu text mare taie butoanele */
+function tSel(){const[h,m]=ntH().split(":"),mm=[...Array(12)].map((_,i)=>String(i*5).padStart(2,"0"));if(!mm.includes(m))mm.push(m),mm.sort();
+ return `<div class="tsel"><select id="nt_hh" aria-label="Ora" onchange="ntHM()">${[...Array(24)].map((_,i)=>{const v=String(i).padStart(2,"0");return `<option${v==h?" selected":""}>${v}</option>`}).join("")}</select><b aria-hidden="true">:</b><select id="nt_mm" aria-label="Minutul" onchange="ntHM()">${mm.map(v=>`<option${v==m?" selected":""}>${v}</option>`).join("")}</select></div>`}
+function ntHM(){ntSet("h",$("nt_hh").value+":"+$("nt_mm").value)}
+function notifGo(){if(TAB=="more"){VIEW="notif";render();enter(1);scrollTo(0,0);return}tab("more");VIEW="notif";if(reduce())render()}
+function notifView(){
+ const n=S.nt,P=S.pro,a=remDays(),ex=plus(Math.max(+n.d||0,1)+10);
+ let h=backBtn()+head("Notificări","Când și cât de des îți amintim de termene");
+ h+=`<div class="gt">Primul memento</div><div class="card"><label for="nt_d" style="margin-top:0">Cu câte zile înainte de termen</label><div class="nr"><input id="nt_d" type="number" inputmode="numeric" min="0" max="365" value="${Math.round(+n.d)||0}" onchange="ntSet('d',this.value)"><span class="mu">zile</span></div><div class="chips">${[1,3,7,14,30].map(v=>`<button class="${+n.d==v?"on":""}" onclick="ntSet('d',${v})">${v==1?"1 zi":v+" zile"}</button>`).join("")}</div><label for="nt_hh">La ce oră</label>${tSel()}<div class="note">0 înseamnă chiar în ziua termenului. Termenul apare în „De rezolvat curând” de la primul memento.</div></div>`;
+ h+=`<div class="gt">Repetare</div><div class="grp">`+rw("Repetă memento-ul"+ctag(),"Mai multe memento-uri până la termen, la intervalul ales.",swb(P&&n.rep,"Repetă memento-ul","ntSet('rep')"));
+ if(P&&n.rep){const c=Math.round(+n.n)||2,i=Math.round(+n.i)||1;
+  h+=rw("De câte ori, în total","Cu tot cu primul memento.",`<div class="stp"><button onclick="ntSet('n',${c-1})" aria-label="Mai puține"${c<=2?" disabled":""}>−</button><b aria-live="polite">${c}</b><button onclick="ntSet('n',${c+1})" aria-label="Mai multe"${c>=10?" disabled":""}>+</button></div>`)+
+  rw("La fiecare","",`<div class="nr" style="width:100%"><input id="nt_i" type="number" inputmode="numeric" min="1" max="60" value="${i}" onchange="ntSet('i',this.value)" aria-label="Interval în zile"><span class="mu">zile</span></div><div class="chips">${[1,2,3,7].map(v=>`<button class="${i==v?"on":""}" onclick="ntSet('i',${v})">${v==1?"în fiecare zi":v==7?"o dată pe săptămână":"la "+v+" zile"}</button>`).join("")}</div>`,1)}
+ h+=rw("Și în ziua termenului"+ctag(),"Un memento la ora aleasă, chiar în ziua respectivă.",swb(P&&n.day,"Și în ziua termenului","ntSet('day')"))+`</div>`;
+ h+=`<div class="gt">Cum arată</div><div class="card"><div class="mu">Pentru un termen pe ${esc(nice(ex))} primești:</div>${a.map(k=>`<div class="ar"><span>${dayW(k)}</span><span class="mu">${esc(dt(remAt(ex,k)))}</span></div>`).join("")}${RCUT?`<div class="note">Până la termen încap doar ${a.filter(k=>k>0||!n.day).length} memento-uri la intervalul ales.</div>`:""}${P?"":`<div class="note">În planul gratuit primești un memento pentru fiecare termen. Repetările fac parte din planul din Agendă.</div>`}<button class="btn alt" onclick="pushBanner('RCA · Mașina mea','Termenul e în ${Math.round(+n.d)||0} zile. Aceasta este o notificare de test.')">Trimite o notificare de test</button></div>`;
+ h+=`<div class="gt">Rezumat</div><div class="grp">`+rw("Rezumat săptămânal"+ctag(),"Luni, în Agendă: ce urmează în 7 zile și cât ai de plătit.",swb(P&&n.wk,"Rezumat săptămânal","ntSet('wk')"))+(P&&n.wk?`<button class="it" onclick="wkShow()"><b>Vezi cum arată</b><span class="mu">›</span></button>`:"")+`</div>`;
+ h+=`<div class="gt">Unde le primești</div><div class="grp">`+rw("În aplicație","Memento-ul apare ca banner când deschizi aplicația.",`<span class="tag ok">activ</span>`)+rw("Pe telefon","Notificări chiar și cu aplicația închisă. Vin cu aplicația instalată.",`<span class="tag">în curând</span>`)+rw("Pe e-mail",S.acct?"Către "+esc(S.acct.e)+".":"Ai nevoie de un cont.",`<span class="tag">în curând</span>`)+`</div>`;
+ return h}
+/* memento-urile ajunse la termen apar ca banner în aplicație */
+function remCheck(){
+ if(!S.onb||$("lk"))return;
+ const now=Date.now(),from=Math.max(+S.nl||0,now-3*DAY),due=[];S.nl=now;store();
+ S.items.filter(x=>!x.ex&&okDate(x.d)).forEach(x=>remDays(x).forEach(k=>{const t=+remAt(x.d,k);if(t>from&&t<=now)due.push([x,k])}));
+ if(!due.length)return;
+ due.sort((a,b)=>left(a[0].d)-left(b[0].d));
+ const[x]=due[0],n=left(x.d),more=new Set(due.map(d=>d[0].id)).size-1;
+ const nd=nice(x.d).replace(/\.$/,"");
+ pushBanner(ttl(x),(n<0?"A expirat pe "+nd+".":n==0?"Termenul e azi.":"Termenul e "+(n==1?"mâine":"în "+n+" zile")+", pe "+nd+".")+(more>0?" Și încă "+more+(more==1?" termen.":" termene."):""))}
+function pushBanner(t,b){
+ let e=$("pb");if(!e){e=document.createElement("div");e.id="pb";e.setAttribute("role","status");document.body.appendChild(e)}
+ e.innerHTML=`<button onclick="pbHide();if(TAB!='agenda')tab('agenda')"><span class="pi">${LOGO}</span><span class="pt"><span class="pa">LaTimp · acum</span><b>${esc(t)}</b><span>${esc(b)}</span></span></button>`;
+ e.classList.remove("on");void e.offsetWidth;e.classList.add("on");clearTimeout(pushBanner.h);pushBanner.h=setTimeout(pbHide,6500)}
+function pbHide(){const e=$("pb");if(e)e.classList.remove("on")}
+/* rezumat săptămânal (Control) */
+const wkKey=()=>{const d=td();d.setDate(d.getDate()-((d.getDay()+6)%7));return fmt(d)};
+function wkBody(){
+ const a=S.items.filter(x=>!x.ex&&okDate(x.d)&&left(x.d)>=0&&left(x.d)<=7).sort((x,y)=>left(x.d)-left(y.d)),sum=a.filter(x=>x.g=="sub").reduce((s,x)=>s+(+x.p||0),0);
+ if(!a.length)return `<div class="mu" style="margin-top:4px">Nimic de rezolvat în următoarele 7 zile.</div>`;
+ return `<div class="mu" style="margin-top:4px">${a.length} ${a.length==1?"termen":"termene"} în următoarele 7 zile${sum?", "+money(sum)+" lei de plătit pe abonamente":""}.</div>`+a.slice(0,5).map(x=>`<div class="ar"><span>${esc(ttl(x))}</span><span class="mu">${left(x.d)==0?"azi":esc(nice(x.d))}</span></div>`).join("")+(a.length>5?`<div class="mu sm" style="margin-top:8px">și încă ${a.length-5}</div>`:"")}
+function wkCard(){
+ if(!S.pro||!S.nt.wk||S.wkd==wkKey())return"";
+ return `<div class="card wk"><div class="top"><strong>Săptămâna ta</strong><button class="x" aria-label="Ascunde rezumatul săptămânii" onclick="S.wkd=wkKey();save();swap()">✕</button></div>${wkBody()}</div>`}
+function wkShow(){openSheet(`<h2>Săptămâna ta</h2>${wkBody()}<div class="note">Apare luni în Agendă, până îl închizi.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"wk")}
+
+/* ---- cont (opțional; conectarea este simulată în prototip) ---- */
+const PROV={google:"Google",apple:"Apple",microsoft:"Microsoft",email:"e-mail"};
+const MAILI=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/></svg>`;
+let AC={},REM=null;
+function acctOpen(why,next,ob){AC={m:S.acct?"me":"start",why:why||"",next:typeof next=="function"?next:null,ob:!!ob,e:"",n:"",p:"",nw:true,out:false,del:false};drawAcct()}
+function acctGrab(){const e=$("ac_e"),n=$("ac_n");if(e)AC.e=e.value;if(n)AC.n=n.value}
+function acctErr(m){const x=$("ac_err");if(x)x.textContent=m}
+function drawAcct(){
+ let h;const err=`<div class="note dg" id="ac_err" role="alert"></div>`;
+ if(AC.m=="me"&&S.acct){const a=S.acct;
+  h=`<h2>Contul tău</h2><div class="grp" style="margin-top:12px">${rw("Conectat cu "+PROV[a.p],esc(a.e)+(a.n?" · "+esc(a.n):""),"")}${a.p=="email"&&!a.v?rw("Adresă neconfirmată","În aplicația reală primești un link de confirmare pe e-mail.",`<span class="acts" style="margin:0"><button onclick="acctVerify()">Confirmă (demo)</button></span>`):""}</div><div class="note">Agenda se salvează în cont și o regăsești pe orice telefon pe care te conectezi.</div><div style="margin-top:14px"><button class="btn alt" onclick="closeSheet()">Închide</button><button class="btn alt dg" onclick="acctOut()">${AC.out?"Apasă din nou ca să te deconectezi":"Deconectează-te"}</button><button class="btn alt dg" onclick="acctDel()">${AC.del?"Apasă din nou: contul se șterge":"Șterge contul"}</button></div><div class="note">Ștergerea contului șterge copia din cont, familia și statisticile. Agenda rămâne doar pe acest telefon.</div>`}
+ else if(AC.m=="prov"){
+  h=`<h2>Continuă cu ${PROV[AC.p]}</h2><div class="mu">În aplicația reală se deschide fereastra de conectare ${PROV[AC.p]}. În prototip, scrie adresa de e-mail pe care ai folosi-o.</div><label for="ac_e">Adresa de e-mail</label><input id="ac_e" type="email" autocomplete="email" maxlength="254" value="${esc(AC.e)}" onkeydown="if(event.key=='Enter')acctGo()">${err}<div style="margin-top:14px"><button class="btn" onclick="acctGo()">Continuă</button><button class="btn alt" onclick="acctGrab();AC.m='start';drawAcct()">Înapoi</button></div>`}
+ else if(AC.m=="mail"){
+  h=`<h2>${AC.nw?"Cont nou":"Intră în cont"}</h2><div class="seg" style="margin-top:12px;display:inline-flex"><button class="${AC.nw?"on":""}" onclick="acctGrab();AC.nw=true;drawAcct()">Cont nou</button><button class="${AC.nw?"":"on"}" onclick="acctGrab();AC.nw=false;drawAcct()">Am deja cont</button></div>${AC.nw?`<label for="ac_n">Numele tău (opțional)</label><input id="ac_n" autocomplete="name" maxlength="40" value="${esc(AC.n)}">`:""}<label for="ac_e">Adresa de e-mail</label><input id="ac_e" type="email" autocomplete="email" maxlength="254" value="${esc(AC.e)}"><label for="ac_p">Parola</label><input id="ac_p" type="password" autocomplete="${AC.nw?"new-password":"current-password"}" maxlength="128" onkeydown="if(event.key=='Enter')acctGo()">${AC.nw?`<div class="note">Cel puțin 8 caractere, cu litere și cifre.</div>`:`<button class="lkb" style="margin-top:8px" onclick="acctErr('În aplicația reală primești pe e-mail un link pentru parolă nouă.')">Am uitat parola</button>`}${err}<div style="margin-top:14px"><button class="btn" onclick="acctGo()">${AC.nw?"Creează contul":"Intră în cont"}</button><button class="btn alt" onclick="acctGrab();AC.m='start';drawAcct()">Înapoi</button></div>`}
+ else{
+  h=`<h2>${AC.ob?"Păstrează-ți agenda":"Cont LaTimp"}</h2><div class="mu">${esc(AC.why||"Opțional. Cu un cont îți regăsești agenda pe orice telefon și poți folosi familia și planurile plătite.")}</div><div class="prv">${["google","apple","microsoft"].map(p=>`<button class="btn alt" onclick="acctGrab();AC.m='prov';AC.p='${p}';drawAcct()">Continuă cu ${PROV[p]}</button>`).join("")}<button class="btn alt" onclick="AC.m='mail';drawAcct()">${MAILI}Continuă cu e-mail</button></div><button class="btn alt" onclick="closeSheet()">${AC.ob?"Mai târziu":"Renunță"}</button><div class="note">Prototip: conectarea este simulată. Nu se contactează niciun furnizor, iar parola nu se trimite și nu se păstrează.</div>`}
+ openSheet(h,"acct")}
+function acctGo(){
+ acctGrab();const e=AC.e.trim().toLowerCase();
+ if(!EMRE.test(e)){acctErr("Adresa de e-mail nu arată corect.");return}
+ let p=AC.m=="prov"?AC.p:"email";
+ if(AC.m=="mail"){const pw=($("ac_p")||{}).value||"";
+  if(AC.nw&&(pw.length<8||!/[a-zA-Z]/.test(pw)||!/\d/.test(pw))){acctErr("Parola trebuie să aibă cel puțin 8 caractere, cu litere și cifre.");return}
+  if(!AC.nw&&!pw){acctErr("Scrie parola.");return}}
+ acctSet({p,e,n:AC.m=="mail"&&AC.nw?(AC.n||"").trim().slice(0,40):"",at:Date.now(),v:p!="email"||!AC.nw})}
+function acctSet(a){
+ let msg="Ești conectat";const nx=AC.next;
+ if(REM&&REM.state&&REM.state.acct&&String(REM.state.acct.e||"").toLowerCase()==a.e){S=mig(REM.state);S.at=+REM.at||Date.now();store();theme();uiApply();famSetup();msg="Ești conectat. Agenda din cont a fost adusă."}
+ else S.acct=a;
+ REM=null;save();closeSheet();render();toast(msg);if(nx)setTimeout(nx,350)}
+function acctVerify(){if(!S.acct)return;S.acct.v=true;save();drawAcct();toast("Adresă confirmată (demo)")}
+function acctOut(){
+ if(!AC.out){AC.out=true;AC.del=false;drawAcct();return}
+ S.acct=null;save();closeSheet();render();toast("Te-ai deconectat. Agenda rămâne pe acest telefon.")}
+async function acctDel(){
+ if(!AC.del){AC.del=true;AC.out=false;drawAcct();return}
+ if(DBU()){for(const p of["data/users/"+UID+"/state","stats/"+UID,"fam/"+UID,"reports/"+UID,"redeemed/"+UID,"polls/"+UID,"pv/"+UID,"rc/"+UID,"ru/"+UID]){try{await DB.doc(p).delete()}catch(e){}}}
+ if(S.inv){S.pro=!!S.inv.was;S.inv=null}
+ S.acct=null;S.fam=null;S.stats=false;S.st={first:"",days:{},adds:0,reads:0,taps:{}};lastSt="off";lastFam="";
+ save();await famSetup();closeSheet();render();toast("Contul a fost șters. Agenda rămâne doar pe acest telefon.")}
+/* fără cont nu se plătește și nu se folosește familia */
+function needAcct(why,next){if(S.acct)return false;acctOpen(why,next);return true}
+
+/* ---- afișare (gratuit: ține de accesibilitate) ---- */
+function uiApply(){const r=document.documentElement,u=S.ui||{};r.dataset.fs=u.fs=="l"||u.fs=="xl"?u.fs:"n";if(u.simple)r.setAttribute("data-simple","");else r.removeAttribute("data-simple");if(u.motion=="off")r.setAttribute("data-motion","off");else r.removeAttribute("data-motion")}
+function uiSet(k,v){if(k=="fs"&&!["n","l","xl"].includes(v))return;S.ui[k]=v;save();uiApply();render()}
+const uiRows=()=>rw("Mărimea textului","Pentru tot ce vezi în aplicație.",`<div class="seg">${[["n","Normal"],["l","Mare"],["xl","Foarte mare"]].map(x=>`<button class="${(S.ui.fs||"n")==x[0]?"on":""}" onclick="uiSet('fs','${x[0]}')">${x[1]}</button>`).join("")}</div>`,1)+
+ rw("Mod simplu","Mai puține lucruri pe ecran și contrast mai mare. Ascunde sugestiile de la parteneri și cardurile secundare.",swb(S.ui.simple,"Mod simplu",`uiSet('simple',${!S.ui.simple})`))+
+ rw("Animații","Mișcarea la schimbarea ecranelor și a cardurilor.",swb(S.ui.motion!="off","Animații",`uiSet('motion','${S.ui.motion=="off"?"auto":"off"}')`));
+
+/* ---- blocare cu PIN (Control); rămâne pe acest dispozitiv ---- */
+const LK="latimp.lock";let LKIN="",LKF={n:0,t:0},LKH=0,LKM="lock",LKP="",LKB=false;
+function lockGet(){try{const o=JSON.parse(localStorage.getItem(LK)||"null");return o&&/^[0-9a-f]{32}$/.test(o.s)&&/^[0-9a-f]{64}$/.test(o.h)?o:null}catch(e){return null}}
+function lockPut(o){try{if(o)localStorage.setItem(LK,JSON.stringify(o));else localStorage.removeItem(LK)}catch(e){}}
+async function pinHash(p,s){const en=new TextEncoder(),k=await crypto.subtle.importKey("raw",en.encode(p),"PBKDF2",false,["deriveBits"]);return hex(await crypto.subtle.deriveBits({name:"PBKDF2",salt:en.encode(s),iterations:150000,hash:"SHA-256"},k,256))}
+function lockShow(mode){
+ if(mode=="lock"&&!lockGet())return;
+ LKM=mode||"lock";LKIN="";LKP="";
+ let e=$("lk");if(!e){e=document.createElement("div");e.id="lk";e.setAttribute("role","dialog");e.setAttribute("aria-modal","true");document.body.appendChild(e)}
+ e.setAttribute("aria-label",LKM=="lock"?"Aplicația este blocată":"PIN");document.documentElement.classList.add("lkd");lockDraw()}
+function lockHide(){const e=$("lk");if(e)e.remove();document.documentElement.classList.remove("lkd");LKIN="";LKP=""}
+function lockDraw(msg){
+ const e=$("lk"),o=lockGet();if(!e)return;
+ const t=LKM=="set1"?"Alege un PIN de 4 cifre":LKM=="set2"?"Scrie din nou PIN-ul":LKM=="off"?"Scrie PIN-ul ca să oprești blocarea":"Introdu PIN-ul";
+ const k=d=>`<button onclick="lockKey('${d}')">${d}</button>`;
+ e.innerHTML=`<div class="lkw"><span class="lkl">${LOGO}</span><h2>${t}</h2><div class="pind" id="lkd" aria-label="${LKIN.length} din 4 cifre">${[0,1,2,3].map(i=>`<i class="${i<LKIN.length?"on":""}"></i>`).join("")}</div><div class="lkm" id="lkm" role="alert">${esc(msg||"")}</div><div class="pad">${[1,2,3,4,5,6,7,8,9].map(k).join("")}${LKM=="lock"&&o&&o.b?`<button class="sm" onclick="lockBio()">Amprentă</button>`:"<span></span>"}${k(0)}<button class="sm" onclick="lockKey('del')" aria-label="Șterge o cifră">⌫</button></div>${LKM=="lock"?`<button class="lkf" onclick="lockForgot()">Am uitat PIN-ul</button>`:`<button class="lkf" onclick="lockHide();render()">Renunță</button>`}</div>`}
+function dotsUpd(no){const d=$("lkd");if(!d)return;[...d.children].forEach((x,i)=>x.classList.toggle("on",i<LKIN.length));d.setAttribute("aria-label",LKIN.length+" din 4 cifre");if(no){d.classList.remove("no");void d.offsetWidth;d.classList.add("no")}}
+async function lockKey(k){
+ if(LKB||!$("lk")||$("lkx"))return;
+ if(LKF.t&&Date.now()<LKF.t){lockDraw("Prea multe încercări. Mai așteaptă "+Math.ceil((LKF.t-Date.now())/1000)+" de secunde.");return}
+ if(k=="del")LKIN=LKIN.slice(0,-1);else if(/^\d$/.test(k)&&LKIN.length<4)LKIN+=k;
+ dotsUpd();const m=$("lkm");if(m)m.textContent="";
+ if(LKIN.length<4)return;
+ const pin=LKIN;LKIN="";LKB=true;
+ try{
+  if(LKM=="set1"){LKP=pin;LKM="set2";lockDraw();return}
+  if(LKM=="set2"){if(pin!=LKP){LKM="set1";LKP="";lockDraw("PIN-urile nu se potrivesc. Încearcă din nou.");return}
+   const o=lockGet()||{b:false,t:0},s=hex(crypto.getRandomValues(new Uint8Array(16)));lockPut({s,h:await pinHash(pin,s),b:!!o.b,t:+o.t||0});lockHide();render();toast("Blocarea cu PIN este pornită");return}
+  const o=lockGet(),ok=!!o&&await pinHash(pin,o.s)==o.h;
+  if(!ok){if(++LKF.n>=5){LKF.t=Date.now()+30000;LKF.n=0}dotsUpd(true);const m2=$("lkm");if(m2)m2.textContent="PIN greșit.";return}
+  LKF.n=0;
+  if(LKM=="off"){lockPut(null);lockHide();render();toast("Blocarea cu PIN este oprită");return}
+  lockHide();remCheck()}
+ finally{LKB=false}}
+function lockBio(){lockHide();remCheck()}
+function lockForgot(){
+ const e=$("lk");if(!e)return;
+ e.innerHTML=`<div class="lkw" id="lkx"><span class="lkl">${LOGO}</span><h2>Ai uitat PIN-ul?</h2>`+(S.acct?`<div class="mu" style="margin-top:8px">Conectează-te din nou cu contul tău ca să ștergi PIN-ul.</div><input id="lk_e" type="email" autocomplete="email" placeholder="Adresa contului"><div class="lkm" id="lkm" role="alert"></div><button class="btn" onclick="lockReset()">Șterge PIN-ul</button>`:`<div class="mu" style="margin-top:8px">Fără cont, PIN-ul nu poate fi resetat. Poți șterge toate datele de pe acest telefon și începi din nou.</div><div class="lkm" id="lkm" role="alert"></div><button class="btn dg" id="lkw" onclick="lockWipe()">Șterge datele de pe telefon</button>`)+`<button class="btn alt" onclick="lockShow('lock')">Înapoi</button></div>`}
+function lockReset(){const v=(($("lk_e")||{}).value||"").trim().toLowerCase();if(!S.acct||v!=S.acct.e){$("lkm").textContent="Adresa nu se potrivește cu contul.";return}lockPut(null);lockHide();render();toast("PIN-ul a fost șters. Îl poți seta din nou din Mai mult.")}
+function lockWipe(){
+ const b=$("lkw");if(b&&!b.dataset.c){b.dataset.c=1;b.textContent="Apasă din nou: se șterge tot";return}
+ lockPut(null);S=fresh();S.at=Date.now();store();IDEAS=[];GL=[];lockHide();theme();uiApply();render();setTimeout(onboard,300)}
+function lockToggle(){
+ if(!cryptoOk()){toast("Blocarea nu este disponibilă aici");return}
+ if(lockGet()){lockShow("off");return}
+ if(!S.pro){planGo();return}
+ lockShow("set1")}
+function lockOpt(k,v){const o=lockGet();if(!o)return;if(k=="b")o.b=!o.b;else if(k=="t"&&[0,1,5].includes(v))o.t=v;lockPut(o);render()}
+function lockRows(){
+ const o=lockGet();
+ let h=rw("Blocare cu PIN"+(o?"":ctag()),o?"Aplicația cere PIN-ul când o deschizi.":"Cere un PIN de 4 cifre când deschizi aplicația.",swb(!!o,"Blocare cu PIN","lockToggle()"));
+ if(o)h+=rw("Deblocare cu amprenta sau fața","În prototip, butonul doar simulează amprenta.",swb(o.b,"Deblocare cu amprenta","lockOpt('b')"))+
+  rw("Blochează după","Cât timp poate sta aplicația în fundal fără să ceară PIN-ul.",`<div class="seg">${[[0,"Imediat"],[1,"1 min"],[5,"5 min"]].map(x=>`<button class="${(+o.t||0)==x[0]?"on":""}" onclick="lockOpt('t',${x[0]})">${x[1]}</button>`).join("")}</div>`,1)+
+  `<button class="it" onclick="lockShow('set1')"><b>Schimbă PIN-ul</b><span class="mu">›</span></button>`;
+ return h+`<div class="it"><span class="mu sm">PIN-ul rămâne doar pe acest telefon și nu se salvează în cont.</span></div>`}
+document.addEventListener("keydown",e=>{if(!$("lk")||$("lkx")||LKM=="none")return;if(/^\d$/.test(e.key))lockKey(e.key);else if(e.key=="Backspace")lockKey("del")});
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){LKH=Date.now();return}
+ const o=lockGet();if(o&&!$("lk")&&LKH&&Date.now()-LKH>=(+o.t||0)*60000){closeSheet();lockShow("lock")}else remCheck()});
+
+/* ---- copie într-un fișier (gratuit: datele tale îți aparțin) ---- */
+let BK=null;
+function bkOpen(m){openSheet(`<h2>Copie într-un fișier</h2><div class="mu">Salvezi agenda, mașinile, ideile salvate și setările într-un fișier pe care îl păstrezi unde vrei. Îl poți încărca înapoi pe orice telefon, și fără cont.</div><button class="btn" style="margin-top:14px" onclick="bkSave()"${DL?"":" disabled"}>Salvează copia</button>${DL?"":`<div class="note">Salvarea fișierelor nu este disponibilă aici.</div>`}<label for="bk_f">Încarcă o copie</label><input id="bk_f" type="file" accept="application/json,.json" onchange="bkLoad(this.files[0])"><div class="note dg" id="bk_m" role="alert">${esc(m||"")}</div><button class="btn alt" onclick="closeSheet()">Închide</button><div class="note">Fișierul nu este criptat. Păstrează-l într-un loc sigur.</div>`,"bk")}
+async function bkSave(){
+ if(!DL)return;
+ const o={app:"LaTimp",kind:"backup",v:1,at:new Date().toISOString(),data:{items:S.items.filter(x=>!x.ex),cars:S.cars,saved:S.saved,nt:S.nt,ui:S.ui,theme:S.theme}};
+ try{await DL.save({filename:"latimp-copie-"+fmt(td())+".json",data:JSON.stringify(o,null,1)});tap("bk");toast("Copia a fost salvată")}catch(e){if(!e||e.code!="user_cancelled")toast("Nu am putut salva fișierul")}}
+const clean=(o,deep)=>{if(!o||typeof o!="object"||Array.isArray(o))return null;const r={};
+ Object.keys(o).slice(0,40).forEach(k=>{if(!/^[a-zA-Z_]{1,12}$/.test(k))return;const v=o[k];
+  if(typeof v=="string")r[k]=v.slice(0,500);else if(typeof v=="number"&&isFinite(v))r[k]=v;else if(typeof v=="boolean")r[k]=v;
+  else if(deep&&Array.isArray(v))r[k]=v.slice(0,30).map(s=>typeof s=="string"?s.slice(0,300):clean(s)).filter(s=>s!==null)});return r};
+async function bkLoad(f){
+ const m=t=>{const e=$("bk_m");if(e)e.textContent=t};
+ if(!f)return;if(f.size>2e6){m("Fișierul e prea mare pentru o copie LaTimp.");return}
+ let o;try{o=JSON.parse(await f.text())}catch(e){m("Fișierul nu este o copie LaTimp.");return}
+ const d=o&&o.app=="LaTimp"&&o.kind=="backup"&&o.data;
+ if(!d||!Array.isArray(d.items)){m("Fișierul nu este o copie LaTimp.");return}
+ const idok=x=>x&&/^[\w-]{1,24}$/.test(x.id||"");
+ const items=d.items.slice(0,2000).map(x=>clean(x)).filter(x=>idok(x)&&["sub","auto","per"].includes(x.g)&&okDate(x.d)).map(x=>{delete x.ex;return x});
+ const cars=(Array.isArray(d.cars)?d.cars:[]).slice(0,50).map(x=>clean(x)).filter(x=>idok(x)&&typeof x.n=="string");
+ const saved=(Array.isArray(d.saved)?d.saved:[]).slice(0,500).map(x=>clean(x,true)).filter(Boolean);
+ BK={items,cars,saved,nt:clean(d.nt),ui:clean(d.ui),theme:["auto","light","dark"].includes(d.theme)?d.theme:null,at:String(o.at||"").slice(0,10)};
+ openSheet(`<h2>Încarci copia?</h2><div class="mu">Copie din ${okDate(BK.at)?esc(nice(BK.at)+" "+pd(BK.at).getFullYear()):"data necunoscută"}: ${items.length} ${items.length==1?"termen":"termene"}, ${cars.length} ${cars.length==1?"mașină":"mașini"}, ${saved.length} ${saved.length==1?"idee salvată":"idei salvate"}.</div><div class="sg"><b>Înlocuiește ce e acum pe telefon</b>Agenda, mașinile, ideile salvate și setările de acum sunt înlocuite. Planul, scânteile și contul rămân la fel.</div><div style="margin-top:14px"><button class="btn" onclick="bkApply()">Înlocuiește</button><button class="btn alt" onclick="BK=null;bkOpen()">Renunță</button></div>`,"bk")}
+function bkApply(){
+ if(!BK)return;
+ S.items=BK.items;S.cars=BK.cars;S.saved=BK.saved;
+ if(BK.nt)S.nt=Object.assign(S.nt,BK.nt);if(BK.ui)S.ui=Object.assign(S.ui,BK.ui);if(BK.theme)S.theme=BK.theme;
+ ntFix();carsMigrate();BK=null;save();theme();uiApply();closeSheet();render();toast("Copia a fost încărcată")}
+
+ntFix();uiApply();if(lockGet())lockShow("lock");
+</script>

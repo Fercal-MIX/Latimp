@@ -1,0 +1,13 @@
+<script>
+/* ---------- Etapa 4: anunțuri în aplicație, teste de preț, limba engleză ---------- */
+/* anunțuri: le scrie administratorul în config/app.news, le vede toată lumea până la data aleasă */
+function newsOn(){const n=CFG.news;return !!(n&&n.on&&/^[\w-]{1,24}$/.test(n.id||"")&&(n.t||n.x)&&(!n.u||(okDate(n.u)&&n.u>=fmt(td()))))}
+function newsCard(){
+ if(!newsOn()||S.nd==CFG.news.id)return"";const n=CFG.news,l=okUrl(n.l||"")?n.l.trim():"";
+ return `<div class="card nw" role="status"><div class="top"><strong>${esc(String(n.t||"").slice(0,60))}</strong><button class="x" aria-label="Ascunde anunțul" onclick="S.nd=CFG.news.id;save();swap()">✕</button></div>${n.x?`<div style="margin-top:4px">${esc(String(n.x).slice(0,240))}</div>`:""}${l?`<div class="acts"><a href="${esc(l)}" target="_blank" rel="noopener noreferrer">Află mai mult</a></div>`:""}</div>`}
+/* teste de preț: fiecare utilizator cade stabil în grupul A sau B, după identificatorul tehnic */
+const abGrp=()=>{const s=String(UID||"");let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return s?(h%2?"b":"a"):"a"};
+const abOn=()=>!!(CFG.ab&&CFG.ab.on&&UID);
+const okP=v=>{const n=+v;return n>=0.5&&n<=999?Math.round(n*100)/100:null};
+function price(){if(!abOn())return[49,5.99];const a=CFG.ab,g=abGrp();return[okP(a[g+"y"])||49,okP(a[g+"m"])||5.99]}
+</script>

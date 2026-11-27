@@ -1,0 +1,41 @@
+<script>
+/* ---------- Rafinare: prima pornire într-un singur flux, Agenda mai aerisită, o singură invitație la Control ---------- */
+/* prima pornire: profilul și datele mașinii pe același ecran, apoi contul */
+function drawOb(){
+ const sel=OB.sel||[];
+ let h=`<h2>Ce să ținem minte pentru tine?</h2><div class="mu">Alege ce ai. Îți propunem termenele potrivite: le completezi acum sau mai târziu. Poți sări peste.</div><div class="chips">${PROF.map(([k,n])=>`<button class="${sel.includes(k)?"on":""}" aria-pressed="${sel.includes(k)}" onclick="obTg('${k}')">${n}</button>`).join("")}</div>`;
+ if(OB.car)h+=`<div class="gt">Mașina</div><label for="o_i">Când expiră ITP-ul?</label><input id="o_i" type="date" value="${esc(OB.itp)}"><label for="o_r">Când expiră RCA-ul?</label><input id="o_r" type="date" value="${esc(OB.rca)}"><label for="o_c">La cine ai RCA? (opțional)</label><input id="o_c" value="${esc(OB.ins)}" maxlength="40"><label for="o_p">Număr de înmatriculare (opțional)</label><input id="o_p" value="${esc(OB.plate)}" maxlength="12" autocapitalize="characters"><div class="note">Nu știi data? Las-o goală și o adaugi mai târziu. Poți și fotografia documentul, din butonul „Din poză”.</div>`;
+ if(sel.some(k=>k!="car"))h+=`<div class="note">Restul termenelor (facturi, casă, animal) le găsești imediat în Agendă, la „De completat”.</div>`;
+ h+=`<label class="ck"><input id="o_s" type="checkbox"${OB.st?" checked":""}> Ajută la îmbunătățirea aplicației cu statistici de utilizare, fără conținutul agendei. Poți opri oricând.</label><div style="margin-top:18px"><button class="btn" onclick="obDone()">${sel.length?"Gata":"Continuă"}</button><button class="btn alt" onclick="obSkip()">Sări peste</button></div>`;
+ openSheet(h,"onb")}
+function obTg(k){obGrab();OB.sel=OB.sel||[];OB.sel=OB.sel.includes(k)?OB.sel.filter(x=>x!=k):OB.sel.concat(k);OB.car=OB.sel.includes("car");drawOb()}
+function obSet(v){obGrab();OB.sel=(OB.sel||[]).filter(x=>x!="car");if(v)OB.sel.push("car");OB.car=!!v;drawOb()}
+const od0=obDone;
+obDone=function(){const sel=(OB.sel||[]).slice();od0();if(sel.length){S.prof={sel,skip:[],hide:false};save();render()}};
+
+/* „De completat”: card complet pentru o agendă nouă, un singur rând când agenda are deja termene */
+function profRows(l){return l.map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")+(l.some(s=>PAIDG.includes(s.g))&&!S.pro?`<div class="note">Facturile, casa, sănătatea, documentele și taxele fac parte din Control.</div>`:"")}
+function profCard(){
+ const p=S.prof||{},n=S.items.filter(x=>!x.ex).length;if(p.hide)return"";
+ if(!(p.sel||[]).length)return n<3?`<div class="card xs"><div class="top"><strong>Ce să urmărim pentru tine?</strong><button class="x" aria-label="Ascunde" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Spune ce ai (mașină, casă, animal) și îți propunem termenele potrivite. Tu completezi doar datele.</div><div class="acts"><button onclick="profOpen()">Alege</button></div></div>`:"";
+ const l=profSugs();if(!l.length)return"";
+ if(n>=3)return `<button class="card rowc" onclick="profList()"><span><strong>De completat</strong><span class="mu"> · ${l.length} ${l.length==1?"termen propus":"termene propuse"}</span></span><span class="mu" aria-hidden="true">›</span></button>`;
+ return `<div class="card pfl"><div class="top"><strong>De completat</strong><button class="x" aria-label="Ascunde lista" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Termene propuse după profilul tău. Adaugă-le pe cele care te privesc.</div>${profRows(l.slice(0,12))}<div class="acts"><button onclick="profOpen()">Schimbă profilul</button></div></div>`}
+function profList(){const l=profSugs();openSheet(`<h2>De completat</h2><div class="mu">Termene propuse după profilul tău.</div><div class="pfl">${profRows(l)}</div><div style="margin-top:14px"><button class="btn alt" onclick="profOpen()">Schimbă profilul</button><button class="btn alt" onclick="profHide();closeSheet()">Ascunde lista</button></div>`,"prof")}
+const ps0=profSkip;profSkip=function(id){ps0(id);if($("sheet").dataset.k=="prof"){if(profSugs().length)profList();else closeSheet()}};
+
+/* minivacanța ca rând în „De rezolvat curând”, nu ca alt card */
+function brLine(){const o=breaks().find(o=>(o.a-td())/DAY<=30&&(o.a-td())/DAY>=0);if(!o)return"";const it=brItems(o);if(!it.length)return"";return `<div class="bwl">Minivacanță ${esc(rng(o.a,o.b))}: ai ${esc(it.map(x=>ttl(x)+" ("+nice(x.d).replace(/\.$/,"")+")").join(", "))}. Rezolvă înainte.</div>`}
+function alertsPlus(){const a=alerts(),b=brLine();if(!a)return brWarn();if(!b)return a;const i=a.lastIndexOf("</div>");return a.slice(0,i)+b+a.slice(i)}
+
+/* jos în Agendă: o singură invitație la Control (gratuit) sau instrumentele (Control) */
+function toolsCard(){
+ if(FIL!="all")return"";
+ if(!S.pro)return `<div class="card ctl"><strong>Mai mult cu Control</strong><div class="mu" style="margin-top:4px">Facturi, casă, sănătate, documente și taxe. Memento-uri repetate, familie și alerte în calendarul telefonului. Fără reclame generale.</div><button class="btn alt" onclick="openPlan('agenda')">Vezi Control</button></div>`;
+ const c=S.cal&&CALP[S.cal.p],act=s=>`<span class="acts" style="margin:0">${s}</span>`;
+ return (S.fam?famCard():"")+`<div class="gt">Instrumente</div><div class="grp">`+
+  rw("Alerte în calendarul telefonului","Un fișier cu termenele și memento-urile tale.",act(DL?`<button onclick="exportIcs()">Descarcă pentru calendar</button>`:`<span class="mu">Indisponibil aici</span>`),1)+
+  (window.LT_WEB?calRow():rw("Sincronizare cu calendarul",c?"Conectat la "+c+" (demo).":"Termenele apar singure în calendarul telefonului.",act(c?`<button onclick="calOff()">Deconectează</button>`:`<button onclick="calOpen()">Conectează</button>`),1)+
+  rw("Widget pe ecranul telefonului","Următoarele termene, fără să deschizi aplicația.",act(`<button onclick="wgShow()">Vezi cum arată</button>`),1))+
+  (S.fam?"":rw("Familie","Împarte termenele alese cu cei apropiați.",act(`<button onclick="famOpen()">Pornește</button>`),1))+`</div>`}
+</script>

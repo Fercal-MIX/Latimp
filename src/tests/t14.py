@@ -1,0 +1,105 @@
+import asyncio, json, re
+from playwright.async_api import async_playwright
+SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
+URL="file:///mnt/user-data/outputs/buzunar.html"
+ok=[];bad=[]
+def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+async def main():
+    async with async_playwright() as p:
+        b=await p.chromium.launch()
+        for w in (390,320):
+            ctx=await b.new_context(viewport={"width":w,"height":820}); pg=await ctx.new_page(); errs=[]
+            pg.on("pageerror",lambda e:errs.append(str(e)))
+            await pg.add_init_script(path=SC+"mock.js"); await pg.goto(URL); await pg.wait_for_timeout(3000)
+            await pg.click("#sheet button:has-text('Sări peste')"); await pg.wait_for_timeout(500)
+            ev=pg.evaluate; M=lambda: pg.inner_text("#main"); SH=lambda: pg.inner_text("#sheet")
+            ovf=lambda: ev("document.documentElement.scrollWidth>document.documentElement.clientWidth+1")
+            await ev("S.pro=true;S.items=[{id:'a1',g:'per',t:'zi',n:'Ana',d:plus(10),rep:12,auto:true},{id:'a2',g:'per',t:'onom',n:'ana',d:plus(200),rep:12,auto:true},{id:'r1',g:'auto',t:'rca',n:'Logan',car:'c1',d:plus(3),rep:12},{id:'s1',g:'sub',t:'sub',e:'🎬',n:'Netflix',p:50,c:'m',d:plus(5)},{id:'f1',g:'fac',t:'gaz',n:'',p:150,d:plus(8),rep:1}];S.cars=[{id:'c1',n:'Logan',km:50000}];save();FIL='all';tab('agenda')"); await pg.wait_for_timeout(700)
+            if w==320:
+                await ev("CALV='month';render()"); await pg.wait_for_timeout(300)
+                chk("320 calendar: no overflow",not await ovf()); await pg.screenshot(path=SC+"e5_cal_320.png",full_page=True)
+                await ev("pOpen('ana')"); await pg.wait_for_timeout(300)
+                chk("320 person sheet: no overflow",not await ovf()); await pg.screenshot(path=SC+"e5_person_320.png")
+                chk("320 no page errors",not errs,errs); await ctx.close(); continue
+            # ---- persons ----
+            chk("one person from two dates with the same name",await ev("Object.keys(pplAll()).length")==1)
+            await pg.click("#c_a1 >> button:text-is('Fișa')"); await pg.wait_for_timeout(300)
+            sh=await SH()
+            chk("person sheet shows both dates","Ana" in sh and "Zi de naștere" in sh and "Onomastică" in sh,sh[:300])
+            await pg.fill("#p_note","îi plac plantele"); await pg.dispatch_event("#p_note","change")
+            chk("note saved",await ev("S.ppl.ana.note")=="îi plac plantele")
+            await pg.click("#sheet >> text=Idei de cadou"); await pg.wait_for_timeout(800)
+            chk("gift ideas prefilled for the person",await ev("TAB=='free'&&FSEG=='gifts'&&GIFT.pk=='ana'&&GIFT.det.startsWith('Pentru Ana. îi plac plantele')&&GIFT.occ=='Zi de naștere'"),await ev("JSON.stringify(GIFT)"))
+            chk("person chips in Gifts","Persoane" in await M() and "Fișa lui Ana" in await M())
+            await ev("S.credits=10;save()")
+            await pg.click("#main >> text=Dă-mi idei de cadouri"); await pg.wait_for_timeout(1500)
+            await pg.click("#main >> button:has-text('Salvează pentru Ana') >> nth=0"); await pg.wait_for_timeout(300)
+            chk("gift saved for the person",await ev("S.ppl.ana.gifts.length")==1)
+            await ev("pOpen('ana')"); await pg.wait_for_timeout(200)
+            await pg.click("#sheet >> button:text-is('O iau eu')"); await pg.wait_for_timeout(200)
+            chk("claimed",await ev("S.ppl.ana.gifts[0].me===true"))
+            await pg.click("#sheet >> text=Am luat-o"); await pg.wait_for_timeout(200)
+            chk("bought moves to history",await ev("S.ppl.ana.gifts.length==0&&S.ppl.ana.given.length==1"))
+            await ev("pGift()"); await pg.wait_for_timeout(500)
+            chk("next ideas know what was given",await ev("GIFT.det.includes('I-am mai luat')"))
+            await ev("pNew()"); await pg.fill("#pn_n","Mihai"); await pg.click("#sheet >> button:text-is('Adaugă')"); await pg.wait_for_timeout(200)
+            chk("new person",await ev("!!S.ppl.mihai") and "Mihai" in await SH())
+            # family gifts
+            await ev("S.fam={code:'X',who:'Eu'};S.ppl.ana.gifts=[{t:'Ghiveci',d:'',sh:true,me:true}];FAMV=[{u:'u2',w:'Dan',it:[],gc:[{p:'Ana',t:'Carte de grădinărit',me:1}]}];pOpen('ana')"); await pg.wait_for_timeout(200)
+            sh=await SH()
+            chk("family sees who buys what","În familie" in sh and "Carte de grădinărit" in sh and "Dan o ia" in sh,sh[-300:])
+            chk("shared gifts go to the family payload",await ev("JSON.stringify(famGifts())")=='[{"p":"Ana","t":"Ghiveci","me":1}]')
+            await ev("S.fam=null;FAMV=[];closeSheet()")
+            # ---- budget ----
+            await ev("FIL='sub';tab('agenda')"); await pg.wait_for_timeout(600)
+            await pg.fill("#bd_i","5000"); await pg.dispatch_event("#bd_i","change"); await pg.wait_for_timeout(200)
+            await pg.fill("#bd_f","400"); await pg.dispatch_event("#bd_f","change"); await pg.wait_for_timeout(300)
+            t=await M()
+            chk("budget: what's left after subscriptions and bills","4.800 lei" in t and "cam 100 lei" in t,t[:900])
+            await ev("FSEG='ideas';tab('free')"); await pg.wait_for_timeout(700)
+            chk("weekend card shows the outing budget","Buget de ieșiri: cam 100 lei pe weekend" in await M())
+            await pg.click("#main >> text=Idei pentru weekend"); await pg.wait_for_timeout(1300)
+            chk("weekend ideas use the budget",await ev("BUD")=="Sub 150 lei")
+            # ---- vote to agenda ----
+            await ev("S.poll={c:'ABCDEFGH',o:['Picnic','Muzeu'],t:['Sâmbătă seara'],at:1};POLLV=[{o:1,t:0,n:'Ana'},{o:1,t:0,n:'Dan'},{o:0,t:null,n:'Eu'}];PSUB=()=>{};FSEG='saved';render()"); await pg.wait_for_timeout(300)
+            await pg.click("#main >> text=Pune câștigătorul în agendă"); await pg.wait_for_timeout(300)
+            chk("winner goes to the agenda form on a Saturday",await ev("cur.n=='Muzeu'&&pd(cur.d).getDay()==6&&cur.note.includes('Sâmbătă seara')"),await ev("JSON.stringify(cur)"))
+            await ev("closeSheet();S.poll=null;POLLV=[]")
+            # ---- history & car cost ----
+            await ev("FIL='auto';tab('agenda')"); await pg.wait_for_timeout(600)
+            await ev("editItem('r1')"); await pg.wait_for_timeout(200); await pg.fill("#f_cost","450"); await pg.click("#sheet >> text=Salvează"); await pg.wait_for_timeout(300)
+            await pg.click("#c_r1 >> button:text-is('Am reînnoit')"); await pg.wait_for_timeout(300)
+            chk("renewal goes to history with amount and km",await ev("(()=>{const h=S.items.find(x=>x.id=='r1').hist;return h.length==1&&h[0].p==450&&h[0].km==50000})()"))
+            chk("car cost for the last 12 months","Ultimele 12 luni: 450 lei" in await M())
+            await ev("editItem('r1')"); await pg.wait_for_timeout(200)
+            chk("history in the editor","Istoric" in await SH() and "450 lei" in await SH())
+            await ev("closeSheet()")
+            # ---- calendar ----
+            await ev("FIL='all';CALV='list';render()"); await pg.click("#main >> .seg.vw >> text=Lună"); await pg.wait_for_timeout(400)
+            chk("month view with today marked",await ev("!!document.querySelector('.cday.t')"))
+            dd=await ev("S.items.find(x=>x.id=='f1').d")
+            await ev("CMO=(pd('%s').getFullYear()-td().getFullYear())*12+pd('%s').getMonth()-td().getMonth();render()"%(dd,dd)); await pg.wait_for_timeout(200)
+            chk("days with dates have a dot",await ev("document.querySelectorAll('.cday .cd').length")>=1)
+            await pg.click("#main .cday[aria-label*='termen'] >> nth=0"); await pg.wait_for_timeout(300)
+            chk("tapping a day lists its dates",await ev("!!CDAY") and await ev("document.querySelectorAll('#main .lg .li').length")>=1)
+            await ev("CMO=(2026-td().getFullYear())*12+11-td().getMonth();CDAY='';render()"); await pg.wait_for_timeout(200)
+            hs=await ev("[...document.querySelectorAll('.cday.h')].map(e=>e.textContent.trim())")
+            chk("public holidays highlighted (1, 25, 26 Dec)",set(["1","25","26"])<=set(hs),hs)
+            await pg.screenshot(path=SC+"e5_cal.png")
+            await ev("CALV='list';CMO=0;render()")
+            # ---- break warning ----
+            near=await ev("(()=>{const o=breaks().find(o=>(o.a-td())/DAY<=30&&(o.a-td())/DAY>=0);return o?fmt(o.a):''})()")
+            if near:
+                await ev("S.items.push({id:'bw',g:'fac',t:'cur',n:'Enel',p:100,d:'%s',rep:1});save();render()"%near); await pg.wait_for_timeout(300)
+                chk("agenda warns about dates in the long weekend","Rezolvă înainte" in await M() and "Curent · Enel" in await M())
+            # ---- list → challenge ----
+            await ev("S.ch={on:true,m:{}};S.tl=[{id:'l1',k:'film',n:'Dune',dn:false}];TLF='film';FSEG='saved';tab('free')"); await pg.wait_for_timeout(700)
+            await pg.click("#main .tli:has-text('Dune') input"); await pg.wait_for_timeout(300)
+            chk("ticking a list item ticks the month",await ev("S.ch.m[mKey()]&&S.ch.m[mKey()].t=='Dune'") and "provocarea lunii" in await pg.inner_text("#toast"))
+            chk("no page errors",not errs,errs)
+            chk("no overflow",not await ovf())
+            await ctx.close()
+        await b.close()
+    print("OK",len(ok),"FAIL",len(bad))
+    for x in bad: print("  FAIL:",x)
+asyncio.run(main())

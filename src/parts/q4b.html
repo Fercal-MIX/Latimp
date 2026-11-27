@@ -1,0 +1,66 @@
+<script>
+/* ---------- Familie: termene distribuite, criptate cu un cod ---------- */
+const FA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+let FAMV=[],FKEY=null,FH="",famUnsub=null,FTK=0,lastFam="",FM={};
+const b64=u=>{let s="";u.forEach(c=>s+=String.fromCharCode(c));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+const normCode=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const fmtCode=c=>c.slice(0,5)+"-"+c.slice(5);
+const cryptoOk=()=>!!(window.crypto&&crypto.subtle);
+async function derive(code){
+ const en=new TextEncoder(),base=await crypto.subtle.importKey("raw",en.encode(code),"PBKDF2",false,["deriveBits","deriveKey"]);
+ const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:en.encode("buzunar-fam-k1"),iterations:120000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+ const h=await crypto.subtle.deriveBits({name:"PBKDF2",salt:en.encode("buzunar-fam-h1"),iterations:120000,hash:"SHA-256"},base,256);
+ return{key,h:hex(h)}}
+async function encr(key,obj){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj))));const o=new Uint8Array(12+ct.length);o.set(iv);o.set(ct,12);return b64(o)}
+async function decr(key,s){const u=unb64(s),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:u.slice(0,12)},key,u.slice(12));return JSON.parse(new TextDecoder().decode(pt))}
+async function famSetup(){
+ const tk=++FTK;
+ if(famUnsub){famUnsub();famUnsub=null}FAMV=[];FKEY=null;FH="";
+ if(!S.fam||!DB||!UID||!cryptoOk())return;
+ try{
+  const d=await derive(S.fam.code);if(tk!=FTK)return;FKEY=d.key;FH=d.h;
+  famUnsub=DB.collection("fam").where("h","==",FH).onSnapshot(async snap=>{
+   const out=[];
+   for(const dd of snap.docs){if(dd.id==UID)continue;try{const p=await decr(FKEY,(dd.data()||{}).b);out.push({u:dd.id,w:clip(p.w,30),it:(Array.isArray(p.it)?p.it:[]).slice(0,100),gc:(Array.isArray(p.gc)?p.gc:[]).slice(0,50)})}catch(e){}}
+   if(tk!=FTK)return;FAMV=out;soft()},()=>{});
+  famQ()}
+ catch(e){}}
+const famQ=writer(async()=>{
+ if(!DBU()||!S.fam||!FKEY)return;
+ const it=S.items.filter(x=>x.sh&&x.g!="sub").slice(0,100).map(x=>({n:ttl(x),d:x.d,t:x.t,g:x.g,rep:x.rep||0,a:x.auto?1:0})),gc=famGifts(),sig=JSON.stringify([FH,S.fam.who,it,gc]);
+ if(sig==lastFam)return;
+ const b=await encr(FKEY,{w:S.fam.who,it,gc});await DB.doc("fam/"+UID).set({h:FH,b,at:Date.now()});lastFam=sig},1500);
+function famCard(){
+ if(CFG.flags.fam===false)return"";
+ if(!S.fam)return `<div class="card"><strong>Familie</strong><div class="mu" style="margin-top:4px">Împarte cu cei apropiați termenele pe care le alegi tu. Face parte din Control.</div><button class="btn alt" onclick="famOpen()">Pornește</button></div>`;
+ const rows=[];
+ FAMV.forEach(m=>m.it.forEach(i=>{if(!okDate(i.d))return;let d=pd(i.d),n=0;if(i.a&&i.rep>0)while(d<td()&&n++<600)d=addM(d,i.rep);rows.push({w:m.w,n:clip(i.n,60),d:fmt(d)})}));
+ rows.sort((a,b)=>left(a.d)-left(b.d));
+ return `<div class="card"><div class="top"><strong>Familie</strong><span class="mu">${FAMV.length+1} ${FAMV.length?"persoane":"persoană"}</span></div>${rows.slice(0,6).map(r=>`<div class="top" style="margin-top:8px"><span>${esc(r.w)} · ${esc(r.n)}</span><span class="mu">${nice(r.d)}</span></div>`).join("")||`<div class="mu" style="margin-top:6px">Încă nu a distribuit nimeni un termen.</div>`}<div class="acts"><button onclick="famOpen()">Gestionează</button></div></div>`}
+function famOpen(){FM={};
+ if(!S.pro){toast("Familia face parte din Control.");openPlan("agenda");return}
+ if(needAcct("Pentru familie ai nevoie de un cont, ca să vă găsiți unii pe alții.",famOpen))return;
+ if(!cryptoOk()||!DB||!UID){openSheet(`<h2>Familie</h2><div class="mu">Pentru familie ai nevoie de un cont conectat și de baza de date a aplicației. Aici nu sunt disponibile.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam");return}
+ drawFam()}
+function drawFam(msg){
+ let h=`<h2>Familie</h2>`;
+ if(!S.fam)h+=`<div class="mu">Creezi un cod și îl dai celor apropiați. Fiecare vede termenele pe care alege să le distribuie, nu și prețurile abonamentelor.</div><label for="fw">Cum te numesc ceilalți?</label><input id="fw" maxlength="30" placeholder="De exemplu: Mama" value="${esc(FM.w||"")}"><div style="margin-top:14px"><button class="btn" onclick="famCreate()">Creează codul de familie</button></div><label for="fc">Ai deja un cod?</label><input id="fc" maxlength="14" placeholder="XXXXX-XXXXX" autocapitalize="characters" value="${esc(FM.c||"")}"><button class="btn alt" onclick="famJoin()">Intră în familie</button>`;
+ else h+=`<div class="mu">Codul tău de familie. Dă-l doar celor în care ai încredere.</div><div class="code" id="fcode">${fmtCode(S.fam.code)}</div><button class="btn alt" onclick="famCopy()">Copiază invitația</button><label for="fw">Cum te numesc ceilalți?</label><input id="fw" maxlength="30" value="${esc(S.fam.who)}" onchange="famWho(this.value)"><div class="note">${FAMV.length?"Mai sunt "+FAMV.length+" "+(FAMV.length==1?"persoană":"persoane")+" în familie.":"Nimeni altcineva nu a intrat încă."} Ca să distribui un termen, bifează „Distribuie cu familia” în ecranul lui.</div><div class="sg"><b>Cum e protejat</b>Termenele sunt criptate pe dispozitiv cu acest cod înainte să plece. Fără cod, nu pot fi citite din baza de date. Dacă un cod ajunge la cine nu trebuie, ieși și creează altul.</div><button class="btn alt dg" onclick="famLeave()">${FM.leave?"Apasă din nou ca să ieși":"Ieși din familie"}</button>`;
+ if(msg)h+=`<div class="note dg" role="alert">${esc(msg)}</div>`;
+ openSheet(h+`<button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam")}
+function famStart(code){const w=($("fw").value||"").trim().slice(0,30)||"Eu";S.fam={code,who:w};FM={};lastFam="";save();famSetup().then(()=>{drawFam();render()})}
+function famCreate(){const a=crypto.getRandomValues(new Uint8Array(10));let c="";a.forEach(v=>c+=FA[v%32]);famStart(c)}
+function famJoin(){const c=normCode($("fc").value);FM.w=$("fw").value;FM.c=$("fc").value;if(c.length!=10){drawFam("Codul are 10 caractere, de exemplu XXXXX-XXXXX.");return}famStart(c)}
+function famWho(v){S.fam.who=v.trim().slice(0,30)||"Eu";lastFam="";save()}
+function famCopy(){
+ const t="Intră în familia mea din LaTimp cu codul "+fmtCode(S.fam.code)+".";
+ const sel=()=>{const r=document.createRange();r.selectNodeContents($("fcode"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Selectează și copiază codul")};
+ try{navigator.clipboard.writeText(t).then(()=>toast("Invitația a fost copiată"),sel)}catch(e){sel()}}
+async function famLeave(){
+ if(!FM.leave){FM.leave=1;drawFam();return}
+ FM={};S.fam=null;S.items.forEach(x=>{delete x.sh});lastFam="";save();
+ if(DBU()){try{await DB.doc("fam/"+UID).delete()}catch(e){}}
+ await famSetup();closeSheet();render();toast("Ai ieșit din familie")}
+</script>

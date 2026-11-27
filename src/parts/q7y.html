@@ -1,0 +1,184 @@
+<script>
+/* ---------- Doar în versiunea web: AI prin server, calendarul care se actualizează singur, deblocare cu amprenta, Lângă mine ---------- */
+
+/* AI: funcția „ai” de pe server (cheia și plafoanele stau acolo). Fără cont, fără cheie sau cu AI oprit din panou → ideile locale. */
+let AIW={ready:false,at:0,img:[]};
+const aiKind=(p,o)=>o&&o.images&&o.images.length?"photo":/consultant de cadouri/.test(p)?"gift":/plan pe ore/.test(p)?"plan":"ideas";
+const blob64=b=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=()=>no(new Error("read"));r.readAsDataURL(b)});
+async function aiWeb(p,o){
+ if(!SB||!SBU)throw new Error("auth");
+ const k=aiKind(p,o),body={kind:k,prompt:String(p).slice(0,4000)};
+ if(k=="photo"){const im=o.images[0];body.image=await blob64(im);body.media=im.type||"image/jpeg"}
+ const{data,error}=await SB.functions.invoke("ai",{body});
+ if(error){let c="";try{c=(await error.context.json()).err||""}catch(e){}
+  if(c=="user_cap")toast("Ai folosit cererile de azi. Revino mâine.");
+  if(c=="off"){AIW.ready=false;aiApply()}
+  throw new Error(c||"ai")}
+ return{text:String(data&&data.text||"")}}
+aiWeb.limits=async()=>({images:{mediaTypes:AIW.img.slice()}});
+function aiApply(){if(!WEB)return;const on=AIW.ready&&!!SB&&!!SBU;AI=on?aiWeb:null;PH=on&&AIW.img.length>0;if(PH)PHT=AIW.img.slice();soft()}
+async function aiStatus(force){
+ if(!WEB)return;
+ if(!SB||!SBU){AIW={ready:false,at:0,img:[]};aiApply();return}
+ if(!force&&AIW.at&&Date.now()-AIW.at<10*60000){aiApply();return}
+ try{const{data,error}=await SB.functions.invoke("ai",{body:{kind:"status"}});if(error)throw error;
+  AIW={ready:!!(data&&data.ready),at:Date.now(),img:(Array.isArray(data&&data.images)?data.images:[]).filter(t=>/^image\/(jpeg|png|webp)$/.test(t))}}
+ catch(e){AIW={ready:false,at:Date.now(),img:[]}}
+ aiApply()}
+
+/* acordul pentru AI se cere doar când ideile chiar merg la serviciul de AI; fără el, ideile locale pornesc direct */
+if(WEB){const aa0=aiAsk;aiAsk=function(next){if(AI)return aa0(next);const q=S.aiq;S.aiq=1;try{next()}finally{S.aiq=q}}}
+
+/* calendarul care se actualizează singur: linkul secret e în agendă (îl ai pe orice telefon), pe server stă doar amprenta lui și fișierul */
+const CF={stop:false,busy:false};
+const calfOn=()=>!!(S.calf&&/^[0-9a-f]{48}$/.test(S.calf.t||""));
+const calfUrl=()=>calfOn()?String(LT_SB.url||"").replace(/\/$/,"")+"/functions/v1/calendar?t="+S.calf.t:"";
+async function sha256h(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("")}
+async function calfSend(){
+ if(!WEB||!SB||!SBU||!calfOn())return false;
+ const ics=icsText(S.items.filter(x=>!x.ex&&okDate(x.d)),true);if(ics.length>590000)return false;
+ const sig=S.calf.t+"|"+ics.replace(/DTSTAMP:[0-9TZ]+/g,"");if(sig==calfPush.last)return true;
+ const{error}=await SB.from("calendar_feeds").upsert({user_id:SBU.id,token_hash:await sha256h(S.calf.t),ics,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+ if(error)return false;calfPush.last=sig;return true}
+const calfPush=writer(calfSend,2500);
+async function calfStart(){
+ if(CF.busy)return;CF.busy=true;const b=$("cf_go");if(b){b.disabled=true;b.textContent="Se creează…"}
+ const old=S.calf;S.calf={t:Array.from(crypto.getRandomValues(new Uint8Array(24)),x=>x.toString(16).padStart(2,"0")).join(""),at:Date.now()};calfPush.last="";
+ let ok=false;try{ok=await calfSend()}catch(e){}
+ CF.busy=false;
+ if(!ok){S.calf=old;if(b){b.disabled=false;b.textContent="Creează linkul"}toast("Nu am putut crea linkul. Încearcă din nou.");return}
+ save();drawCal();toast("Linkul e gata")}
+async function calfStop(){
+ if(!CF.stop){CF.stop=true;drawCal();return}
+ CF.stop=false;
+ if(SB&&SBU){try{const{error}=await SB.from("calendar_feeds").delete().eq("user_id",SBU.id);if(error)throw error}catch(e){toast("Nu am putut opri linkul. Încearcă din nou.");drawCal();return}}
+ S.calf=null;calfPush.last="";save();closeSheet();render();toast("Linkul nu mai merge. Calendarul abonat nu se mai actualizează.")}
+function calfCopy(){
+ const u=calfUrl(),i=$("cf_u");
+ const sel=()=>{if(i){i.focus();i.select()}toast("Selectat. Copiază-l din meniul telefonului.")};
+ try{navigator.clipboard.writeText(u).then(()=>toast("Link copiat"),sel)}catch(e){sel()}}
+function drawCal(){
+ if(!calfOn()){
+  openSheet(`<h2>Calendar care se actualizează singur</h2><div class="mu">Primești un link pe care îl adaugi o singură dată în Google Calendar, în calendarul de pe iPhone sau în Outlook. Termenele noi și cele schimbate apar acolo singure.</div><div class="sg"><b>Bine de știut</b>Linkul e secret: oricine îl are vede termenele tale. Îl poți opri oricând.</div><div style="margin-top:14px"><button class="btn" id="cf_go" onclick="calfStart()">Creează linkul</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"cal");return}
+ const u=calfUrl(),wc=u.replace(/^https:/,"webcal:"),g="https://calendar.google.com/calendar/render?cid="+encodeURIComponent(wc);
+ openSheet(`<h2>Calendar care se actualizează singur</h2><div class="mu">Adaugă linkul o singură dată. Termenele noi și cele schimbate apar singure.</div><div style="margin-top:14px"><a class="btn" href="${esc(g)}" target="_blank" rel="noopener noreferrer">Adaugă în Google Calendar</a><a class="btn alt" href="${esc(wc)}">Adaugă în calendarul telefonului</a></div><label for="cf_u">Linkul, pentru Outlook sau alt calendar</label><input id="cf_u" readonly value="${esc(u)}" onclick="this.select()"><button class="btn alt" style="margin-top:8px" onclick="calfCopy()">Copiază linkul</button><div class="note">Google Calendar citește linkul o dată la câteva ore, deci schimbările pot apărea mai târziu acolo. Calendarul de pe iPhone păstrează și memento-urile alese în Notificări.</div><div style="margin-top:12px"><button class="btn alt dg" onclick="calfStop()">${CF.stop?"Apasă din nou: linkul nu mai merge":"Oprește linkul"}</button><button class="btn alt" onclick="closeSheet()">Închide</button></div>`,"cal")}
+function calRow(){
+ const on=calfOn();
+ return rw("Calendar care se actualizează singur",on?"Pornit. Termenele apar singure în calendarul tău.":"Termenele apar în Google Calendar sau în calendarul iPhone și se actualizează singure.",`<span class="acts" style="margin:0"><button onclick="calOpen()">${on?"Deschide":"Pornește"}</button></span>`,1)}
+if(WEB){
+ calOpen=function(){
+  CF.stop=false;
+  if(!S.pro){openPlan("agenda");return}
+  if(needAcct("Calendarul care se actualizează singur are nevoie de un cont, ca să-l poată citi calendarul tău.",calOpen))return;
+  if(!SB){toast("Ai nevoie de internet ca să pornești calendarul.");return}
+  drawCal()};
+ calSet=function(){calOpen()};
+ calOff=function(){CF.stop=true;calfStop()};
+ const sv5=save;save=function(){sv5();if(calfOn())calfPush()};
+}
+
+/* deblocare cu amprenta sau fața: senzorul telefonului (WebAuthn); PIN-ul rămâne varianta de rezervă */
+let BIOAV=false;
+(async()=>{try{BIOAV=!!(window.PublicKeyCredential&&PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){BIOAV=false}})();
+const rndB=n=>crypto.getRandomValues(new Uint8Array(n));
+const toB64u=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+async function bioCreate(){
+ const c=await navigator.credentials.create({publicKey:{rp:{name:"LaTimp",id:location.hostname},user:{id:rndB(16),name:"LaTimp",displayName:"LaTimp"},challenge:rndB(32),pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"discouraged"},timeout:60000,attestation:"none"}});
+ if(!c||!c.rawId)throw new Error("none");return toB64u(c.rawId)}
+async function bioCheck(cid){
+ const a=await navigator.credentials.get({publicKey:{challenge:rndB(32),allowCredentials:[{type:"public-key",id:b64u(cid)}],userVerification:"required",rpId:location.hostname,timeout:60000}});
+ return !!a}
+if(WEB){
+ const lp0=lockPut;lockPut=function(o){if(o&&o.b&&!o.cid){const p=lockGet();if(p&&p.cid)o.cid=p.cid}lp0(o)};
+ const lo0=lockOpt;lockOpt=function(k,v){
+  if(k!="b")return lo0(k,v);
+  const o=lockGet();if(!o)return;
+  if(o.b){o.b=false;delete o.cid;lockPut(o);render();toast("Deblocarea cu amprenta sau fața este oprită");return}
+  if(!BIOAV){toast("Telefonul sau browserul acesta nu oferă amprenta sau recunoașterea feței pentru aplicații web.");return}
+  bioCreate().then(cid=>{const o2=lockGet();if(!o2)return;o2.b=true;o2.cid=cid;lp0(o2);render();toast("Deblocarea cu amprenta sau fața este pornită")}).catch(()=>toast("Nu am putut porni deblocarea. Încearcă din nou."))};
+ lockBio=async function(){
+  const o=lockGet();
+  if(!o||!o.cid){lockDraw("Scrie PIN-ul.");return}
+  try{if(await bioCheck(o.cid)){lockHide();remCheck();return}}catch(e){}
+  lockDraw("Nu am putut verifica. Scrie PIN-ul.")};
+ const lr0=lockRows;lockRows=function(){return lr0().replace("În prototip, butonul doar simulează amprenta.",BIOAV?"Folosește senzorul telefonului. PIN-ul rămâne varianta de rezervă.":"Nu e disponibilă pe acest telefon sau în acest browser.")};
+}
+
+/* Lângă mine: locuri din OpenStreetMap în jurul tău; serverul primește doar poziția rotunjită (aprox. 1 km) */
+let NEAR=lsGet("latimp.near"),NCAT="",NBUSY=false,NERR="",NPOS=null;
+const NC={park:"Parcuri",play:"Locuri de joacă",museum:"Muzee și galerii",cinema:"Cinematografe",theatre:"Teatre",pool:"Piscine",zoo:"Grădini zoo și aqua",view:"Puncte de belvedere",library:"Biblioteci"};
+const NMQ=[["Parcuri","parc"],["Locuri de joacă","loc de joacă"],["Muzee","muzeu"],["Cinematografe","cinema"],["Teatre","teatru"],["Piscine","piscină"],["Restaurante","restaurant"],["Cafenele","cafenea"]];
+const NC1={park:"Parc",play:"Loc de joacă",museum:"Muzeu sau galerie",cinema:"Cinematograf",theatre:"Teatru",pool:"Piscină",zoo:"Grădină zoo sau aqua",view:"Punct de belvedere",library:"Bibliotecă"};
+const kmTxt=m=>m<1000?Math.max(50,Math.round(m/50)*50)+" m":(m/1000).toFixed(m<10000?1:0).replace(".",",")+" km";
+function nearDist(x){if(!NPOS)return x.m;const r=Math.PI/180,a=(x.lo-NPOS.lo)*r*Math.cos((x.la+NPOS.la)/2*r),b=(x.la-NPOS.la)*r;return Math.round(Math.sqrt(a*a+b*b)*6371000)}
+function nearList(){return NEAR&&Array.isArray(NEAR.items)?NEAR.items.map((x,i)=>({...x,i,d:nearDist(x)})).filter(x=>NC[x.c]).sort((a,b)=>a.d-b.d):[]}
+/* căutarea în OpenStreetMap (Overpass), direct de pe telefon; dacă serverele publice sunt ocupate, încearcă prin serverul nostru */
+const OVP=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+function ovpQuery(la,lo){const a=r=>`(around:${r},${la},${lo})`;return `[out:json][timeout:25];(nwr["leisure"="park"]["name"]${a(3000)};nwr["leisure"="garden"]["name"]["access"!~"private"]${a(3000)};nwr["leisure"="playground"]${a(1500)};nwr["tourism"~"^(museum|gallery)$"]["name"]${a(6000)};nwr["amenity"~"^(cinema|theatre)$"]["name"]${a(6000)};nwr["tourism"="zoo"]["name"]${a(15000)};nwr["leisure"="water_park"]["name"]${a(15000)};nwr["leisure"="swimming_pool"]["name"]["access"!~"private|customers|no"]${a(6000)};nwr["leisure"="sports_centre"]["sport"~"swimming"]["name"]${a(6000)};nwr["tourism"="viewpoint"]["name"]${a(8000)};nwr["amenity"="library"]["name"]${a(3000)};);out center tags 400;`}
+function ovpCat(t){return t.leisure=="playground"?"play":t.leisure=="park"||t.leisure=="garden"?"park":t.tourism=="museum"||t.tourism=="gallery"?"museum":t.amenity=="cinema"?"cinema":t.amenity=="theatre"?"theatre":t.tourism=="zoo"||t.leisure=="water_park"?"zoo":t.leisure=="swimming_pool"||t.leisure=="sports_centre"?"pool":t.tourism=="viewpoint"?"view":t.amenity=="library"?"library":null}
+function ovpParse(raw,la,lo){
+ const seen=new Set(),per={},P={la,lo};
+ return(Array.isArray(raw&&raw.elements)?raw.elements:[]).map(e=>{const t=e.tags||{},c=ovpCat(t),p=e.center||(e.lat!=null?{lat:e.lat,lon:e.lon}:null);if(!c||!p)return null;
+   const n=String(t["name:ro"]||t.name||(c=="play"?"Loc de joacă":"")).trim().slice(0,80);if(!n)return null;
+   const x={n,c,la:Math.round(p.lat*1e5)/1e5,lo:Math.round(p.lon*1e5)/1e5,o:String(t.opening_hours||"").slice(0,80),w:okUrl(t.website||"")?String(t.website).slice(0,200):""};
+   const r=Math.PI/180,a=(x.lo-P.lo)*r*Math.cos((x.la+P.la)/2*r),b=(x.la-P.la)*r;x.m=Math.round(Math.sqrt(a*a+b*b)*6371000);return x})
+  .filter(x=>{if(!x)return false;const k=x.c+"|"+x.n.toLowerCase()+"|"+Math.round(x.la*500)+","+Math.round(x.lo*500);if(seen.has(k))return false;seen.add(k);return true})
+  .sort((a,b)=>a.m-b.m).filter(x=>(per[x.c]=(per[x.c]||0)+1)<=(x.c=="play"?8:12))}
+async function ovpDirect(la,lo){
+ for(const ep of OVP){
+  try{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),22000);
+   const r=await fetch(ep,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(ovpQuery(la,lo)),signal:ctl.signal});clearTimeout(tm);
+   if(r.ok){const j=await r.json();return ovpParse(j,la,lo)}}catch(e){}}
+ return null}
+async function nearGo(){
+ if(NBUSY)return;
+ if(!("geolocation" in navigator)){NERR="Telefonul sau browserul nu oferă locația.";render();return}
+ if(navigator.onLine===false){NERR="Ai nevoie de internet ca să cauți locuri.";render();return}
+ NBUSY=true;NERR="";render();
+ try{
+  const p=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(ok,no,{enableHighAccuracy:false,timeout:15000,maximumAge:600000}));
+  NPOS={la:p.coords.latitude,lo:p.coords.longitude};
+  const la=Math.round(NPOS.la*100)/100,lo=Math.round(NPOS.lo*100)/100;let items=await ovpDirect(la,lo);
+  if(!items&&SB){try{const{data,error}=await SB.functions.invoke("near",{body:{lat:la,lon:lo}});if(!error&&data&&Array.isArray(data.items))items=data.items}catch(e){}}
+  if(!items)throw new Error("srv");
+  NEAR={at:new Date().toISOString().slice(0,10),items:items.slice(0,150).map(x=>({n:clip(x.n,80),c:String(x.c||""),la:+x.la||0,lo:+x.lo||0,m:+x.m||0,o:clip(x.o,80),w:okUrl(x.w)?String(x.w).slice(0,200):""})).filter(x=>x.n&&NC[x.c])};
+  lsSet("latimp.near",NEAR);NCAT="";tap("near_go")}
+ catch(e){NERR=e&&e.code==1?"Ai refuzat accesul la locație. Îl poți permite din setările browserului, apoi încearcă din nou.":e&&e.code?"Nu am putut afla locația. Încearcă din nou, eventual afară sau cu internetul pornit.":"Nu am putut încărca locurile acum. Încearcă din nou peste puțin timp."}
+ NBUSY=false;render()}
+function nearSave(i){
+ const x=NEAR&&NEAR.items[i];if(!x)return;
+ if(S.saved.some(s=>s.t==x.n)){toast("Este deja în Salvate");return}
+ if(S.saved.length>=60){toast("Ai 60 de idei salvate. Șterge câteva.");return}
+ S.saved.unshift({t:x.n,d:NC1[x.c]+", la "+kmTxt(nearDist(x))+(x.o?". Program: "+x.o:""),c:"",m:"",ts:Date.now()});save();render();toast("Salvat în Salvate")}
+function nearClear(){NEAR=null;NPOS=null;lsSet("latimp.near",null);render()}
+if(WEB){
+ nearView=function(){
+  let h=`<div class="hero"><div class="lb">În apropiere</div><h2>Lângă mine</h2><div class="s">Parcuri, locuri de joacă, muzee, cinematografe și piscine din jurul tău.</div></div>`;
+  const btn=t=>`<button class="btn${NEAR?" alt":""}" onclick="nearGo()"${NBUSY?" disabled":""}>${NBUSY?"Caut în jur…":t}</button>`;
+  const err=NERR?`<div class="note dg" role="alert">${esc(NERR)}</div>`:"";
+  const maps=`<div class="card"><strong>Caută pe hartă lângă tine</strong><div class="mu" style="margin-top:6px">Se deschide aplicația de hărți, care folosește locația ta.</div><div class="chips f" style="margin-top:8px">${NMQ.map(q=>`<a class="chip" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q[1])}" target="_blank" rel="noopener noreferrer" onclick="tap('near_map')">${q[0]}</a>`).join("")}</div></div>`;
+  if(!NEAR||!Array.isArray(NEAR.items))return h+maps+`<div class="card"><strong>Lista locurilor din jur</strong><div class="mu" style="margin-top:6px">Locația se cere doar când apeși butonul. Trimitem o poziție aproximativă, în jur de 1 km, și nu o păstrăm în contul tău.</div>${err}${btn("Folosește locația mea")}</div>`;
+  const all=nearList(),cats=Object.keys(NC).filter(c=>all.some(x=>x.c==c)),l=all.filter(x=>!NCAT||x.c==NCAT);
+  if(NCAT&&!cats.includes(NCAT))NCAT="";
+  h+=cats.length>1?`<div class="chips f"><button class="${!NCAT?"on":""}" onclick="NCAT='';render()">Toate</button>${cats.map(c=>`<button class="${NCAT==c?"on":""}" onclick="NCAT='${c}';render()">${NC[c]}</button>`).join("")}</div>`:"";
+  h+=l.length?`<div class="grp">${l.slice(0,40).map(x=>`<div class="it nr"><b>${esc(x.n)}</b><div class="mu">${x.n==NC1[x.c]?"":`<span>${NC1[x.c]}</span>, `}${kmTxt(x.d)}${x.o?`<br><span>Program:</span> ${esc(x.o)}`:""}</div><span class="acts"><a href="https://www.google.com/maps/search/?api=1&query=${x.la},${x.lo}" target="_blank" rel="noopener noreferrer">Hartă</a>${x.w?`<a href="${esc(x.w)}" target="_blank" rel="noopener noreferrer">Site</a>`:""}<button onclick="nearSave(${x.i})">Salvează</button></span></div>`).join("")}</div>`
+   :`<div class="card"><div class="mu">Nu am găsit astfel de locuri în apropiere. Încearcă din alt loc.</div></div>`;
+  return h+`${err}<div class="note">Date © colaboratorii <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>. Distanțele sunt aproximative, iar programul poate fi depășit.</div>${btn("Caută din nou de aici")}<button class="btn alt" onclick="nearClear()">Șterge rezultatele</button>`+maps};
+ const aL4=accLoad;accLoad=async function(){await aL4();aiStatus(true)};
+ const ao4=acctOut;acctOut=async function(){const r=await ao4();if(!S.acct){AIW={ready:false,at:0,img:[]};aiApply()}return r};
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible")aiStatus(false)});
+}
+/* memento-uri pe e-mail: rândul apare doar când trimiterea e pornită din panou (app.mail_rem.on) */
+const mailAv=()=>!!(WEB&&CFGW&&CFGW.mail_rem&&CFGW.mail_rem.on===true);
+function mailTog(){
+ if(needAcct("Ca să primești memento-uri pe e-mail, ai nevoie de un cont. Le trimitem la adresa lui.",()=>{notifGo()}))return;
+ if(!SB){toast("Ai nevoie de internet.");return}
+ S.nt.mail=!S.nt.mail;save();remSync.last="";remSync();
+ if(!S.nt.mail&&!S.nt.push&&SBU)SB.rpc("set_reminders",{p:[]}).catch(()=>{});
+ render();toast(S.nt.mail?"Memento-urile vin și pe e-mail":"Memento-urile pe e-mail sunt oprite")}
+if(WEB){
+ const nv2=notifView;notifView=function(){
+  let h=nv2();const old=rw("Pe e-mail",S.acct?"Către "+esc(S.acct.e)+".":"Ai nevoie de un cont.",`<span class="tag">în curând</span>`);
+  return h.replace(old,mailAv()?rw("Pe e-mail",S.acct?"La "+esc(S.acct.e)+", la aceeași oră ca memento-urile.":"Ai nevoie de un cont.",swb(!!S.nt.mail,"Memento-uri pe e-mail","mailTog()"),1):"")};
+}
+</script>

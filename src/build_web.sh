@@ -1,0 +1,48 @@
+#!/bin/bash
+set -e
+D=/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad
+B=/mnt/user-data/outputs/latimp-brand/icons
+cd $D && bash build.sh >/dev/null
+W=$D/web; rm -rf $W; mkdir -p $W/icons
+cp $B/pwa/icon-192.png $B/pwa/icon-512.png $B/pwa/icon-maskable-512.png $B/pwa/apple-touch-icon-180.png $B/favicon/favicon.svg $B/favicon/favicon-32.png $B/favicon/favicon.ico $W/icons/
+VER=$(grep -o 'const VER="[^"]*"' q2.html | cut -d'"' -f2)
+python3 - "$W" "$VER" <<'PY'
+import sys,json
+W,VER=sys.argv[1],sys.argv[2]
+body=open("/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/new.html").read()
+body=body.replace('<title>LaTimp</title>\n','').replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
+head=f'''<!doctype html><html lang="ro"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>LaTimp</title>
+<meta name="description" content="Termenele, plățile și zilele importante la timp, plus idei pentru timpul liber.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#eff1f2">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml"><link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LaTimp"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>:root{{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}}html{{scroll-padding-top:env(safe-area-inset-top,0px)}}body{{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}}img{{max-width:100%}}[hidden]:not([hidden=until-found i]){{display:none!important}}</style>
+<script>
+window.LT_WEB=true;
+window.LT_SB={{url:"https://jzcwmucmxxedvwbtzrvp.supabase.co",key:"sb_publishable_qZDRrfEWVRhr9xeDBmME9A_y_7wIg5k"}};
+/* descărcări în browser: aceeași interfață ca în prototip */
+(function(){{const dl={{save:async function(o){{const t=/\\.json$/.test(o.filename)?"application/json":/\\.csv$/.test(o.filename)?"text/csv":/\\.ics$/.test(o.filename)?"text/calendar":"application/octet-stream";const b=o.data instanceof Blob?o.data:new Blob([o.data],{{type:t+";charset=utf-8"}});const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=o.filename;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){{URL.revokeObjectURL(u)}},4000)}}}};
+window.claude={{use:async function(n){{return n=="downloads"?dl:null}}}};}})();
+if("serviceWorker" in navigator)addEventListener("load",function(){{navigator.serviceWorker.register("sw.js").catch(function(){{}})}});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" async onload="window.sbReady&&sbReady()"></script>
+</head><body>
+'''
+open(W+"/index.html","w").write(head+body+"\n</body></html>\n")
+m={"name":"LaTimp","short_name":"LaTimp","description":"Termenele, plățile și zilele importante la timp, plus idei pentru timpul liber.","lang":"ro","dir":"ltr","id":"./","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#11523a","theme_color":"#eff1f2","categories":["productivity","lifestyle","finance"],
+"icons":[{"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
+json.dump(m,open(W+"/manifest.webmanifest","w"),ensure_ascii=False,indent=1)
+sw=open("/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/sw.tpl.js").read().replace("__VER__",VER)
+open(W+"/sw.js","w").write(sw)
+open(W+"/.nojekyll","w").write("")
+open(W+"/404.html","w").write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./"><title>LaTimp</title>')
+PY
+cp $D/site/prezentare.html $D/site/*.webp $D/site/logo-*.svg $W/
+node $D/site/gen_legal.js $D/q7l.html $W
+node --check $W/sw.js
+echo web built: $(ls $W) VER=$VER

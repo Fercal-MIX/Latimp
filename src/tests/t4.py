@@ -1,0 +1,73 @@
+import asyncio
+from playwright.async_api import async_playwright
+SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
+ok=[];bad=[]
+def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:400] if (e and not c) else ""))
+async def main():
+    async with async_playwright() as p:
+        b=await p.chromium.launch()
+        ctx=await b.new_context(viewport={"width":400,"height":820})
+        page=await ctx.new_page();errs=[]
+        page.on("pageerror",lambda e:errs.append(str(e)))
+        await page.add_init_script(path=SC+"mock.js")
+        await page.goto("file:///mnt/user-data/outputs/buzunar.html");await page.wait_for_timeout(3000)
+        await page.click("#sheet button:has-text('Sări peste')");await page.wait_for_timeout(500)
+        chk("free tier: 20 items",await page.evaluate("FREE_ITEMS")==20)
+        chk("default first reminder 7 days",await page.evaluate("S.nt.d")==7)
+        # replace examples with realistic items
+        await page.evaluate("""S.items=[{id:'a1',g:'auto',t:'itp',n:'B 123 ABC',d:plus(20),rep:24},{id:'a2',g:'auto',t:'rca',n:'B 123 ABC',d:plus(25),rep:12,note:'Asigurator, cu virgulă; și punct'},{id:'s1',g:'sub',t:'sub',e:'🎬',n:'Netflix',p:40,c:'m',d:plus(5)},{id:'p1',g:'per',t:'zi',n:'Ana',d:plus(40),rep:12,auto:true}];save();render()""")
+        await page.wait_for_timeout(400)
+        t=await page.inner_text("#main")
+        chk("alert at 20 days for free user (30-day window)","De rezolvat curând" in t and "ITP" in t,t[:300])
+        chk("one Control invitation at the bottom","Mai mult cu Control" in t and "Vezi Control" in t and t.count("Control")<=4,t[-500:])
+        await page.click("#main >> button:has-text('Vezi Control')");await page.wait_for_timeout(600)
+        s=await page.inner_text("#sheet")
+        chk("control table rows","Termene" in s and "20" in s and "nelimitate" in s and "Familie" in s and "Alerte în calendar" in s and "Citire din poză" in s,s[:500])
+        chk("control prices","49 lei, adică 4,08 lei pe lună" in s and "−32%" in s and "Anual" in s,s)
+        await page.click("#sheet >> text=Lunar");await page.wait_for_timeout(400)
+        s=await page.inner_text("#sheet");chk("monthly price 5,99","5,99 lei" in s,s)
+        chk("no sparks in Control sheet","Scântei" not in s and "✦" not in s)
+        await page.screenshot(path=SC+"n_control2.png")
+        await page.click("#sheet >> text=Activează Control");await page.wait_for_timeout(600)
+        chk("pro on",await page.evaluate("S.pro")==True)
+        t=await page.inner_text("#main")
+        chk("export button for Control","Descarcă pentru calendar" in t,t[-400:])
+        await page.click("#main >> button:has-text('Descarcă pentru calendar')");await page.wait_for_timeout(600)
+        sv=await page.evaluate("window.__saved")
+        d=sv["data"] if sv else ""
+        chk("ics saved with right name",sv and sv["filename"]=="latimp-termene.ics",sv)
+        chk("ics structure",d.startswith("BEGIN:VCALENDAR\r\nVERSION:2.0") and d.rstrip().endswith("END:VCALENDAR") and d.count("BEGIN:VEVENT")==4 and d.count("END:VEVENT")==4,d[:200])
+        chk("ics yearly/2-year/monthly rules","RRULE:FREQ=YEARLY;INTERVAL=2" in d and "RRULE:FREQ=YEARLY\r\n" in d and "RRULE:FREQ=MONTHLY\r\n" in d,d)
+        chk("ics alarms follow the reminder settings (7 days before, 09:00)",d.count("BEGIN:VALARM")==4 and d.count("TRIGGER:-PT9540M")==4,d.count("BEGIN:VALARM"))
+        chk("ics escapes commas and semicolons","DESCRIPTION:Asigurator\\, cu virgulă\; și punct" in d.replace("\r\n ",""),d)
+        chk("ics dates are all-day","DTSTART;VALUE=DATE:" in d and "DTEND;VALUE=DATE:" in d)
+        chk("ics skips none valid / no example items","Netflix" in d)
+        # ics lines folded to <=61 chars
+        chk("ics lines folded",all(len(l)<=61 for l in d.split("\r\n")))
+        # free export disabled for non-pro
+        await page.evaluate("S.pro=false;window.__saved=null;save();render()");await page.wait_for_timeout(300)
+        await page.evaluate("exportIcs()");await page.wait_for_timeout(500)
+        chk("free user cannot export (opens Control)",await page.evaluate("window.__saved")is None and "Control" in await page.inner_text("#sheet"))
+        await page.click("#sheet >> text=Închide");await page.wait_for_timeout(400)
+        # alert setting available for everyone, Mai mult shows no plan names
+        await page.click("#t-more");await page.wait_for_timeout(600)
+        t=await page.inner_text("#main")
+        chk("notification setting for free users","Notificări" in t and "înainte, la 09:00" in t,t[:500])
+        chk("Mai mult: no plan mention","Control" not in t and "Scântei" not in t)
+        chk("CSV export stays free in Mai mult","Exportă agenda (CSV)" in t)
+        await page.click("#main >> text=Notificări");await page.wait_for_timeout(500)
+        await page.click("#main .chips >> text=3 zile");await page.wait_for_timeout(300)
+        chk("window changes",await page.evaluate("S.nt.d==3&&maxT()==3"))
+        await page.click("#t-agenda");await page.wait_for_timeout(600)
+        t=await page.inner_text("#main")
+        chk("narrow window hides far items","ITP" not in t.split("De rezolvat curând")[-1].split("Toate")[0] if "De rezolvat curând" in t else True)
+        # limit at 20
+        await page.evaluate("S.nt.d=30;S.items=[];for(let i=0;i<20;i++)S.items.push({id:'q'+i,g:'per',t:'prog',n:'P'+i,d:plus(40+i),rep:0});save();render()");await page.wait_for_timeout(300)
+        await page.click("#main >> button.btn:text-is('Adaugă')");await page.wait_for_timeout(500)
+        chk("limit hit at 20 opens Control","nelimitate" in await page.inner_text("#sheet"))
+        ow=await page.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth+1")
+        chk("no overflow",not ow);chk("no page errors",not errs,errs)
+        await ctx.close();await b.close()
+    print("OK",len(ok));print("FAIL",len(bad))
+    for x in bad:print(" -",x)
+asyncio.run(main())

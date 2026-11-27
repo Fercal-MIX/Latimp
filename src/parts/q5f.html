@@ -1,0 +1,93 @@
+<script>
+/* ---------- Etapa 6: pornire pe profil, pași, căutare, istoricul notificărilor, pauză, anul tău ---------- */
+/* pornire pe profil: spui ce ai, aplicația propune termenele potrivite */
+const PROF=[["car","Am mașină"],["apt","Stau la bloc"],["house","Am casă"],["rent","Stau în chirie"],["kids","Am copii"],["pet","Am animal de companie"]];
+const PSUG={car:[["auto","itp"],["auto","rca"],["auto","rov"],["auto","ulei"]],apt:[["fac","cur"],["fac","int"],["casa","pad"],["casa","cen"]],house:[["fac","cur"],["fac","gaz"],["casa","pad"],["casa","cen"],["casa","cos"]],rent:[["fac","chi"],["fac","cur"]],kids:[["san","med"],["per","zi"]],pet:[["san","vac"],["san","dep"],["san","vet"]]};
+let PSEL=[];
+function profSugs(){
+ const p=S.prof||{},seen=new Set(),out=[];
+ (p.sel||[]).forEach(k=>(PSUG[k]||[]).forEach(([g,t])=>{const id=g+":"+t;if(seen.has(id))return;seen.add(id);if((p.skip||[]).includes(id))return;if(S.items.some(x=>!x.ex&&x.g==g&&x.t==t))return;out.push({g,t,id})}));return out}
+function profCard(){
+ const p=S.prof||{};if(p.hide)return"";
+ if(!(p.sel||[]).length)return `<div class="card xs"><div class="top"><strong>Ce să urmărim pentru tine?</strong><button class="x" aria-label="Ascunde" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Spune ce ai (mașină, casă, animal) și îți propunem termenele potrivite. Tu completezi doar datele.</div><div class="acts"><button onclick="profOpen()">Alege</button></div></div>`;
+ const l=profSugs();if(!l.length)return"";
+ return `<div class="card pfl"><div class="top"><strong>De completat</strong><button class="x" aria-label="Ascunde lista" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Termene propuse după profilul tău. Adaugă-le pe cele care te privesc.</div>${l.slice(0,12).map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}${PAIDG.includes(s.g)&&!S.pro?` <span class="tag k">Control</span>`:""}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")}<div class="acts"><button onclick="profOpen()">Schimbă profilul</button></div></div>`}
+function profOpen(){PSEL=((S.prof||{}).sel||[]).slice();profDraw()}
+function profDraw(){openSheet(`<h2>Ce ai în viața ta?</h2><div class="mu">Alege tot ce se potrivește. Poți schimba oricând.</div><div class="chips">${PROF.map(([k,n])=>`<button class="${PSEL.includes(k)?"on":""}" aria-pressed="${PSEL.includes(k)}" onclick="profTg('${k}')">${n}</button>`).join("")}</div><div style="margin-top:14px"><button class="btn" onclick="profSave()">Propune termenele</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"prof")}
+function profTg(k){PSEL=PSEL.includes(k)?PSEL.filter(x=>x!=k):PSEL.concat(k);profDraw()}
+function profSave(){S.prof=Object.assign({skip:[]},S.prof||{},{sel:PSEL.slice(),hide:false});save();closeSheet();FIL="all";render();const n=profSugs().length;toast(n?"Am pregătit "+n+(n==1?" termen de completat":" termene de completat"):"Ai deja tot ce se potrivește")}
+function profHide(){S.prof=Object.assign({sel:[],skip:[]},S.prof||{},{hide:true});save();swap()}
+function profSkip(id){S.prof.skip=(S.prof.skip||[]).concat(id);save();swap()}
+function profAdd(id){
+ const[g,t]=id.split(":");
+ if(PAIDG.includes(g)&&!S.pro){toast(GN[g]+" fac parte din Control.");openPlan("agenda");return}
+ if(!S.pro&&S.items.filter(x=>!x.ex).length>=FREE_ITEMS){toast("Ai atins limita gratuită de "+FREE_ITEMS+" de termene.");openPlan("agenda");return}
+ const rep=XT[g]?(XT[g].find(a=>a[0]==t)||[0,0,0])[2]:((g=="auto"?AT:PT).find(a=>a[0]==t)||[0,0])[1];
+ cur={g,t,n:"",d:"",rep,note:"",p:"",auto:g=="per"&&rep>0};drawItem(false)}
+
+/* pași pe termen (Control) */
+const STP={itp:["Programare la stație","Talonul și cartea mașinii","Plata"],rca:["Compară oferte","Plătește polița","Păstrează polița"],rov:["Cumpără de pe site-ul oficial","Păstrează dovada plății"],ulei:["Programare la service","Ulei și filtre"],rev:["Programare la service","Lista de verificat"],pas:["Programare online","Poze și acte","Taxa"],ci:["Programare","Acte"],pc:["Fișa medicală","Programare"],cb:["Verifică dacă a sosit cardul nou","Activează cardul"],imp:["Verifică suma la primărie","Plătește"],imp2:["Plătește a doua rată"],du:["Adună actele","Completează declarația","Plătește"],cen:["Sună firma de service","Programează vizita"],pad:["Compară oferte","Plătește polița"],den:["Programare"],vac:["Programare la veterinar","Carnetul de sănătate"]};
+function stepBox(c){
+ if(!c.id)return"";const x=S.items.find(i=>i.id==c.id);if(!x)return"";
+ const l=Array.isArray(x.ss)?x.ss:[];
+ if(!S.pro)return `<label>Pași (Control)</label><div class="note">Împarte termenul în pași mici, de bifat pe rând.</div>`;
+ const sug=(STP[x.t]||[]).filter(t=>!l.some(s=>s.t==t));
+ return `<label>Pași</label>${l.map((s,i)=>`<div class="it tli" style="padding:6px 0"><label class="ck" style="margin:0"><input type="checkbox"${s.dn?" checked":""} onchange="stepTg(${i})"> <span${s.dn?' class="mu" style="text-decoration:line-through"':""}>${esc(s.t)}</span></label><button class="x" aria-label="Scoate pasul" onclick="stepDel(${i})">✕</button></div>`).join("")}${sug.length?`<div class="chips">${sug.map(t=>`<button onclick="stepAdd(${JSON.stringify(t).replace(/"/g,"&quot;")})">+ ${esc(t)}</button>`).join("")}</div>`:""}<div class="qa"><input id="st_n" maxlength="60" placeholder="Pas nou" aria-label="Pas nou" onkeydown="if(event.key=='Enter')stepAdd()"><button onclick="stepAdd()">Adaugă</button></div>`}
+function stepItem(){return S.items.find(i=>i.id==cur.id)}
+function stepAdd(t){const x=stepItem();if(!x)return;grab();const v=(t||(($("st_n")||{}).value||"")).trim().slice(0,60);if(!v){toast("Scrie pasul");return}x.ss=(Array.isArray(x.ss)?x.ss:[]).concat({t:v,dn:false}).slice(0,12);cur.ss=x.ss;save();drawItem(true)}
+function stepTg(i){const x=stepItem();if(!x||!x.ss[i])return;grab();x.ss[i].dn=!x.ss[i].dn;cur.ss=x.ss;save();drawItem(true)}
+function stepDel(i){const x=stepItem();if(!x)return;grab();x.ss.splice(i,1);cur.ss=x.ss;save();drawItem(true)}
+const stepTag=x=>Array.isArray(x.ss)&&x.ss.length&&S.pro?`<span class="tag${x.ss.every(s=>s.dn)?" ok":""}">${x.ss.filter(s=>s.dn).length}/${x.ss.length} pași</span>`:"";
+
+/* căutare în toată aplicația */
+function srOpen(){openSheet(`<h2>Caută</h2><input id="sr_q" type="search" maxlength="60" placeholder="Termene, persoane, idei, liste" aria-label="Caută în aplicație" oninput="srRun(this.value)"><div id="sr_r" aria-live="polite"></div>`,"sr");setTimeout(()=>{const e=$("sr_q");if(e)e.focus()},60)}
+function srRun(v){
+ const q=dia(String(v||"").trim()),r=$("sr_r");if(!r)return;
+ if(q.length<2){r.innerHTML=`<div class="note">Scrie cel puțin două litere.</div>`;return}
+ const has=s=>dia(String(s||"")).includes(q),g=[];
+ const it=S.items.filter(x=>!x.ex&&(has(ttl(x))||has(x.note)||has(TYN[x.t])||has(GN[x.g]))).slice(0,12);
+ if(it.length)g.push(`<div class="gt">Termene</div>`+it.map(x=>`<button class="it" onclick="srGo('i','${x.id}')"><span><b>${esc(ttl(x))}</b><div class="mu">${esc(GN[x.g]||"")} · ${esc(nice(x.d))}</div></span><span class="mu">›</span></button>`).join(""));
+ const pp=pplAll(),pk2=Object.keys(pp).filter(k=>has(pp[k])||has((S.ppl[k]||{}).note)).slice(0,8);
+ if(pk2.length)g.push(`<div class="gt">Persoane</div>`+pk2.map(k=>`<button class="it" onclick="srGo('p','${k}')"><b>${esc(pp[k])}</b><span class="mu">›</span></button>`).join(""));
+ const sv=(S.saved||[]).map((x,i)=>[x,i]).filter(([x])=>has(x.t)||has(x.d)).slice(0,8);
+ if(sv.length)g.push(`<div class="gt">Idei salvate</div>`+sv.map(([x])=>`<button class="it" onclick="srGo('s','')"><b>${esc(x.t)}</b><span class="mu">›</span></button>`).join(""));
+ const tl=(S.tl||[]).filter(x=>has(x.n)).slice(0,8);
+ if(tl.length)g.push(`<div class="gt">Liste de încercat</div>`+tl.map(x=>`<button class="it" onclick="srGo('l','${x.k}')"><span><b>${esc(x.n)}</b><div class="mu">${esc((TLK.find(k=>k[0]==x.k)||["",""])[1])}${x.dn?" · încercat":""}</div></span><span class="mu">›</span></button>`).join(""));
+ r.innerHTML=g.length?`<div class="grp srr">${g.join("")}</div>`:`<div class="note">Nimic găsit pentru „${esc(v.trim())}”.</div>`}
+function srGo(k,v){
+ closeSheet();
+ if(k=="i"){FIL="all";CALV="list";if(TAB!="agenda")tab("agenda");else render();setTimeout(()=>{const c=$("c_"+v);if(c){c.scrollIntoView({block:"center"});flashCard(v)}},TAB=="agenda"?80:380)}
+ else if(k=="p")pOpen(v);
+ else{FSEG="saved";if(k=="l")TLF=v;if(TAB!="free")tab("free");else render()}}
+const srBtn=()=>`<button class="srch" onclick="srOpen()" aria-label="Caută în aplicație"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span>Caută</span></button>`;
+
+/* istoricul notificărilor și pauza */
+const pb0=pushBanner;
+pushBanner=function(t,b){S.nh=(Array.isArray(S.nh)?S.nh:[]);S.nh.unshift({t:String(t).slice(0,80),b:String(b).slice(0,200),ts:Date.now()});S.nh=S.nh.slice(0,50);store();pb0(t,b)};
+const rc0=remCheck;
+remCheck=function(){if(S.np&&okDate(S.np)&&S.np>=fmt(td())){S.nl=Date.now();store();return}rc0()};
+const pauseOn=()=>!!(S.np&&okDate(S.np)&&S.np>=fmt(td()));
+function pauseSet(n){if(n===0){S.np="";save();render();toast("Memento-urile sunt pornite din nou");return}S.np=typeof n=="string"?n:plus(n);if(!okDate(S.np)||S.np<fmt(td())){S.np="";toast("Alege o dată din viitor");render();return}save();render();toast("Pauză până la "+nice(S.np))}
+function nhAgo(ts){const m=Math.round((Date.now()-ts)/6e4);return m<1?"acum":m<60?"acum "+m+" min":m<1440?"acum "+Math.round(m/60)+" h":new Date(ts).toLocaleDateString(LOC(),{day:"numeric",month:"short"})}
+const nv0=notifView;
+notifView=function(){
+ const l=Array.isArray(S.nh)?S.nh:[];
+ let h=nv0();
+ h+=`<div class="gt">Pauză</div><div class="card">${pauseOn()?`<div class="sg"><b>Memento-urile sunt în pauză</b>Până la ${esc(nice(S.np))}. Cele de până atunci nu mai apar.</div><button class="btn alt" onclick="pauseSet(0)">Pornește-le acum</button>`:`<div class="mu">Concediu sau o perioadă aglomerată? Oprești memento-urile până la o dată.</div><div class="chips">${[[3,"3 zile"],[7,"o săptămână"],[14,"2 săptămâni"]].map(x=>`<button onclick="pauseSet(${x[0]})">${x[1]}</button>`).join("")}</div><label for="np_d">Până la</label><input id="np_d" type="date" min="${plus(1)}" onchange="pauseSet(this.value)">`}</div>`;
+ h+=`<div class="gt">Ultimele notificări</div>${l.length?`<div class="grp">${l.slice(0,15).map(n=>`<div class="it stk"><span><b>${esc(n.t)}</b><div class="mu">${esc(n.b)}</div><div class="mu sm">${esc(nhAgo(n.ts))}</div></span></div>`).join("")}</div><div class="acts"><button onclick="S.nh=[];save();render()">Șterge istoricul</button></div>`:`<div class="card"><div class="mu">Nicio notificare încă.</div></div>`}`;
+ return h};
+
+/* anul tău în LaTimp */
+function yrData(){
+ const Y=td().getFullYear(),ys=String(Y),inY=d=>okDate(d)&&d.slice(0,4)==ys;
+ let done=0,paid=0;S.items.forEach(x=>(x.hist||[]).forEach(e=>{if(inY(e.d)){done++;if(+e.p>0)paid+=+e.p}}));
+ const sav=S.items.filter(x=>x.k&&x.g=="sub"&&!x.ex).reduce((s,x)=>s+mon(x),0);
+ const ch=Object.entries((S.ch&&S.ch.m)||{}).filter(([k])=>k.slice(0,4)==ys).map(([k,v])=>v.t);
+ const tl=(S.tl||[]).filter(x=>x.dn).length,sv=(S.saved||[]).filter(x=>new Date(+x.ts||0).getFullYear()==Y).length;
+ let gv=0;Object.values(S.ppl||{}).forEach(p=>(p.given||[]).forEach(g=>{if(+g.y==Y)gv++}));
+ return{Y,done,paid,sav,ch,tl,sv,gv}}
+function yrShow(){
+ const d=yrData(),row=(n,t)=>`<div class="yr"><b>${n}</b><span>${t}</span></div>`;
+ openSheet(`<h2>Anul tău în LaTimp, ${d.Y}</h2><div class="yrs">${row(d.done,d.done==1?"termen rezolvat la timp":"termene rezolvate la timp")}${row(money(d.sav*12)+" lei",d.sav?"economie pe an, din abonamentele de anulat":"de economisit: marchează abonamentele pe care nu le folosești")}${row(d.ch.length,d.ch.length==1?"lucru nou încercat":"lucruri noi încercate")}${row(d.tl,"bifate din listele de încercat")}${row(d.sv,d.sv==1?"idee salvată":"idei salvate")}${row(d.gv,d.gv==1?"cadou notat":"cadouri notate")}</div>${d.ch.length?`<div class="mu" style="margin-top:8px">Lucruri noi: ${esc(d.ch.join(", "))}.</div>`:""}<button class="btn" onclick="yrCopy()">Copiază rezumatul</button><button class="btn alt" onclick="closeSheet()">Închide</button><div class="note">Se numără din ce ai bifat în aplicație anul acesta.</div>`,"yr")}
+function yrCopy(){const d=yrData(),t=`Anul meu în LaTimp, ${d.Y}: ${d.done} termene rezolvate la timp, ${d.ch.length} lucruri noi încercate, ${d.tl} bifate din liste${d.sav?", "+money(d.sav*12)+" lei economisiți pe an":""}.`;try{navigator.clipboard.writeText(t).then(()=>toast("Rezumat copiat"),()=>toast(t))}catch(e){toast(t)}}
+</script>

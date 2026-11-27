@@ -1,0 +1,97 @@
+<script>
+/* ---------- Cont real și sincronizare prin Supabase (doar în versiunea web) ---------- */
+let SB=null,SBU=null,SBQ=false,SBT=0,SBJ=false;
+const cloudOn=()=>WEB?!!SBU:!!(DB&&UID);
+function sbReady(){
+ if(SB||!WEB||!window.LT_SB||!window.supabase||!window.supabase.createClient)return;
+ const H=location.hash||"",LINK=/access_token=/.test(H),LERR=/error_code=|error=/.test(H)&&!LINK;
+ try{SB=window.supabase.createClient(LT_SB.url,LT_SB.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:"implicit",storageKey:"latimp.auth"}})}catch(e){SB=null;return}
+ SB.auth.onAuthStateChange((ev,s)=>{const u=s&&s.user||null;if(ev=="SIGNED_OUT"){SBU=null;softMore();return}if(u)SBU=u});
+ if(LERR){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}setTimeout(()=>toast("Linkul de conectare a expirat sau a fost folosit. Cere altul din Mai mult, Cont."),900)}
+ SB.auth.getSession().then(async({data})=>{const u=data&&data.session&&data.session.user;if(!u)return;SBU=u;
+  const e=String(u.email||"").toLowerCase();
+  if(LINK&&!SBJ){try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}if(!S.acct||String(S.acct.e||"").toLowerCase()!=e){AC=Object.assign({},AC||{},{e});await sbJoin();return}}
+  if(!S.acct||String(S.acct.e||"").toLowerCase()!=e){S.acct={p:"email",e,n:S.acct&&S.acct.n||"",at:Date.now(),v:true};store()}
+  await sbPull();softMore()}).catch(()=>{});
+ addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible")sbPull()});
+ addEventListener("online",()=>{sbPull();sbPush()});
+ softMore()}
+/* citește agenda din cont; cea mai nouă câștigă (după S.at, ca în prototip) */
+async function sbPull(){
+ if(!SB||!SBU||SBQ)return;SBQ=true;
+ try{const{data,error}=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();if(error)throw error;
+  if(!data){if(S.acct)sbPush();return}
+  const st=data.state||{},ra=+st.at||0;
+  if(ra>(+S.at||0)){const keep=S.acct;S=mig(st);S.at=ra;if(!S.acct)S.acct=keep;store();theme();uiApply();SY.ok=true;SY.t=Date.now();soft()}
+  else if(ra<(+S.at||0))sbPush();
+  else{SY.ok=true;SY.t=SY.t||Date.now()}}
+ catch(e){SY.ok=false}
+ finally{SBQ=false}}
+const sbPush=writer(async()=>{
+ if(!SB||!SBU||!S.acct||!S.at)return;
+ try{const{error}=await SB.from("user_state").upsert({user_id:SBU.id,state:JSON.parse(JSON.stringify(S)),schema_ver:2,device:String(navigator.userAgent||"").slice(0,80)},{onConflict:"user_id"});if(error)throw error;SY.ok=true;SY.t=Date.now()}
+ catch(e){SY.ok=false}
+ softMore()},1200);
+if(WEB){const sv1=save;save=function(){sv1();sbPush()}}
+
+/* ecranele de cont: e-mail și cod, fără parolă */
+if(WEB){
+ const da0=drawAcct;
+ drawAcct=function(){
+  if(!SB){if(AC.m=="me"&&S.acct)return da0();if(AC.ob){closeSheet();return}openSheet(`<h2>Cont LaTimp</h2><div class="mu">Conectarea are nevoie de internet. Încearcă din nou când ești online.</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"acct");return}
+  const err=`<div class="note dg" id="ac_err" role="alert"></div>`;
+  if(AC.m=="me"&&S.acct){const a=S.acct;
+   openSheet(`<h2>Contul tău</h2><div class="grp" style="margin-top:12px">${rw("Conectat cu e-mail",esc(a.e),"")}</div><div class="note">Agenda se salvează în cont și o regăsești pe orice telefon pe care te conectezi.</div><div style="margin-top:14px"><button class="btn alt" onclick="closeSheet()">Închide</button><button class="btn alt dg" onclick="acctOut()">${AC.out?"Apasă din nou ca să te deconectezi":"Deconectează-te"}</button><button class="btn alt dg" onclick="acctDel()">${AC.del?"Apasă din nou: contul se șterge":"Șterge contul"}</button></div><div class="note">Ștergerea contului șterge de pe server agenda salvată, contul și fișierele lui. Agenda rămâne doar pe acest telefon.</div>`,"acct");return}
+  if(AC.m=="code"){
+   openSheet(`<h2>Verifică e-mailul</h2><div class="mu">Am trimis un e-mail la ${esc(AC.e)}. Apasă linkul din el ca să te conectezi. Dacă e-mailul are un cod, scrie-l aici. Verifică și dosarul Spam.</div><label for="ac_c">Codul din e-mail (dacă ai primit unul)</label><input id="ac_c" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" onkeydown="if(event.key=='Enter')sbVerify()">${err}<div style="margin-top:14px"><button class="btn" id="ac_go" onclick="sbVerify()">Conectează-te</button><button class="btn alt" onclick="sbSend(true)">Trimite alt e-mail</button><button class="btn alt" onclick="AC.m='start';drawAcct()">Altă adresă</button></div>`,"acct");
+   setTimeout(()=>{const c=$("ac_c");if(c)try{c.focus()}catch(e){}},350);return}
+  openSheet(`<h2>${AC.ob?"Păstrează-ți agenda":"Cont LaTimp"}</h2><div class="mu">${esc(AC.why||"Opțional. Cu un cont îți regăsești agenda pe orice telefon.")}</div><label for="ac_e">Adresa de e-mail</label><input id="ac_e" type="email" autocomplete="email" maxlength="254" value="${esc(AC.e)}" onkeydown="if(event.key=='Enter')sbSend()">${err}<div style="margin-top:14px"><button class="btn" id="ac_go" onclick="sbSend()">Trimite e-mailul</button><button class="btn alt" onclick="closeSheet()">${AC.ob?"Mai târziu":"Renunță"}</button></div><div class="note">Îți trimitem pe e-mail un link de conectare. Nu ai nevoie de parolă.</div>`,"acct")};
+ acctGo=function(){sbSend()};
+}
+function sbBusy(v,t){const b=$("ac_go");if(b){b.disabled=v;if(t)b.textContent=t}}
+async function sbSend(again){
+ if(!SB)return;
+ if(!again){acctGrab();AC.e=(AC.e||"").trim().toLowerCase()}
+ if(!EMRE.test(AC.e||"")){acctErr("Adresa de e-mail nu arată corect.");return}
+ const w=Math.ceil((SBT-Date.now())/1000);if(w>0){acctErr("Poți cere alt e-mail peste "+w+" secunde.");return}
+ sbBusy(true,"Se trimite…");
+ try{const{error}=await SB.auth.signInWithOtp({email:AC.e,options:{shouldCreateUser:true,emailRedirectTo:LT_SB.home||(location.origin+location.pathname)}});
+  if(error){sbBusy(false,"Trimite e-mailul");acctErr(error.status==429?"Ai cerut prea multe e-mailuri. Încearcă din nou peste un minut.":"Nu am putut trimite e-mailul. Verifică adresa și încearcă din nou.");return}
+  SBT=Date.now()+60000;AC.m="code";drawAcct();if(again)toast("Am trimis un e-mail nou")}
+ catch(e){sbBusy(false,"Trimite e-mailul");acctErr("Nu am putut trimite e-mailul. Verifică internetul.")}}
+async function sbVerify(){
+ const t=(($("ac_c")||{}).value||"").replace(/\D/g,"");
+ if(t.length<6){acctErr("Codul are cel puțin 6 cifre.");return}
+ sbBusy(true,"Se verifică…");SBJ=true;
+ try{const{data,error}=await SB.auth.verifyOtp({email:AC.e,token:t,type:"email"});
+  if(error||!data||!data.user){SBJ=false;sbBusy(false,"Conectează-te");acctErr("Codul nu e bun sau a expirat. Cere alt cod.");return}
+  SBU=data.user;await sbJoin()}
+ catch(e){SBJ=false;sbBusy(false,"Conectează-te");acctErr("Nu am putut verifica codul. Verifică internetul.")}}
+/* prima conectare pe acest telefon: alegi ce agendă păstrezi, dacă există deja una în cont */
+let SBR=null;
+const realN=s=>(s&&Array.isArray(s.items)?s.items.filter(x=>!x.ex).length:0);
+async function sbJoin(){
+ const e=String(SBU.email||AC.e).toLowerCase(),a={p:"email",e,n:"",at:Date.now(),v:true},nx=AC&&AC.next;
+ let row=null;try{const r=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();row=r.data||null}catch(x){}
+ const rs=row&&row.state,rn=realN(rs),ln=realN(S);
+ if(rs&&rn&&ln){SBR={rs,a,nx};openSheet(`<h2>Ai deja o agendă în cont</h2><div class="mu">În cont: ${rn} ${rn==1?"termen":"termene"}. Pe acest telefon: ${ln} ${ln==1?"termen":"termene"}. Alege ce păstrezi.</div><div style="margin-top:14px"><button class="btn" onclick="sbPick(true)">Folosește agenda din cont</button><button class="btn alt" onclick="sbPick(false)">Păstrează agenda de pe telefon</button></div><div class="note">Cealaltă agendă se înlocuiește. Dacă nu ești sigur, fă întâi o copie într-un fișier din Mai mult.</div>`,"acct");return}
+ if(rs&&rn){S=mig(rs);S.at=Date.now();S.acct=a;store();theme();uiApply();sbDone("Ești conectat. Agenda din cont a fost adusă.",nx);return}
+ S.acct=a;sbDone("Ești conectat. Agenda se salvează în cont.",nx)}
+function sbPick(fromCloud){
+ const r=SBR;if(!r)return;SBR=null;
+ if(fromCloud){S=mig(r.rs);S.acct=r.a;theme();uiApply()}else S.acct=r.a;
+ sbDone(fromCloud?"Ești conectat. Agenda din cont a fost adusă.":"Ești conectat. Agenda de pe telefon a fost salvată în cont.",r.nx)}
+function sbDone(msg,nx){SBJ=false;REM=null;save();sbPush();closeSheet();render();toast(msg);if(nx)setTimeout(nx,350)}
+if(WEB){
+ acctOut=async function(){if(!AC.out){AC.out=true;AC.del=false;drawAcct();return}try{if(SB)await SB.auth.signOut()}catch(e){}SBU=null;S.acct=null;save();closeSheet();render();toast("Te-ai deconectat. Agenda rămâne pe acest telefon.")};
+ acctDel=async function(){
+  if(!AC.del){AC.del=true;AC.out=false;drawAcct();return}
+  if(!SB||!SBU){toast("Ai nevoie de internet ca să ștergi contul.");return}
+  try{const{data,error}=await SB.functions.invoke("delete-account",{body:{}});
+   if(error){let c="";try{c=(await error.context.json()).error}catch(x){}toast(c=="active_subscription"?"Ai un abonament activ. Anulează-l întâi din magazin, apoi șterge contul.":"Nu am putut șterge contul. Încearcă din nou.");return}}
+  catch(e){toast("Nu am putut șterge contul. Verifică internetul.");return}
+  try{await SB.auth.signOut({scope:"local"})}catch(e){}
+  SBU=null;if(S.inv){S.pro=!!S.inv.was;S.inv=null}S.acct=null;S.fam=null;S.stats=false;save();closeSheet();render();toast("Contul a fost șters. Agenda rămâne doar pe acest telefon.")};
+}
+if(WEB&&window.supabase)sbReady();
+</script>

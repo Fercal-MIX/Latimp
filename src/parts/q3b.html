@@ -1,0 +1,123 @@
+<script>
+/* ---------- Adăugare / editare, poză, onboarding, calendar ---------- */
+const PRE=[["🎬","Netflix"],["🎧","Spotify"],["🏋️","Sală"],["📱","Telefon"],["☁️","Cloud"],["📦","Altceva"]];
+const WHERE=`<details><summary>Unde găsesc abonamentele mele?</summary><p><b>Extrasul de cont.</b> Caută plățile care se repetă, în ultimele 3 luni, cu aceeași sumă.</p><p><b>Google Play.</b> Meniul contului, Plăți și abonamente, Abonamente.</p><p><b>App Store.</b> Setări, numele tău, Abonamente.</p><p><b>PayPal.</b> Setări, Plăți, Gestionează plățile automate.</p><p><b>E-mailul.</b> Caută „factură”, „chitanță” sau „receipt”.</p><p><b>Facturile lunare.</b> Telefonul, internetul și cablul apar acolo, uneori cu opțiuni adăugate.</p><p><b>Contul fiecărui serviciu.</b> Caută secțiunea Facturare sau Abonament.</p></details>`;
+let cur={};
+function editItem(id,rn){
+ if(!id&&!S.pro&&S.items.filter(x=>!x.ex).length>=FREE_ITEMS){toast("Ai atins limita gratuită de "+FREE_ITEMS+" de termene.");openPlan("agenda");return}
+ const g=FIL=="auto"||FIL=="per"?FIL:"sub";
+ cur=id?{...S.items.find(i=>i.id==id)}:g=="sub"?{g:"sub",t:"sub",e:"📦",n:"",p:"",c:"m",d:plus(30),rep:0,note:""}:g=="auto"?{g:"auto",t:"itp",n:"",d:"",rep:24,note:""}:{g:"per",t:"zi",n:"",d:"",rep:12,auto:true,note:""};
+ if(id&&rn){cur.rn=1;cur.d=""}
+ drawItem(!!id)}
+function grab(){
+ const v=i=>{const e=$(i);return e?e.value:undefined};
+ const n=v("f_n");if(n!==undefined)cur.n=n;const p=v("f_p");if(p!==undefined)cur.p=p;const c=v("f_c");if(c!==undefined)cur.c=c;
+ const d=v("f_d");if(d!==undefined)cur.d=d;const r=v("f_rep");if(r!==undefined)cur.rep=+r;const nt=v("f_note");if(nt!==undefined)cur.note=nt;
+ const s=$("f_sh");if(s)cur.sh=s.checked}
+function setG(k){grab();cur.g=k;if(k=="auto"){cur.n="";delete cur.car}cur.t=k=="sub"?"sub":k=="auto"?"itp":"zi";cur.rep=k=="auto"?24:k=="per"?12:0;cur.auto=k=="per";drawItem(false)}
+function setT(k){grab();cur.t=k;const l=cur.g=="auto"?AT:PT,r=(l.find(a=>a[0]==k)||[0,0])[1];cur.rep=r;cur.auto=cur.g=="per"&&r>0;drawItem(!!cur.id)}
+function carInit(){
+ const c=cur;if(c.car=="new"||(c.car&&S.cars.some(z=>z.id==c.car)))return;
+ const m=c.n&&findCar(c.n);if(m){c.car=m.id;c.n=m.n;return}
+ c.car=c.n||!S.cars.length?"new":S.cars[0].id;if(c.car!="new")c.n=S.cars[0].n}
+const carField=c=>`<label>Mașina</label><div class="chips">${S.cars.map(k=>`<button class="${c.car==k.id?"on":""}" onclick="setCar('${k.id}')">${esc(k.n)}</button>`).join("")}<button class="${c.car=="new"?"on":""}" onclick="setCar('new')">+ Mașină nouă</button></div>${c.car=="new"?`<label for="f_n">Număr de înmatriculare sau nume</label><input id="f_n" value="${esc(c.n)}" placeholder="De exemplu: B 123 ABC sau Logan" maxlength="30">`:""}`;
+function setCar(v){grab();cur.car=v;if(v=="new")cur.n="";else{const k=S.cars.find(z=>z.id==v);cur.n=k?k.n:""}drawItem(!!cur.id)}
+function pre(i){grab();cur.e=PRE[i][0];cur.n=PRE[i][1];drawItem(false)}
+function drawItem(ed){
+ const c=cur,g=c.g,opt=(l,v)=>l.map(o=>`<option value="${o[0]}"${o[0]==v?" selected":""}>${o[1]}</option>`).join("");
+ let h=`<h2>${ed?(c.rn?"Noua dată":"Editează"):"Termen nou"}</h2>`;
+ if(!ed&&S.pro&&!c.fromText)h+=qaBox();
+ if(!ed)h+=`<div class="chips">${GORD.map(k=>`<button class="${g==k?"on":""}" onclick="setG('${k}')">${GN[k]}</button>`).join("")}</div>`;
+ if(c.fromText)h+=`<div class="sg"><b>Completat din text</b>Verifică fiecare câmp înainte să salvezi.</div>`;
+ if(c.fromPhoto)h+=`<div class="sg"><b>Citit din poză</b>Verifică fiecare câmp înainte să salvezi: citirea poate greși. Ce nu s-a văzut clar a rămas gol.</div>`;
+ if(g=="sub"){
+  if(!ed)h+=`<div class="chips">${PRE.map((x,i)=>`<button onclick="pre(${i})">${x[0]} ${x[1]}</button>`).join("")}</div>`;
+  h+=`<label for="f_n">Nume</label><input id="f_n" value="${esc(c.n)}"><div class="row"><div><label for="f_p">Preț (lei)</label><input id="f_p" type="number" inputmode="decimal" min="0" value="${esc(c.p)}"></div><div><label for="f_c">Se plătește</label><select id="f_c">${opt([["m","Lunar"],["y","Anual"]],c.c)}</select></div></div><label for="f_d">Următoarea plată</label><input id="f_d" type="date" value="${esc(c.d)}">`;
+  if(!ed)h+=WHERE}
+ else if(g=="auto"){
+  carInit();h+=carField(c)+`<label>Ce expiră?</label><div class="chips">${AT.map(a=>`<button class="${c.t==a[0]?"on":""}" onclick="setT('${a[0]}')">${TYN[a[0]]}</button>`).join("")}</div><label for="f_d">${c.rn?"Noua dată de expirare":"Expiră la"}</label><input id="f_d" type="date" value="${esc(c.d)}"><label for="f_rep">Se repetă după</label><select id="f_rep">${opt([[0,"Nu se repetă"],[6,"6 luni"],[12,"12 luni"],[24,"24 de luni"]],c.rep||0)}</select><div class="note">Alege intervalul din documentele mașinii. Cu el, butonul „Am reînnoit” mută singur termenul.</div>`}
+ else if(XT[g])h+=xtForm(c);
+ else h+=`<label>Ce fel de dată?</label><div class="chips">${PT.map(a=>`<button class="${c.t==a[0]?"on":""}" onclick="setT('${a[0]}')">${TYN[a[0]]}</button>`).join("")}</div><label for="f_n">Nume sau titlu</label><input id="f_n" value="${esc(c.n)}" placeholder="De exemplu: Ana, dentist, concert" maxlength="60">${c.t=="onom"?onomSel(c):""}<label for="f_d">Data</label><input id="f_d" type="date" value="${esc(c.d)}"><label for="f_rep">Se repetă</label><select id="f_rep">${opt([[0,"Nu"],[12,"În fiecare an"]],c.rep||0)}</select>`;
+ h+=`<label for="f_note">Notă (opțional)</label><input id="f_note" value="${esc(c.note||"")}" maxlength="80" placeholder="${g=="auto"?"De exemplu: asigurătorul":"Orice vrei să ții minte"}">`;
+ h+=itemExtras(c);
+ if(S.fam&&g!="sub"&&CFG.flags.fam!==false)h+=`<label class="ck"><input id="f_sh" type="checkbox"${c.sh?" checked":""}> Distribuie cu familia (se văd doar titlul și data)</label>`;
+ h+=`<div style="margin-top:18px"><button class="btn" onclick="saveItem(${ed})">Salvează</button>`;
+ if(ed&&okDate(c.d))h+=`<a class="btn alt" target="_blank" rel="noopener noreferrer" href="${gcal(c)}">Adaugă în Google Calendar</a>`;
+ h+=`<button class="btn alt" onclick="closeSheet()">Renunță</button>${ed?`<button class="btn alt dg" onclick="delItem()">${c.del?"Apasă din nou ca să ștergi":"Șterge"}</button>`:""}</div>`;
+ openSheet(h,"item")}
+function saveItem(ed){
+ grab();const c=cur;
+ if(!okDate(c.d)){toast("Alege o dată validă");return}
+ if(c.g=="sub"){const p=parseFloat(c.p);if(!(c.n||"").trim()||!(p>=0)){toast("Completează numele și prețul");return}c.p=p}
+ if(c.g=="per"&&!(c.n||"").trim()){toast("Completează un nume");return}
+ if(c.g=="auto"){
+  if(c.car=="new"||!S.cars.some(z=>z.id==c.car)){
+   const nm=(c.n||"").trim();if(!nm){toast("Completează numărul sau numele mașinii");return}
+   let k=findCar(nm);
+   if(!k){if(!S.pro&&S.cars.length>=FREE_CARS){toast("Planul gratuit are o singură mașină.");openPlan("agenda");return}k={id:uid(),n:nm.slice(0,30)};S.cars.push(k)}
+   c.car=k.id}
+  c.n=(S.cars.find(z=>z.id==c.car)||{}).n||""}
+ const o={g:c.g,t:c.t,n:(c.n||"").trim(),d:c.d,note:(c.note||"").trim(),sh:!!c.sh&&c.g!="sub"};
+ if(c.g=="sub"){o.e=c.e||"📦";o.p=c.p;o.c=c.c||"m";o.ad=pd(c.d).getDate()}
+ else{o.rep=+c.rep||0;o.auto=c.g=="per"&&o.rep>0;if(o.auto)o.ad=pd(c.d).getDate();if(c.g=="auto")o.car=c.car}
+ if(ed){const x=S.items.find(i=>i.id==c.id);Object.assign(x,o);delete x.ex}
+ else{S.items.push({id:uid(),...o});if(S.stats)S.st.adds=(S.st.adds||0)+1}
+ save();closeSheet();render();toast(ed?"Salvat":"Adăugat în agendă")}
+function delItem(){
+ if(!cur.del){grab();cur.del=1;drawItem(true);return}
+ S.items=S.items.filter(i=>i.id!=cur.id);save();closeSheet();render();toast("Șters")}
+function gcal(x){
+ const d=pd(x.d),n=new Date(d);n.setDate(n.getDate()+1);
+ const p=new URLSearchParams({action:"TEMPLATE",text:ttl(x)||"Termen",dates:fmt(d).replace(/-/g,"")+"/"+fmt(n).replace(/-/g,""),details:"Din LaTimp"});
+ const r=x.g=="sub"?(x.c=="y"?"YEARLY":"MONTHLY"):x.auto?"YEARLY":"";if(r)p.set("recur","RRULE:FREQ="+r);
+ return "https://calendar.google.com/calendar/render?"+p}
+async function exportCsv(){
+ if(!DL){toast("Exportul nu e disponibil aici");return}
+ const q=v=>{let s=String(v==null?"":v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
+ const rows=[["grup","tip","nume","data","pret_lei","perioada","repetare_luni","nota"]].concat(S.items.filter(x=>!x.ex).map(x=>[GN[x.g],TYN[x.t]||"",x.n,x.d,x.p==null?"":x.p,x.g=="sub"?(x.c=="y"?"anual":"lunar"):"",x.rep||"",x.note||""]));
+ try{await DL.save({filename:"latimp-agenda.csv",data:"﻿"+rows.map(r=>r.map(q).join(",")).join("\n")});toast("Agenda exportată")}catch(e){if(!e||e.code!="user_cancelled")toast("Nu am putut exporta")}}
+/* ---------- poză: citire cu serviciul AI ---------- */
+function parseJ(t){t=String(t||"").replace(/```json|```/g,"");const a=t.search(/[\[{]/);if(a<0)return null;const e=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));try{return JSON.parse(t.slice(a,e+1))}catch(x){return null}}
+function shrink(f,max,q){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(new Error("blob")),"image/jpeg",q)};im.onerror=()=>{URL.revokeObjectURL(u);no(new Error("img"))};im.src=u})}
+function photoStart(){
+ if(!S.pro&&S.photos>=FREE_PHOTOS){toast("Ai folosit cele "+FREE_PHOTOS+" citiri gratuite din poză.");openPlan("agenda");return}
+ const intro=`<h2>Citește din poză</h2><div class="mu">Fotografiază o poliță RCA, o rovinietă, o fișă ITP, un talon sau o factură. Aplicația completează câmpurile, iar tu le verifici.</div>`;
+ if(!S.aic){
+  openSheet(intro+`<div class="sg"><b>Acordul tău, o singură dată</b>Poza pe care o alegi este trimisă către un serviciu de inteligență artificială, care o citește și returnează câmpurile. Aplicația trimite doar poza și instrucțiunea de citire, nu și restul agendei tale, și nu păstrează poza. Acoperă CNP-ul, numerele de card și alte date sensibile. Poți retrage acordul oricând din Mai mult.</div><div style="margin-top:14px"><button class="btn" onclick="photoOk()">Sunt de acord</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"photo");return}
+ openSheet(intro+`<div class="sg"><b>Înainte să trimiți poza</b>Poza este trimisă către un serviciu de inteligență artificială, care o citește. Aplicația nu o păstrează. Acoperă CNP-ul, numerele de card și alte date sensibile.</div><label for="ph">Poză</label><input id="ph" type="file" accept="${esc(PHT.join(","))}" onchange="photoRead(this.files[0])"><div id="phs" class="note" role="status"></div><button class="btn alt" onclick="closeSheet()">Renunță</button>`,"photo")}
+function photoOk(){S.aic=Date.now();save();photoStart()}
+function setAic(){S.aic=0;save();render();toast("Acord retras. Îl vom cere din nou la următoarea poză.")}
+async function photoRead(f){
+ if(!f)return;const st=$("phs");st.textContent="Citesc poza…";
+ try{
+  const b=await shrink(f,1600,.82);
+  const p=`Ești un asistent care citește documente românești: poliță RCA, rovinietă, fișă ITP, talon, factură de abonament. Citește doar ce se vede în poză. Dacă un câmp nu se vede clar, pune null; nu ghici și nu inventa. Răspunde DOAR cu JSON, fără alt text: {"tip":"itp"|"rca"|"rov"|"talon"|"abonament"|"alta","nume":"furnizor sau nume scurt, sau null","nr":"număr de înmatriculare sau null","data":"data de expirare sau a următoarei plăți, format YYYY-MM-DD, sau null","pret":"număr sau null","perioada":"lunar"|"anual"|null}`;
+  const o=await AI(p,{images:[b],cache:false}),r=parseJ(o.text);
+  if(!r||typeof r!="object")throw new Error("parse");
+  const t=String(r.tip||""),d=okDate(r.data)?r.data:"",txt=v=>v==null||v=="null"?"":String(v).slice(0,60);
+  if(t=="itp"||t=="rca"||t=="rov"||t=="talon")cur={g:"auto",t:t=="talon"?"alt":t,n:txt(r.nr),d,rep:(AT.find(a=>a[0]==t)||[0,0])[1],note:t=="rca"?txt(r.nume):"",fromPhoto:1};
+  else{const p2=parseFloat(r.pret);cur={g:"sub",t:"sub",e:"📦",n:txt(r.nume),p:p2>=0?p2:"",c:r.perioada=="anual"?"y":"m",d,rep:0,note:"",fromPhoto:1}}
+  S.photos=(S.photos||0)+1;if(S.stats)S.st.reads=(S.st.reads||0)+1;save();drawItem(false)}
+ catch(e){st.textContent="Nu am putut citi poza. Încearcă o poză mai clară sau completează manual."}}
+/* ---------- onboarding în 3 întrebări ---------- */
+let OB={};
+function onboard(){OB={car:null,plate:"",itp:"",rca:"",ins:"",st:false};drawOb()}
+function obGrab(){const v=i=>{const e=$(i);return e?e.value:null},s=$("o_s");if(v("o_p")!==null)OB.plate=v("o_p");if(v("o_i")!==null)OB.itp=v("o_i");if(v("o_r")!==null)OB.rca=v("o_r");if(v("o_c")!==null)OB.ins=v("o_c");if(s)OB.st=s.checked}
+function obSet(v){obGrab();OB.car=v;drawOb()}
+function drawOb(){
+ let h=`<h2>Ce să ținem minte pentru tine?</h2><div class="mu">Trei întrebări, câteva secunde. Poți sări peste ele.</div><label>1. Ai mașină?</label><div class="chips"><button class="${OB.car===true?"on":""}" onclick="obSet(true)">Da</button><button class="${OB.car===false?"on":""}" onclick="obSet(false)">Nu</button></div>`;
+ if(OB.car)h+=`<label for="o_i">2. Când expiră ITP-ul?</label><input id="o_i" type="date" value="${esc(OB.itp)}"><label for="o_r">3. Când expiră RCA-ul?</label><input id="o_r" type="date" value="${esc(OB.rca)}"><label for="o_c">La cine ai RCA? (opțional)</label><input id="o_c" value="${esc(OB.ins)}" maxlength="40"><label for="o_p">Număr de înmatriculare (opțional)</label><input id="o_p" value="${esc(OB.plate)}" maxlength="12" autocapitalize="characters"><div class="note">Nu știi data? Las-o goală și o adaugi mai târziu.${PH?" Poți și fotografia documentul, din butonul „Din poză”.":""}</div>`;
+ h+=`<label class="ck"><input id="o_s" type="checkbox"${OB.st?" checked":""}> Ajută la îmbunătățirea aplicației cu statistici de utilizare, fără conținutul agendei. Poți opri oricând.</label><div style="margin-top:18px"><button class="btn" onclick="obDone()">${OB.car?"Gata":"Continuă"}</button><button class="btn alt" onclick="obSkip()">Sări peste</button></div>`;
+ openSheet(h,"onb")}
+function obDone(){
+ obGrab();let k=0;
+ if(OB.car){const pl=OB.plate.trim().toUpperCase();let kk=null;
+  if(pl||okDate(OB.itp)||okDate(OB.rca)){const nm=pl||"Mașina mea";kk=findCar(nm);if(!kk){kk={id:uid(),n:nm};S.cars.push(kk)}}
+  if(okDate(OB.itp)){S.items.push({id:uid(),g:"auto",t:"itp",n:kk.n,car:kk.id,d:OB.itp,rep:24,note:""});k++}
+  if(okDate(OB.rca)){S.items.push({id:uid(),g:"auto",t:"rca",n:kk.n,car:kk.id,d:OB.rca,rep:12,note:OB.ins.trim()});k++}}
+ if(k)S.items=S.items.filter(x=>!x.ex);
+ S.onb=true;S.stats=!!OB.st;if(S.stats){S.st.adds=(S.st.adds||0)+k;touch()}
+ save();closeSheet();render();toast(k?"Gata, termenele sunt în agendă":"Gata");obAcct()}
+function obAcct(){if(!S.acct)setTimeout(()=>{if(!S.acct&&!$("ov").classList.contains("on"))acctOpen("",null,true)},450)}
+function obSkip(){obGrab();S.onb=true;S.stats=!!OB.st;if(S.stats)touch();save();closeSheet();render();obAcct()}
+</script>
