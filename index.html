@@ -384,7 +384,7 @@ html{-webkit-tap-highlight-color:transparent}
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.10",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.11",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -444,11 +444,6 @@ async function caps(){
  if(DB){
   try{DB.doc("config/app").onSnapshot(onCfg,()=>{})}catch(e){}
   if(UID){try{DB.doc("data/users/"+UID+"/state").onSnapshot(onRemote,()=>{rdy()})}catch(e){rdy()}}else rdy();
-  if(CAN_ADMIN){
-   try{DB.collection("reports").onSnapshot(s=>{RP=[];s.docs.forEach(d=>{const it=(d.data()||{}).items||{};Object.keys(it).forEach(k=>RP.push({...it[k],id:k,u:d.id}))});RP.sort((a,b)=>(b.ts||0)-(a.ts||0));soft()},()=>{})}catch(e){}
-   try{DB.collection("stats").onSnapshot(s=>{STS=s.docs.map(d=>d.data()||{});soft()},()=>{})}catch(e){}
-   if(UID){try{DB.doc("data/users/"+UID+"/invites").onSnapshot(s=>{IVL=s.exists?((s.data()||{}).items||{}):{};soft()},()=>{})}catch(e){}}
-   try{DB.collection("redeemed").onSnapshot(s=>{RDM=s.docs.map(d=>d.data()||{});soft()},()=>{})}catch(e){}}
   famSetup()}
  else rdy();
  soft()}
@@ -493,7 +488,7 @@ document.addEventListener("focusout",()=>{if(PEND)setTimeout(()=>{if(!inField())
 function setB(k,n){const b=$("b-"+k);b.textContent=n;b.hidden=!n;if(n)b.setAttribute("aria-label",n+" de rezolvat")}
 function render(){
  navSync();roll();invExp();bonusExp();subExp();
- setB("agenda",urgent());setB("more",CAN_ADMIN&&DEV?RP.filter(r=>r.st!="done").length:0);
+ setB("agenda",urgent());setB("more",0);
  $("main").innerHTML=TAB=="agenda"?agenda():TAB=="free"?free():more();
  $("main").querySelectorAll(".chips.sc").forEach(c=>{const b=c.querySelector(".on");if(b)c.scrollLeft=Math.max(0,b.offsetLeft-(c.clientWidth-b.offsetWidth)/2)})}
 function head(t,s,p,f){return `<div class="hd"><div><h1>${t}</h1><div class="mu">${s}</div></div>${p?`<button class="pill" onclick="${f}">${p}</button>`:""}</div>`}
@@ -1439,13 +1434,11 @@ function set(k,v){S[k]=v;save();if(k=="theme")theme();render();if(k=="lang")lang
 function setStats(v){S.stats=v;if(v)touch();else{S.st={first:"",days:{},adds:0,reads:0,taps:{}};lastSt=""}save();render();toast(v?"Statisticile sunt pornite":"Statisticile sunt oprite, iar cele trimise se șterg")}
 const ago=t=>{const m=Math.round((Date.now()-t)/6e4);return m<1?"acum":"acum "+m+" min"};
 function more(){
- if(VIEW=="dev"&&DEV&&CAN_ADMIN)return dev();
  if(VIEW=="notif")return notifView();
  const row=(t,d,c,k)=>`<div class="it${k?" stk":""}"><span><b>${t}</b><div class="mu">${d}</div></span>${c}</div>`;
  const lnk=(t,fn)=>`<button class="it" onclick="${fn}"><b>${t}</b><span class="mu">›</span></button>`;
  const ext=(t,u,m)=>okUrl(u)?`<a class="it" style="color:inherit" href="${esc(u.trim())}" target="_blank" rel="noopener noreferrer"><b>${t}</b><span class="mu">›</span></a>`:lnk(t,`toast('${m}')`);
  const sy=!S.acct?(REM?"Ai o agendă salvată în cont. Conectează-te ca s-o aduci pe acest telefon.":"Doar pe acest telefon. Cu un cont o regăsești pe orice telefon."):!cloudOn()?(window.LT_WEB?"Se conectează la cont…":"Doar pe acest dispozitiv. Nu ești conectat."):DBOFF?"Doar pe acest dispozitiv. Contul tău nu poate salva copii aici.":SY.ok?"Copie salvată în cont, "+ago(SY.t):SY.ok===false?"Nu am putut salva copia. Încerc la următoarea modificare.":"Se verifică…";
- const n=DEV?RP.filter(r=>r.st!="done").length:0;
  return head("Mai mult","Cont, setări și ajutor")+
  `<div class="gt">Cont și copie de siguranță</div><div class="grp">`+(S.acct?row("Cont",esc(PROV[S.acct.p]||"")+" · "+esc(S.acct.e),`<span class="acts" style="margin:0"><button onclick="acctOpen()">Gestionează</button></span>`):`<button class="it" onclick="acctOpen()"><span><b>Creează un cont sau conectează-te</b><div class="mu">Opțional. Google, Apple, Microsoft sau e-mail.</div></span><span class="mu">›</span></button>`)+row("Copie de siguranță",sy,"")+lnk("Copie într-un fișier","bkOpen()")+lnk("Restaurează achizițiile","restoreBuy()")+(DL?lnk("Exportă agenda (CSV)","exportCsv()"):"")+(invOn()?row("Acces prin invitație",invLine(),`<span class="acts" style="margin:0"><button onclick="invOpen()">Detalii</button></span>`):lnk("Ai un cod de invitație?","invOpen()"))+`<button class="it" onclick="refOpen()"><span><b>Invită un prieten</b><div class="mu">${bonusOn()?"Acces complet până la "+esc(nice(S.bx)):"Amândoi primiți "+RFD+" de zile de acces complet."}</div></span><span class="mu">›</span></button>`+lnk("Anul tău în LaTimp","yrShow()")+`</div>
  <div class="note">Dacă te conectezi pe alt dispozitiv, agenda se regăsește. Dacă ai modificat-o în două locuri, rămâne ultima modificare.</div>
@@ -1467,13 +1460,9 @@ function more(){
  <div class="gt">Ajutor</div><div class="grp">`+
  (CFG.flags.rep!==false?lnk("Raportează o problemă","reportOpen()"):"")+
  (okUrl(CFG.f.terms)?ext("Termeni și condiții",CFG.f.terms,""):lnk("Termeni și condiții","legal('terms')"))+(okUrl(CFG.f.priv)?ext("Politica de confidențialitate",CFG.f.priv,""):lnk("Politica de confidențialitate","legal('priv')"))+
- `</div>`+(DEV&&CAN_ADMIN?`<div class="gt">Dezvoltator</div><div class="grp">${lnk("Opțiuni dezvoltator"+(n?` <span class="tag dg">${n} noi</span>`:""),"VIEW='dev';render();enter(1);scrollTo(0,0)")}</div>`:"")+
+ `</div>`+
  `<div class="gt">Date</div><div class="grp"><button class="it dg" onclick="wipe()"><b>${RST?"Apasă din nou ca să ștergi tot":"Șterge toate datele"}</b></button></div>
- <button class="mu" style="display:block;width:100%;text-align:center;margin:20px 0" onclick="verTap()">LaTimp, versiune ${window.LT_WEB?"de test":"prototip"} ${VER}<br>${S.items.filter(x=>!x.ex).length} termene în agendă</button>`}
-function verTap(){
- VT++;clearTimeout(VTT);VTT=setTimeout(()=>VT=0,2500);
- if(VT>=7){VT=0;if(CAN_ADMIN){DEV=true;render();toast("Opțiuni dezvoltator activate")}else toast("Opțiunile pentru dezvoltator sunt doar pentru administratori")}
- else if(VT>=4)toast("Mai ai "+(7-VT)+" atingeri")}
+ <div class="mu" style="text-align:center;margin:20px 0">LaTimp, versiune ${window.LT_WEB?"de test":"prototip"} ${VER}<br>${S.items.filter(x=>!x.ex).length} termene în agendă</div>`}
 async function wipe(){
  if(!RST){RST=true;render();setTimeout(()=>{RST=false;if(TAB=="more")render()},4000);return}
  RST=false;
@@ -1563,46 +1552,6 @@ async function invCheck(){
  if(!S.inv||!DBU()||Date.now()-IVCHK<30000)return;IVCHK=Date.now();
  try{const s=await DB.doc("codes/"+S.inv.h).get();if(S.inv&&s&&!s.exists&&!(s.metadata&&s.metadata.fromCache))invEnd("Accesul prin invitație a fost retras.")}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)invCheck()});
-/* ---- administrator: creează, vede, retrage ---- */
-const ivseg=(k,o)=>`<div class="seg">${o.map(x=>`<button class="${IV[k]==x[0]?"on":""}" onclick="IV.${k}=${x[0]};render()">${x[1]}</button>`).join("")}</div>`;
-function invAdmin(){
- const w=!!(DB&&CAN_ADMIN&&UID);
- let h=`<div class="gt">Coduri de invitație</div><div class="card"><div class="mu">Dau acces complet fără abonament. Le poți crea doar tu, ca administrator. În baza de date rămâne doar amprenta codului, nu codul.</div>`;
- if(!w)return h+`<div class="note dg">Baza de date nu este disponibilă în această vizualizare, deci nu se pot crea coduri.</div></div>`;
- h+=`<label for="iv_n">Pentru cine (notă privată)</label><input id="iv_n" value="${esc(IV.n)}" maxlength="60" oninput="IV.n=this.value" placeholder="De exemplu: Ana, test iOS"><label>Câte persoane îl pot folosi</label>${ivseg("max",[[1,"1"],[5,"5"],[25,"25"]])}<label>Valabil</label>${ivseg("days",[[30,"30 de zile"],[365,"1 an"],[0,"Fără limită"]])}<div style="margin-top:14px"><button class="btn" onclick="invMake()"${IVB?" disabled":""}>Generează cod</button></div><div class="note">Codul și accesul expiră la aceeași dată. Dacă retragi un cod, accesul se încheie la următoarea deschidere a aplicației de către cei care l-au folosit.</div></div>`;
- const list=Object.entries(IVL).filter(([k,v])=>IVHR.test(k)&&v&&IVRE.test(v.c||"")).map(([k,v])=>({...v,h:k})).sort((a,b)=>(b.ts||0)-(a.ts||0));
- h+=`<div class="gt">Codurile tale (${list.length})</div>`;
- if(!list.length)return h+`<div class="card"><div class="mu">Încă nu ai creat niciun cod.</div></div>`;
- const used=k=>RDM.filter(r=>r.h==k).length;
- return h+`<div class="grp">${list.slice(0,60).map(v=>{
-  const ex=okDate(v.exp)?v.exp:"",gone=ex&&ex<fmt(td()),mx=Math.max(1,+v.max||1),
-   st=v.rv?`<span class="tag dg">retras</span>`:gone?`<span class="tag wn">expirat</span>`:`<span class="tag ok">activ</span>`;
-  return `<div class="it stk"><span><b>${esc(v.n||"Fără notă")}</b> ${st}<div class="mu" style="font-variant-numeric:tabular-nums;user-select:all">${esc(invFmt(v.c))}</div><div class="mu sm">${used(v.h)} din ${mx} folosit · ${ex?"până la "+esc(invYear(ex)):"fără limită"}</div></span><span class="acts" style="margin:0"><button onclick="invCopy('${v.c}')">Copiază</button>${v.rv?"":`<button class="dg" onclick="invRevoke('${v.h}')">${IVR==v.h?"Apasă din nou":"Retrage"}</button>`}</span></div>`}).join("")}</div>`}
-async function invMake(){
- if(IVB||!(DB&&CAN_ADMIN&&UID)||!cryptoOk())return;
- if(Object.keys(IVL).length>=200){toast("Ai deja 200 de coduri. Retrage-le pe cele vechi.");return}
- IVB=true;render();
- let h="";
- try{
-  const c=invGen();h=await invHash(c);
-  const max=IV.max,d=td();if(IV.days)d.setDate(d.getDate()+IV.days);const exp=IV.days?fmt(d):"";
-  await DB.doc("codes/"+h).set({max,exp,at:Date.now(),t:"full"});
-  const rec={c,n:(IV.n||"").trim().slice(0,60),ts:Date.now(),max,exp},r=DB.doc("data/users/"+UID+"/invites");
-  try{const s=await r.get();if(s.exists)await r.update({items:{[h]:rec}});else await r.set({items:{[h]:rec}})}
-  catch(e){try{await DB.doc("codes/"+h).delete()}catch(x){}throw e}
-  IV.n="";IVB=false;render();invShow(c)}
- catch(e){IVB=false;render();toast("Nu am putut crea codul. Încearcă din nou.")}}
-function invShow(c){
- openSheet(`<h2>Cod nou</h2><div class="mu">Trimite-l persoanei dorite. Îl găsești oricând în lista de coduri.</div><div class="code" id="ivnew">${invFmt(c)}</div><button class="btn" onclick="invCopy('${c}')">Copiază codul</button><button class="btn alt" onclick="closeSheet()">Gata</button>`,"invnew")}
-async function invCopy(c){
- if(!IVRE.test(c))return;
- try{await navigator.clipboard.writeText(invFmt(c));toast("Cod copiat")}catch(e){toast("Selectează codul și copiază-l manual")}}
-async function invRevoke(h){
- if(!IVHR.test(h)||!(DB&&CAN_ADMIN&&UID))return;
- if(IVR!=h){IVR=h;render();clearTimeout(invRevoke.t);invRevoke.t=setTimeout(()=>{IVR="";if(TAB=="more")render()},4000);return}
- IVR="";
- try{await DB.doc("codes/"+h).delete();await DB.doc("data/users/"+UID+"/invites").update({items:{[h]:{rv:1}}});toast("Cod retras.")}
- catch(e){toast("Nu am putut retrage codul.")}}
 </script>
 <script>
 /* ---------- Etapa 1: cont, memento-uri, afișare, blocare cu PIN, copie în fișier ---------- */
@@ -1831,40 +1780,11 @@ function newsOn(){const n=CFG.news;return !!(n&&n.on&&/^[\w-]{1,24}$/.test(n.id|
 function newsCard(){
  if(!newsOn()||S.nd==CFG.news.id)return"";const n=CFG.news,l=okUrl(n.l||"")?n.l.trim():"";
  return `<div class="card nw" role="status"><div class="top"><strong>${esc(String(n.t||"").slice(0,60))}</strong><button class="x" aria-label="Ascunde anunțul" onclick="S.nd=CFG.news.id;save();swap()">✕</button></div>${n.x?`<div style="margin-top:4px">${esc(String(n.x).slice(0,240))}</div>`:""}${l?`<div class="acts"><a href="${esc(l)}" target="_blank" rel="noopener noreferrer">Află mai mult</a></div>`:""}</div>`}
-let NW={t:"",x:"",l:"",d:7};
-function newsAdmin(){
- const w=!!(DB&&CAN_ADMIN),n=CFG.news;
- let h=`<div class="gt">Anunțuri în aplicație</div><div class="card"><div class="mu">Un mesaj scurt, sus în Agendă și în Timp liber, pentru toți utilizatorii. Fiecare îl poate închide.</div>`;
- if(newsOn())h+=`<div class="sg"><b>Activ până la ${n.u?esc(nice(n.u)):"oprire"}</b>${esc(n.t||"")}${n.x?" · "+esc(n.x):""}</div><button class="btn alt" onclick="newsStop()"${w?"":" disabled"}>Oprește anunțul</button>`;
- h+=`<label for="nw_t">Titlu</label><input id="nw_t" maxlength="60" value="${esc(NW.t)}" oninput="NW.t=this.value" placeholder="De exemplu: Funcție nouă: facturile"><label for="nw_x">Text (opțional)</label><input id="nw_x" maxlength="240" value="${esc(NW.x)}" oninput="NW.x=this.value"><label for="nw_l">Link https (opțional)</label><input id="nw_l" maxlength="300" value="${esc(NW.l)}" oninput="NW.l=this.value"><label>Cât timp</label><div class="seg">${[[3,"3 zile"],[7,"o săptămână"],[30,"o lună"]].map(x=>`<button class="${NW.d==x[0]?"on":""}" onclick="NW.d=${x[0]};render()">${x[1]}</button>`).join("")}</div><div style="margin-top:14px"><button class="btn" onclick="newsPub()"${w?"":" disabled"}>Publică anunțul</button></div><div class="note">Textul este vizibil oricui deschide aplicația. Un anunț nou îl înlocuiește pe cel vechi.</div></div>`;
- return h}
-function newsPub(){
- if(!(DB&&CAN_ADMIN)){toast("Nu se poate salva aici");return}
- const t=NW.t.trim().slice(0,60),x=NW.x.trim().slice(0,240),l=NW.l.trim();
- if(!t){toast("Scrie un titlu");return}
- if(l&&!okUrl(l)){toast("Linkul trebuie să înceapă cu https://");return}
- const id=uid()+Date.now().toString(36);
- cfgWrite({news:{id,t,x,l,u:plus(NW.d),on:true}}).then(()=>{NW={t:"",x:"",l:"",d:7};toast("Anunț publicat");render()})}
-function newsStop(){if(!(DB&&CAN_ADMIN))return;cfgWrite({news:{on:false}}).then(()=>{toast("Anunț oprit");render()})}
 /* teste de preț: fiecare utilizator cade stabil în grupul A sau B, după identificatorul tehnic */
 const abGrp=()=>{const s=String(UID||"");let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return s?(h%2?"b":"a"):"a"};
 const abOn=()=>!!(CFG.ab&&CFG.ab.on&&UID);
 const okP=v=>{const n=+v;return n>=0.5&&n<=999?Math.round(n*100)/100:null};
 function price(){if(!abOn())return[49,5.99];const a=CFG.ab,g=abGrp();return[okP(a[g+"y"])||49,okP(a[g+"m"])||5.99]}
-let AB=null;
-function abAdmin(){
- const w=!!(DB&&CAN_ADMIN),a=Object.assign({on:false,ay:49,am:5.99,by:39,bm:4.99},CFG.ab||{});AB=AB||{...a};
- const grp=g=>STS.filter(s=>s.ab==g),cv=g=>{const l=grp(g),p=l.filter(s=>s.pro).length;return `${p} din ${l.length}${l.length?" ("+Math.round(p/l.length*100)+"%)":""}`};
- let h=`<div class="gt">Test de preț pentru Control</div><div class="card"><div class="top"><strong>${a.on?"Test pornit":"Test oprit"}</strong>${swb(a.on,"Test de preț","abToggle()")}</div><div class="mu" style="margin-top:4px">Jumătate dintre utilizatori văd prețurile A, cealaltă jumătate prețurile B. Grupul rămâne același pentru fiecare cont.</div>`;
- h+=`<div class="row"><div><label for="ab_ay">A: anual (lei)</label><input id="ab_ay" type="number" step="0.01" value="${esc(AB.ay)}" oninput="AB.ay=this.value"></div><div><label for="ab_am">A: lunar (lei)</label><input id="ab_am" type="number" step="0.01" value="${esc(AB.am)}" oninput="AB.am=this.value"></div></div><div class="row"><div><label for="ab_by">B: anual (lei)</label><input id="ab_by" type="number" step="0.01" value="${esc(AB.by)}" oninput="AB.by=this.value"></div><div><label for="ab_bm">B: lunar (lei)</label><input id="ab_bm" type="number" step="0.01" value="${esc(AB.bm)}" oninput="AB.bm=this.value"></div></div><div style="margin-top:14px"><button class="btn alt" onclick="abSave()"${w?"":" disabled"}>Salvează prețurile</button></div>`;
- h+=`<div class="stl" style="margin-top:14px"><div><b>${cv("a")}</b><span>au Control în grupul A</span></div><div><b>${cv("b")}</b><span>au Control în grupul B</span></div></div><div class="note">Se numără doar utilizatorii cu statisticile pornite. Plățile sunt simulate în prototip, deci cifrele arată doar mecanismul. Tu ești în grupul ${abGrp().toUpperCase()}.</div></div>`;
- return h}
-function abToggle(){if(!(DB&&CAN_ADMIN)){toast("Nu se poate salva aici");return}const on=!(CFG.ab&&CFG.ab.on);cfgWrite({ab:Object.assign({ay:49,am:5.99,by:39,bm:4.99},CFG.ab||{},{on})}).then(()=>{lastSt="";statQ();toast(on?"Test de preț pornit":"Test de preț oprit");render()})}
-function abSave(){
- if(!(DB&&CAN_ADMIN)){toast("Nu se poate salva aici");return}
- const v={ay:okP(AB.ay),am:okP(AB.am),by:okP(AB.by),bm:okP(AB.bm)};
- if(Object.values(v).some(x=>x===null)){toast("Prețurile trebuie să fie între 0,5 și 999 de lei");return}
- cfgWrite({ab:Object.assign({on:false},CFG.ab||{},v)}).then(()=>{AB=null;toast("Prețuri salvate");render()})}
 </script>
 <script>
 /* ---------- Etapa 5: legături între funcții ---------- */
@@ -2668,6 +2588,167 @@ if(WEB){
 }
 </script>
 <script>
+/* ---------- Politica de confidențialitate și Termenii: aceleași texte în aplicație și pe paginile publice ---------- */
+const LEGAL_DATE={ro:"27 noiembrie 2026",en:"27 November 2026"};
+const LEGAL_FILL={ro:"[se completează]",en:"[to be completed]"};
+/* {op} operatorul, {ad} adresa, {ml} e-mailul de contact; se completează din panou (app_config.app.legal) */
+const LEGAL={
+ priv:{
+  ro:[
+   ["Cine suntem","LaTimp este o aplicație pentru termene, plăți și timp liber. Operatorul datelor este {op}, cu sediul la {ad}. Pentru orice întrebare despre datele tale scrie la {ml}."],
+   ["Ce date folosim",["<b>Contul:</b> adresa de e-mail cu care te conectezi. Contul este opțional; fără cont, totul rămâne doar pe telefon.","<b>Agenda:</b> termenele, sumele, notele, persoanele și cadourile, listele, setările. Le scrii tu și le folosim doar ca să-ți arătăm agenda și să-ți trimitem memento-urile.","<b>Memento-urile pe telefon:</b> dacă le pornești, păstrăm adresa tehnică prin care telefonul primește notificări și programul memento-urilor (titlul termenului, data și ora).","<b>Familia:</b> termenele pe care alegi să le distribui sunt criptate pe telefon cu codul familiei înainte să plece. Pe server ajunge doar textul criptat și o amprentă a codului; nu le putem citi.","<b>Votul cu prietenii:</b> ideile puse la vot, numele pe care îl scrii când votezi și alegerea ta.","<b>Rapoartele:</b> textul pe care îl trimiți, captura de ecran dacă o atașezi și date tehnice (versiunea aplicației, mărimea ecranului, tipul de dispozitiv).","<b>Erorile:</b> mesajul tehnic al unei erori, versiunea și tipul de dispozitiv, fără conținutul agendei. Adresele de e-mail din mesaj se șterg înainte de trimitere.","<b>Statisticile de folosire:</b> doar dacă le pornești din Mai mult. Sunt cifre (de exemplu câte termene ai și în câte zile ai folosit aplicația), fără conținutul agendei.","<b>Date tehnice de conexiune:</b> adresa IP și tipul de browser ajung la furnizorii care livrează aplicația, pentru funcționare și securitate."]],
+   ["Unde se păstrează",["Pe telefonul tău, în memoria aplicației.","Dacă ai cont: la Supabase, în centrul de date din Frankfurt (Germania, Uniunea Europeană): baza de date, fișierele atașate și funcțiile de pe server.","Codul aplicației este găzduit pe GitHub Pages."]],
+   ["Cine le mai primește",["<b>Supabase</b> (bază de date, conturi, fișiere, funcții pe server), în UE.","<b>GitHub</b> (găzduirea aplicației), <b>jsDelivr</b> (biblioteca de conectare la server) și <b>Google Fonts</b> (fontul aplicației) primesc adresa IP când se încarcă aplicația.","<b>Google</b> transmite e-mailurile de conectare (cod sau link).","<b>Serviciul de notificări al telefonului</b> (Google pentru Android și Chrome, Apple pentru iPhone, Mozilla pentru Firefox) transmite memento-urile, criptate.","Unii dintre acești furnizori sunt în afara UE (Statele Unite). Transferul se face pe baza cadrului UE–SUA privind protecția datelor sau a clauzelor contractuale standard.","Nu vindem datele și nu le folosim pentru reclame. Dacă în viitor vom folosi un serviciu de inteligență artificială pentru idei sau pentru citirea pozelor, îți vom cere acordul înainte, iar textul sau poza vor fi trimise doar atunci când ceri tu."]],
+   ["De ce le folosim (temeiul legal)",["Ca să funcționeze serviciul pe care l-ai cerut: agenda, contul, memento-urile, familia, votul (executarea contractului).","Cu acordul tău: statisticile de folosire și, în viitor, funcțiile cu inteligență artificială. Îl poți retrage oricând din Mai mult.","Pentru securitate, prevenirea abuzurilor și repararea erorilor (interes legitim)."]],
+   ["Cât timp le păstrăm",["Datele din cont, cât timp ai cont. „Șterge contul” din Mai mult șterge de pe server contul, agenda, memento-urile, abonările la notificări, familia, voturile și fișierele tale.","Memento-urile trimise se șterg după cel mult 30 de zile.","Statisticile se șterg când le oprești.","Rapoartele și erorile se păstrează cât e nevoie ca să rezolvăm problema.","„Șterge toate datele” șterge ce e pe telefon."]],
+   ["Drepturile tale",["Acces, rectificare, ștergere, restricționare, opoziție și portabilitate. Pentru portabilitate folosește „Copie într-un fișier” din Mai mult.","Retragerea acordului oricând, fără să afecteze ce s-a făcut înainte.","Pentru orice cerere scrie la {ml}. Răspundem în cel mult o lună.","Poți depune plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP), www.dataprotection.ro."]],
+   ["Stocare pe dispozitiv",["Aplicația păstrează datele în memoria browserului sau a telefonului (de exemplu agenda și sesiunea de conectare). Nu folosim cookie-uri de reclamă sau de urmărire."]],
+   ["Securitate",["Legătura cu serverul este criptată. Fiecare cont vede doar datele lui. Familia este criptată pe telefon. PIN-ul aplicației rămâne doar pe telefon."]],
+   ["Copii",["LaTimp nu este destinată copiilor sub 16 ani."]],
+   ["Modificări",["Dacă schimbăm această politică, anunțăm în aplicație. Ultima actualizare: {date}."]]
+  ],
+  en:[
+   ["Who we are","LaTimp is an app for due dates, payments and free time. The data controller is {op}, registered at {ad}. For any question about your data, write to {ml}."],
+   ["What data we use",["<b>Account:</b> the email address you sign in with. The account is optional; without it everything stays on your phone.","<b>Agenda:</b> due dates, amounts, notes, people and gifts, lists, settings. You enter them and we use them only to show your agenda and send your reminders.","<b>Phone reminders:</b> if you turn them on, we keep the technical address your phone uses to receive notifications and your reminder schedule (the item's title, date and time).","<b>Family:</b> the dates you choose to share are encrypted on your phone with the family code before they leave it. The server only receives encrypted text and a fingerprint of the code; we cannot read them.","<b>Votes with friends:</b> the ideas put to the vote, the name you type when voting and your choice.","<b>Reports:</b> the text you send, the screenshot if you attach one, and technical details (app version, screen size, device type).","<b>Errors:</b> the technical error message, the version and device type, without your agenda. Email addresses in the message are removed before sending.","<b>Usage statistics:</b> only if you turn them on in More. They are numbers (for example how many dates you have and on how many days you used the app), without your agenda.","<b>Technical connection data:</b> your IP address and browser type reach the providers that deliver the app, for operation and security."]],
+   ["Where it is kept",["On your phone, in the app's storage.","If you have an account: at Supabase, in the Frankfurt data centre (Germany, European Union): the database, attached files and server functions.","The app's code is hosted on GitHub Pages."]],
+   ["Who else receives it",["<b>Supabase</b> (database, accounts, files, server functions), in the EU.","<b>GitHub</b> (app hosting), <b>jsDelivr</b> (the server connection library) and <b>Google Fonts</b> (the app's font) receive your IP address when the app loads.","<b>Google</b> delivers the sign-in emails (code or link).","<b>Your phone's notification service</b> (Google for Android and Chrome, Apple for iPhone, Mozilla for Firefox) delivers the reminders, encrypted.","Some of these providers are outside the EU (United States). Transfers rely on the EU–US Data Privacy Framework or standard contractual clauses.","We don't sell data and don't use it for advertising. If we later use an artificial intelligence service for ideas or photo reading, we will ask for your consent first, and the text or photo will be sent only when you ask."]],
+   ["Why we use it (legal basis)",["To provide the service you asked for: the agenda, the account, reminders, family, votes (performance of the contract).","With your consent: usage statistics and, in the future, the artificial intelligence features. You can withdraw it at any time in More.","For security, abuse prevention and fixing errors (legitimate interest)."]],
+   ["How long we keep it",["Account data, as long as you have an account. “Delete account” in More removes from the server your account, agenda, reminders, notification subscriptions, family, votes and files.","Sent reminders are deleted after at most 30 days.","Statistics are deleted when you turn them off.","Reports and errors are kept as long as needed to fix the problem.","“Delete all data” removes what is on the phone."]],
+   ["Your rights",["Access, rectification, erasure, restriction, objection and portability. For portability use “Backup to a file” in More.","Withdrawing consent at any time, without affecting what was done before.","For any request write to {ml}. We answer within one month.","You can complain to the Romanian data protection authority (ANSPDCP), www.dataprotection.ro."]],
+   ["Storage on your device",["The app keeps data in the browser's or phone's storage (for example your agenda and sign-in session). We don't use advertising or tracking cookies."]],
+   ["Security",["The connection to the server is encrypted. Each account sees only its own data. Family data is encrypted on the phone. The app PIN stays only on your phone."]],
+   ["Children",["LaTimp is not meant for children under 16."]],
+   ["Changes",["If we change this policy, we will announce it in the app. Last updated: {date}."]]
+  ]},
+ terms:{
+  ro:[
+   ["Serviciul","LaTimp te ajută să ții evidența termenelor și a plăților, îți trimite memento-uri și îți dă idei pentru timpul liber. Aplicația este oferită de {op}, cu sediul la {ad}. Folosind aplicația, ești de acord cu acești termeni."],
+   ["Versiunea de test",["Aplicația este în perioada de test. Unele funcții se pot schimba, pot lipsi temporar sau pot avea erori. În această perioadă, toate funcțiile sunt gratuite."]],
+   ["Contul",["Contul este opțional și se creează cu adresa de e-mail. Ai grijă ca doar tu să ai acces la e-mailul cu care te conectezi.","Poți șterge contul oricând din Mai mult."]],
+   ["Memento-urile",["Memento-urile te ajută, dar nu sunt garantate: depind de telefon, de setările lui, de conexiunea la internet și de serviciile de notificări. Respectarea termenelor (plăți, documente, taxe) rămâne în grija ta.","Informațiile din aplicație (de exemplu zilele libere legale sau sugestiile) au caracter informativ. Verifică datele oficiale când e important."]],
+   ["Planuri și plăți",["Unele funcții pot deveni parte din planul plătit Control (abonament) sau pot folosi Scântei (pachete cu plată unică). Prețurile, perioada de probă și modul de anulare vor fi afișate clar înainte de orice plată.","Abonamentele cumpărate prin magazinele de aplicații se anulează din contul magazinului; rambursările urmează regulile magazinului și legea.","Ca utilizator consumator, ai dreptul de retragere de 14 zile pentru serviciile digitale, cu excepțiile prevăzute de lege atunci când ai cerut începerea imediată a serviciului."]],
+   ["Coduri",["Codurile de invitație și de recomandare dau acces temporar și pot fi retrase dacă sunt folosite abuziv sau după data lor de expirare."]],
+   ["Folosirea corectă",["Nu folosi aplicația pentru a încălca legea sau drepturile altora, nu încerca să accesezi datele altor utilizatori și nu supraîncărca serviciul.","Nu adăuga date sensibile ale altor persoane fără acordul lor. În familie și la vot, distribui doar ce vrei să vadă ceilalți."]],
+   ["Conținutul tău",["Ce scrii în aplicație rămâne al tău. Ne dai doar permisiunea să-l păstrăm și să-l prelucrăm ca să funcționeze serviciul, așa cum scrie în Politica de confidențialitate."]],
+   ["Disponibilitate și răspundere",["Facem tot ce putem ca serviciul să funcționeze, dar nu putem garanta că va fi mereu disponibil sau fără erori.","Nu răspundem pentru pierderi cauzate de un memento neprimit sau de o informație orientativă, în măsura permisă de lege. Drepturile tale de consumator prevăzute de lege nu sunt limitate."]],
+   ["Suspendare și încheiere",["Poți înceta oricând să folosești aplicația și poți șterge contul. Putem suspenda un cont folosit abuziv, cu informarea ta când e posibil."]],
+   ["Modificări",["Schimbările importante ale acestor termeni le anunțăm în aplicație înainte să se aplice. Ultima actualizare: {date}."]],
+   ["Legea și reclamațiile",["Se aplică legea română. Pentru reclamații scrie-ne întâi la {ml}. Ca și consumator, te poți adresa și Autorității Naționale pentru Protecția Consumatorilor (ANPC), www.anpc.ro, sau platformei europene de soluționare online a litigiilor."]]
+  ],
+  en:[
+   ["The service","LaTimp helps you keep track of due dates and payments, sends you reminders and gives ideas for free time. The app is provided by {op}, registered at {ad}. By using the app, you agree to these terms."],
+   ["Test version",["The app is in its test period. Some features may change, be temporarily missing or have errors. During this period, all features are free."]],
+   ["Account",["The account is optional and is created with your email address. Make sure only you can access the email you sign in with.","You can delete the account at any time in More."]],
+   ["Reminders",["Reminders help you, but they are not guaranteed: they depend on your phone, its settings, your internet connection and notification services. Meeting deadlines (payments, documents, taxes) remains your responsibility.","Information in the app (for example public holidays or suggestions) is for guidance. Check official sources when it matters."]],
+   ["Plans and payments",["Some features may become part of the paid Control plan (subscription) or use Sparks (one-time packs). Prices, the trial period and how to cancel will be shown clearly before any payment.","Subscriptions bought through app stores are cancelled from your store account; refunds follow the store's rules and the law.","As a consumer, you have a 14-day right of withdrawal for digital services, with the exceptions set by law when you asked for the service to start immediately."]],
+   ["Codes",["Invitation and referral codes give temporary access and can be withdrawn if misused or after their expiry date."]],
+   ["Fair use",["Don't use the app to break the law or the rights of others, don't try to access other users' data and don't overload the service.","Don't add other people's sensitive data without their consent. In family and votes, share only what you want others to see."]],
+   ["Your content",["What you write in the app stays yours. You only allow us to keep and process it so the service works, as described in the Privacy policy."]],
+   ["Availability and liability",["We do our best to keep the service working, but we cannot guarantee it will always be available or error-free.","We are not liable for losses caused by a reminder that was not received or by guidance information, to the extent permitted by law. Your statutory consumer rights are not limited."]],
+   ["Suspension and termination",["You can stop using the app and delete your account at any time. We may suspend an account used abusively, informing you when possible."]],
+   ["Changes",["We will announce important changes to these terms in the app before they apply. Last updated: {date}."]],
+   ["Law and complaints",["Romanian law applies. For complaints, write to us first at {ml}. As a consumer, you can also contact the Romanian consumer protection authority (ANPC), www.anpc.ro, or the European online dispute resolution platform."]]
+  ]}};
+function legalFill(s,lg,v){return s.replace(/\{op\}/g,v.op).replace(/\{ad\}/g,v.ad).replace(/\{ml\}/g,v.ml).replace(/\{date\}/g,LEGAL_DATE[lg])}
+/* HTML pentru o secțiune; folosit și la construirea paginilor publice */
+function legalHtml(k,lg,v,tag){tag=tag||"h3";return LEGAL[k][lg].map(([h,b])=>`<${tag}>${h}</${tag}>`+(Array.isArray(b)?(b.length>1?`<ul>${b.map(x=>`<li>${legalFill(x,lg,v)}</li>`).join("")}</ul>`:`<p>${legalFill(b[0],lg,v)}</p>`):`<p>${legalFill(b,lg,v)}</p>`)).join("")}
+function legalVals(lg){const L=(typeof CFGW!="undefined"&&CFGW&&CFGW.legal)||{},f=(typeof CFG!="undefined"&&CFG.f)||{},F=LEGAL_FILL[lg],t=x=>esc(String(x||"").trim().slice(0,200));
+ return{op:t(L.operator||f.co_n)||(lg=="en"?"the operator of the LaTimp app":"operatorul aplicației LaTimp")+" "+F,ad:t(L.address||f.co_a)||F,ml:t(L.email||f.mail)||F}}
+legalTxt=function(k){const lg=S.lang=="en"?"en":"ro";return legalHtml(k=="priv"?"priv":"terms",lg,legalVals(lg))};
+legal=function(k){
+ const en=S.lang=="en",t=k=="priv"?(en?"Privacy policy":"Politica de confidențialitate"):(en?"Terms and conditions":"Termeni și condiții");
+ const pg=window.LT_WEB?(k=="priv"?(en?"privacy.html":"confidentialitate.html"):(en?"terms.html":"termeni.html")):"";
+ openSheet(`<div data-nt><h2>${t}</h2><div class="lgl">${legalTxt(k)}</div>${pg?`<a class="btn alt" href="${pg}" target="_blank" rel="noopener">${en?"Open as a web page":"Deschide ca pagină web"}</a>`:""}<button class="btn alt" onclick="closeSheet()">${en?"Close":"Închide"}</button></div>`,"legal")};
+</script>
+<style>.lgl ul{margin:4px 0 0;padding-left:20px}.lgl li{margin:4px 0;font-size:14px;line-height:1.5}</style>
+<script>
+/* ---------- Doar în versiunea web: rezumatul săptămânii pe telefon, documente atașate în cont, prețuri și texte din panou, conectare cu Google ---------- */
+/* rezumatul săptămânii: luni, la ora memento-urilor, ce ai de rezolvat în acea săptămână */
+function wkPlan(){
+ if(!S.pro||!S.nt||!S.nt.wk)return[];
+ const out=[],now=Date.now(),en=S.lang=="en",pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0,[h,m]=ntH().split(":").map(Number);
+ const d0=new Date();d0.setHours(h,m,0,0);d0.setDate(d0.getDate()+((8-d0.getDay())%7));
+ for(let w=0;w<9;w++){
+  const at=new Date(d0);at.setDate(d0.getDate()+7*w);const t=+at;if(t<=now+60000||t>now+60*DAY||t<pz)continue;
+  const st=new Date(at);st.setHours(0,0,0,0);const en0=+st+7*DAY;
+  const l=S.items.filter(x=>!x.ex&&okDate(x.d)&&+pd(x.d)>=+st&&+pd(x.d)<en0).sort((a,b)=>+pd(a.d)-+pd(b.d));
+  if(!l.length)continue;
+  const n=l.slice(0,2).map(x=>String(ttl(x)||"").slice(0,40)).join(", "),r=l.length-2;
+  const body=en?(l.length==1?"1 due date this week: ":l.length+" due dates this week: ")+n+(r>0?" and "+r+" more.":"."):(l.length==1?"Un termen săptămâna asta: ":l.length+" termene săptămâna asta: ")+n+(r>0?" și încă "+r+".":".");
+  out.push({at:at.toISOString(),title:en?"Your week":"Săptămâna ta",body:body.slice(0,300),tag:"lt-wk-"+t})}
+ return out}
+if(WEB){const rp0=remPlan;remPlan=function(){return rp0().concat(wkPlan()).sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
+
+/* documente atașate: în contul tău (Supabase Storage, dosar privat), nu pe server public */
+const ATT_B="attachments";
+const attHex=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+function attStore(){
+ if(!WEB||!SB||!SBU)return null;
+ return{
+  upload:async b=>{const id=attHex(),{error}=await SB.storage.from(ATT_B).upload(SBU.id+"/"+id,b,{contentType:b.type||"application/octet-stream",upsert:false});if(error)throw error;return{id}},
+  delete:async id=>{const{error}=await SB.storage.from(ATT_B).remove([SBU.id+"/"+id]);if(error)throw error}}}
+async function attOpen(id){
+ if(!/^[0-9a-f]{32}$/.test(id))return;
+ if(!SB||!SBU){toast("Conectează-te la cont ca să deschizi documentul.");return}
+ const w=window.open("","_blank");
+ try{const{data,error}=await SB.storage.from(ATT_B).createSignedUrl(SBU.id+"/"+id,120);if(error||!data||!data.signedUrl)throw error;
+  if(w&&!w.closed)w.location.href=data.signedUrl;else location.href=data.signedUrl}
+ catch(e){if(w&&!w.closed)w.close();toast(navigator.onLine===false?"Documentul se deschide doar cu internet.":"Nu am putut deschide documentul.")}}
+if(WEB){
+ const ab0=attBox;attBox=function(c){
+  AS=attStore();
+  if(!AS&&c&&c.id){const n=(Array.isArray(c.att)?c.att.length:0);
+   return `<label>Documente atașate${S.pro?"":" (Control)"}</label><div class="note">${n?"Documentele atașate le vezi după ce te conectezi la cont.":"Documentele se păstrează în contul tău, ca să le ai pe orice telefon."}</div><button class="btn alt" style="margin-top:8px" onclick="closeSheet();acctOpen('Conectează-te ca să atașezi documente. Le găsești apoi pe orice telefon.')">Conectează-te</button>`}
+  return ab0(c).replace(/<a href="\/_blob\/([0-9a-f]{32})"[^>]*>/g,(_,id)=>`<a href="#" onclick="attOpen('${id}');return false">`)};
+ const lim=()=>{const v=CFGW&&CFGW.plans&&CFGW.plans.limits&&+CFGW.plans.limits.attachments_max;return v>0&&v<=20?Math.round(v):3};
+ const aa0=attAdd;attAdd=async function(f){
+  AS=attStore();const x=S.items.find(i=>i.id==cur.id),n=x&&Array.isArray(x.att)?x.att.length:0,L=lim();
+  if(f&&n>=L){const e=$("att_m");if(e)e.textContent=L==1?"Poți atașa un singur document.":"Poți atașa cel mult "+L+" documente.";return}
+  return aa0(f)};
+ const ad0=attDel;attDel=function(id){AS=attStore();ad0(id)};
+}
+
+/* prețurile din panou: prețul obișnuit, reducerea și varianta din testul A/B (are prioritate) */
+function webPrices(){
+ const p=CFGW&&CFGW.prices||{},v=ACC&&ACC.ab&&ACC.ab.variant||{},n=x=>{const r=parseFloat(String(x==null?"":x).replace(",","."));return isFinite(r)&&r>0&&r<10000?r:0};
+ let y=n(v.year)||n(p.year),m=n(v.month)||n(p.month);
+ const pr=promoNow();if(pr){if(y)y=Math.round(y*(100-pr.pct))/100;if(m)m=Math.round(m*(100-pr.pct))/100}
+ return{y,m,txt:String(v.text||"").slice(0,120)}}
+function promoNow(){const p=CFGW&&CFGW.prices&&CFGW.prices.promo;if(!p||typeof p!="object")return null;const pct=Math.round(+p.pct);if(!(pct>0&&pct<100))return null;if(p.until&&String(p.until).slice(0,10)<fmt(td()))return null;return{pct,until:p.until?String(p.until).slice(0,10):"",label:String(p.label||"").slice(0,80)}}
+if(WEB){
+ const pr0=price;price=function(){const w=webPrices(),d=pr0();return[w.y||d[0],w.m||d[1]]};
+}
+
+/* textele din panou (Conținut → Texte): gol = textul implicit */
+let TXW=lsGet("latimp.txt");
+async function txtLoad(){if(!SB)return;try{const{data}=await SB.from("app_config").select("value").eq("key","texts").maybeSingle();if(data&&data.value&&typeof data.value=="object"){TXW=data.value;lsSet("latimp.txt",TXW)}}catch(e){}}
+function TXT(k,d){const l=S.lang=="en"?"en":"ro",o=TXW&&TXW[l],v=o&&typeof o[k]=="string"?o[k].trim():"";return v?v.slice(0,200):d}
+function txtSheet(){
+ const sh=$("sheet");if(!sh)return;const h=sh.querySelector("h2");if(!h)return;
+ const set=(el,k)=>{const v=TXT(k,"");if(el&&v){const tag=el.querySelector(".tag");el.textContent=v;if(tag)el.append(" ",tag)}};
+ if(/^Control/.test(h.textContent)&&sh.querySelector(".cmp")){set(h,"paywall_title");const s=h.nextElementSibling;if(s&&s.classList.contains("mu"))set(s,"paywall_sub");
+  const w=webPrices();if(w.txt&&!sh.querySelector(".abt")){const d=document.createElement("div");d.className="note abt";d.textContent=w.txt;h.after(d)}
+  const pr=promoNow();if(pr&&!sh.querySelector(".prm")){const d=document.createElement("div");d.className="note prm";d.textContent=TXT("promo_banner",pr.label||("Reducere de "+pr.pct+"%"+(pr.until?" până pe "+nice(pr.until):"")));h.after(d)}}
+ if(/^Scântei/.test(h.textContent))set(h,"sparks_title")}
+if(WEB){
+ const op1=openPlan;openPlan=function(k){op1(k);try{txtSheet()}catch(e){}};
+ const cl1=cfgLoad;cfgLoad=async function(){await cl1();await txtLoad()};
+}
+
+/* conectare cu Google: apare doar după ce e pornită în panou (app.auth.google) și configurată în Supabase */
+const gOn=()=>!!(WEB&&SB&&CFGW&&CFGW.auth&&CFGW.auth.google===true);
+const GICON=`<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="vertical-align:-3px;margin-right:8px"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.8h3.6c2.1-1.9 3.3-4.8 3.3-8.1z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7H2.1a11 11 0 0 0 0 9.9z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.6l3.2-3.2A11 11 0 0 0 2.1 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z"/></svg>`;
+async function sbGoogle(){
+ if(!SB)return;const b=$("ac_g");if(b){b.disabled=true}
+ try{const{error}=await SB.auth.signInWithOAuth({provider:"google",options:{redirectTo:LT_SB.home||(location.origin+location.pathname)}});if(error)throw error}
+ catch(e){if(b)b.disabled=false;acctErr("Conectarea cu Google nu a mers. Folosește adresa de e-mail.")}}
+if(WEB){
+ const da1=drawAcct;drawAcct=function(){da1();
+  if(!gOn()||S.acct||AC.m=="code")return;const lb=document.querySelector('#sheet label[for="ac_e"]');if(!lb||$("ac_g"))return;
+  lb.insertAdjacentHTML("beforebegin",`<button class="btn alt" id="ac_g" style="margin-top:14px" onclick="sbGoogle()">${GICON}Continuă cu Google</button><div class="note" style="text-align:center">sau cu adresa de e-mail</div>`)};
+}
+</script>
+<script>
 /* ---------- limba: româna e limba de bază; în engleză textul interfeței se traduce după un dicționar ---------- */
 const I18N={d:{},r:[]};
 const TRA=["placeholder","aria-label","title","alt"],ORIG=new WeakMap(),SETV=new WeakMap();
@@ -2944,46 +3025,9 @@ Object.assign(I18N.d,{"Ora":"Hour","Minutul":"Minute"});
 Object.assign(I18N.d,{"Propuneri pentru liste":"Suggestions for your lists","Atinge o propunere ca s-o pui în lista deschisă acum.":"Tap a suggestion to put it in the list that's open now.","Ca să trimiți un raport și să primești răspuns, conectează-te la cont.":"To send a report and get a reply, sign in to your account.","Trimiterea are nevoie de internet.":"Sending needs the internet.","Ca să trimiți un raport și să primești răspuns, ai nevoie de un cont.":"To send a report and get a reply, you need an account.","Conectează-te":"Sign in","Raport trimis, mulțumim. Răspunsul apare în Mai mult.":"Report sent, thank you. The reply will appear in More.","Ai trimis multe rapoarte în ultima oră. Încearcă mai târziu.":"You've sent many reports in the last hour. Try again later.","Răspunsuri la rapoarte":"Replies to your reports","Ai un răspuns nou":"You have a new reply","Răspunsul echipei:":"The team's reply:"," · de la echipa LaTimp":" · from the LaTimp team"});
 I18N.r.unshift([/^Ai (\d+) răspunsuri noi$/,"You have $1 new replies"],[/^Ai scris pe (.+):$/,"You wrote on $1:"],[/^Adăugat la (.+)$/,"Added to $1"]);
 Object.assign(I18N.d,{"Ca să pornești un vot, ai nevoie de un cont. Așa vezi voturile prietenilor.":"To start a vote you need an account. That's how you see your friends' votes.","Votul are nevoie de internet":"Voting needs the internet","Oricine are codul vede ideile; numele celor care au votat le vezi doar tu.":"Anyone with the code sees the ideas; only you see who voted.","Se creează…":"Creating…","Nu am putut crea votul. Încearcă din nou.":"Couldn't create the vote. Try again.","Ca să votezi, ai nevoie de un cont. Așa fiecare votează o singură dată.":"To vote you need an account. That way everyone votes once.","Votul nu poate fi verificat acum. Conectează-te la internet.":"The vote can't be checked right now. Connect to the internet.","Este votul tău. Îl vezi aici, în Salvate.":"This is your vote. You'll find it here, in Saved.","Nu am putut trimite votul. Încearcă din nou.":"Couldn't send the vote. Try again.","Nu am putut trimite votul.":"Couldn't send the vote.","Familia are nevoie de internet. Încearcă din nou când ești online.":"Family needs the internet. Try again when you're online."});
+Object.assign(I18N.d,{"Documentele atașate le vezi după ce te conectezi la cont.": "You'll see your attached documents after you sign in.", "Documentele se păstrează în contul tău, ca să le ai pe orice telefon.": "Documents are kept in your account, so you have them on any phone.", "Conectează-te": "Sign in", "Conectează-te ca să atașezi documente. Le găsești apoi pe orice telefon.": "Sign in to attach documents. You'll then find them on any phone.", "Conectează-te la cont ca să deschizi documentul.": "Sign in to your account to open the document.", "Documentul se deschide doar cu internet.": "The document opens only with the internet.", "Nu am putut deschide documentul.": "Couldn't open the document.", "Poți atașa un singur document.": "You can attach only one document.", "Continuă cu Google": "Continue with Google", "sau cu adresa de e-mail": "or with your email address", "Conectarea cu Google nu a mers. Folosește adresa de e-mail.": "Signing in with Google didn't work. Use your email address."});
 </script>
 <script>
-/* ---------- Opțiuni dezvoltator (doar administratori) ---------- */
-let RFILT=false;
-const safe=s=>/^[\w-]{1,80}$/.test(String(s));
-function repCard(r){
- if(!safe(r.u)||!safe(r.id))return"";
- const done=r.st=="done",shot=/^[0-9a-f]{32}$/.test(r.s||"");
- return `<div class="card"><div class="top"><strong>${esc(r.k||"Raport")}</strong><span class="mu">${new Date(+r.ts||0).toLocaleDateString(LOC(),{day:"numeric",month:"short"})}</span></div><div style="margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere">${esc(r.x||"")}</div>${shot?`<a href="/_blob/${r.s}" target="_blank" rel="noopener noreferrer"><img class="shot" alt="Captură atașată raportului" src="/_blob/${r.s}"></a>`:""}<div class="mu sm" style="margin-top:6px">v${esc(r.v||"?")} · ecran ${esc(r.tab||"?")} · ${esc(r.w||"")}</div><div class="acts"><button onclick="repState('${r.u}','${r.id}','${done?"new":"done"}')">${done?"Redeschide":"Marchează rezolvat"}</button></div></div>`}
-async function repState(u,id,st){try{await DB.doc("reports/"+u).update({items:{[id]:{st}}})}catch(e){toast("Nu am putut schimba starea")}}
-function statsView(){
- const n=STS.length;
- if(!n)return `<div class="card"><div class="mu">Încă nu există utilizatori cu statisticile pornite.</div></div>`;
- const t=td(),with3=STS.filter(s=>(+s.n||0)>=3).length;
- const old=STS.filter(s=>okDate(s.first)&&(t-pd(s.first))/DAY>=28);
- const ret=old.filter(s=>Object.keys(s.days||{}).some(d=>okDate(d)&&(pd(d)-pd(s.first))/DAY>=28)).length;
- const sum=o=>Object.values(o||{}).reduce((a,b)=>a+(+b||0),0),tp=STS.filter(s=>sum(s.taps)>0).length,by={};
- STS.forEach(s=>Object.entries(s.taps||{}).forEach(([k,v])=>by[k]=(by[k]||0)+(+v||0)));
- const pc=(a,b)=>b?Math.round(a/b*100)+"%":"–";
- return `<div class="stl"><div><b>${pc(with3,n)}</b><span>au cel puțin 3 termene (${with3} din ${n})</span></div><div><b>${pc(ret,old.length)}</b><span>revin după 4 săptămâni (${ret} din ${old.length})</span></div><div><b>${pc(tp,n)}</b><span>au deschis o sugestie (${tp} din ${n})</span></div></div><div class="note">Sugestii deschise, pe tip: ${Object.keys(by).sort().map(k=>esc(k)+" "+by[k]).join(", ")||"niciuna"}. Citiri din poză: ${STS.reduce((a,s)=>a+(+s.reads||0),0)}. Conturi Control (demo): ${STS.filter(s=>s.pro).length}. Conturi cu invitație: ${STS.filter(s=>s.inv).length}. Cu puțini utilizatori, procentele nu spun mult.</div>`}
-const FL=[["photo","Citire din poză"],["sugg","Sugestii la termen (service, broker)"],["fam","Familie"],["gifts","Cadouri"],["near","Lângă mine"],["rep","Raportează o problemă"]];
-const FD=[["co_n","Firma (apare în politică și termeni)"],["co_a","Adresa firmei"],["aff","Șablon link afiliat (https, cu {q})"],["aff_n","Nume afișat pentru linkul afiliat"],["rca_n","Broker partener RCA: nume"],["rca_u","Broker partener RCA: link https"],["svc_n","Service partener: nume"],["svc_u","Service partener: link https"],["mail","Email de contact"],["priv","Link politică de confidențialitate"],["terms","Link termeni și condiții"]];
-function dev(){
- const open=RP.filter(r=>r.st!="done"),list=RFILT?RP:open,w=!!(DB&&CAN_ADMIN);
- let h=`<button class="back" onclick="VIEW='main';render();enter(-1);scrollTo(0,0)">‹ Mai mult</button>`+head("Opțiuni dezvoltator","Doar pentru administratori");
- h+=`<div class="card al"><strong>Despre securitate</strong><div class="mu" style="margin-top:4px">Pe web, ascunderea acestui ecran nu e securitate: oricine poate citi codul paginii. Accesul la rapoarte, statistici și setări este păzit de regulile bazei de date, pe nivel de acces. Chei secrete nu se pun aici: nu rămân secrete.</div></div>`;
- if(!w)h+=`<div class="card"><div class="mu">Baza de date nu este disponibilă în această vizualizare, așa că nu se pot salva setările.</div></div>`;
- h+=invAdmin()+newsAdmin()+abAdmin();
- h+=`<div class="gt">Notificări: rapoarte primite (${open.length} noi)</div>`+(list.length?list.slice(0,30).map(repCard).join(""):`<div class="card"><div class="mu">Niciun raport${RFILT?"":" nou"}.</div></div>`)+`<div class="grp"><button class="it" onclick="RFILT=!RFILT;render()"><b>${RFILT?"Arată doar cele noi":"Arată și cele rezolvate"}</b><span class="mu">›</span></button></div>`;
- h+=`<div class="gt">Statistici (doar utilizatorii care au acceptat)</div>${statsView()}`;
- h+=`<div class="gt">Funcții</div><div class="grp">${FL.map(f=>{const on=CFG.flags[f[0]]!==false;return `<div class="it"><span><b>${f[1]}</b></span><button class="sw${on?" on":""}" role="switch" aria-checked="${on}" aria-label="${f[1]}" onclick="flag('${f[0]}')"></button></div>`}).join("")}</div>`;
- h+=`<div class="gt">Câmpuri de completat</div><div class="card">${FD.map(f=>`<label for="cf_${f[0]}" style="margin-top:${f[0]=="aff"?0:14}px">${f[1]}</label><input id="cf_${f[0]}" value="${esc(CFG.f[f[0]]||"")}" maxlength="300" onchange="field('${f[0]}',this.value)">`).join("")}<div class="note">Valorile sunt vizibile oricui deschide aplicația. Linkurile trebuie să înceapă cu https://. Cât timp partenerii sunt goi, sugestiile apar marcate „Exemplu”.</div></div>`;
- return h+`<div class="gt">Test</div><div class="grp"><button class="it" onclick="onboard()"><b>Reia introducerea în 3 întrebări</b><span class="mu">›</span></button></div>`}
-function flag(k){if(!(DB&&CAN_ADMIN)){toast("Nu se poate salva aici");return}cfgWrite({flags:{[k]:CFG.flags[k]===false}})}
-function field(k,v){
- v=String(v).trim();
- if(!(DB&&CAN_ADMIN)){toast("Nu se poate salva aici");return}
- if(["aff","rca_u","svc_u","priv","terms"].includes(k)&&v&&!okUrl(v)){toast("Linkul trebuie să înceapă cu https://");render();return}
- if(k=="aff"&&v&&!v.includes("{q}")){toast("Șablonul trebuie să conțină {q}, locul căutării");render();return}
- cfgWrite({f:{[k]:v}}).then(()=>toast("Salvat"))}
 /* ---------- pornire ---------- */
 /* ecranul de încărcare: stă cel puțin cât ține animația (mai puțin la reveniri) și până e gata aplicația */
 function splashOff(){return new Promise(res=>{
