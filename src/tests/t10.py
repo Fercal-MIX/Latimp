@@ -145,6 +145,15 @@ async def main():
         chk("security rows when PIN is on","Blochează după" in t and "Schimbă PIN-ul" in t)
         await pg.evaluate("lockOpt('b')")
         await pg.reload(); await pg.wait_for_timeout(3000)
+        chk("refresh right after use keeps the app unlocked",not await pg.evaluate("!!$('lk')"))
+        r=await pg.evaluate("""(()=>{const n=Date.now(),f=o=>{lkrSet(o);return lockFresh()};const o=lockGet();
+          const a=[f({h:n-500,r:n-400}),f({h:n-120000,r:n-1000}),f({h:n-60000,r:n-50000}),f(null),f({h:n-30000})];
+          lockPut(Object.assign(o,{t:5}));a.push(f({h:n-120000}),f({h:n-400000}));lockPut(Object.assign(o,{t:0}));return a})()""")
+        chk("reload rules: refresh kept, left app / old / none locked",r==[True,False,False,False,False,True,False],r)
+        p2=await ctx.new_page(); await p2.add_init_script(path=SC+"mock.js"); await p2.goto(URL); await p2.wait_for_timeout(3000)
+        chk("opening the app again asks for the PIN",await p2.evaluate("!!$('lk')"))
+        await p2.close()
+        await pg.evaluate("lockShow('lock')");await pg.wait_for_timeout(200)
         chk("the app opens locked",await pg.evaluate("!!$('lk')") and "Introdu PIN-ul" in await pg.inner_text("#lk"))
         await pg.screenshot(path=SC+"e1_lock.png")
         for d in "0000": await pg.keyboard.press(d)

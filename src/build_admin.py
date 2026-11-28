@@ -130,5 +130,9 @@ must("""  if(!mcp){showErr('Pagina nu poate ajunge la Supabase aici. Deschide-o 
 """  if(!mcp&&window.ADM){await ADM.ready()}
   else if(!mcp){showErr('Pagina nu poate ajunge la Supabase aici. Deschide-o în claude.ai sau în aplicația Claude, cu conectorul Supabase conectat.');$('monState').textContent='Neconectat';return}""")
 
+# 5. reîncărcarea paginii: dacă serverul încă ține panoul deschis (PIN corect în ultimele 10 minute), nu mai cere PIN-ul
+must("if(pinOn)await pinPrompt(ps.locked_until?", "if(pinOn&&!(window.ADM&&!mcp&&!ps.locked_until&&await ADM.open()))await pinPrompt(ps.locked_until?")
+must("ADM.call=async function(sql){", """ADM.open=async function(){try{await ADM.call("select admin.pin_status() as r");const {error}=await SB.rpc("admin_call",{p_fn:"health",p_args:[]});return !error}catch(e){return false}};
+ ADM.call=async function(sql){""")
 open(OUT, "w", encoding="utf-8").write(h)
 print("admin.html:", len(h.encode()), "bytes")

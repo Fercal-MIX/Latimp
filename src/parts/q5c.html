@@ -216,5 +216,17 @@ function bkApply(){
  if(BK.nt)S.nt=Object.assign(S.nt,BK.nt);if(BK.ui)S.ui=Object.assign(S.ui,BK.ui);if(BK.theme)S.theme=BK.theme;
  ntFix();carsMigrate();BK=null;save();theme();uiApply();closeSheet();render();toast("Copia a fost încărcată")}
 
-ntFix();uiApply();if(lockGet())lockShow("lock");
+/* reîncărcarea paginii nu e o plecare din aplicație: dacă era deblocată chiar înainte, rămâne deblocată
+   (în aceeași filă, cel mult 30 de secunde; sau cât timp ai ales pentru blocare). Închiderea aplicației sau o filă nouă cer PIN-ul. */
+const LKR="latimp.lkr";
+function lkrGet(){try{return JSON.parse(sessionStorage.getItem(LKR)||"null")}catch(e){return null}}
+function lkrSet(o){try{if(o)sessionStorage.setItem(LKR,JSON.stringify(o));else sessionStorage.removeItem(LKR)}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)return;const r=lkrGet();if(r&&r.r&&Date.now()-r.r<2000)return;lkrSet(lockGet()&&!$("lk")?{h:Date.now()}:null)});
+addEventListener("pagehide",()=>{const r=lkrGet(),n=Date.now();if(lockGet()&&!$("lk"))lkrSet({h:r&&r.h&&n-r.h<2000?r.h:(document.hidden&&r&&r.h)||n,r:n});else lkrSet(null)});
+function lockFresh(){
+ const r=lkrGet(),o=lockGet();lkrSet(null);if(!r||!o||!r.h)return false;
+ const now=Date.now(),t=(+o.t||0)*60000;
+ if(r.r&&r.r-r.h<2000&&now-r.r<30000&&now>=r.r)return true;
+ return t>0&&now-r.h<t&&now>=r.h}
+ntFix();uiApply();if(lockGet()&&!lockFresh())lockShow("lock");
 </script>

@@ -9,11 +9,11 @@ OV={"users":2,"new7":2,"new30":2,"paid":0,"bonus":0,"polls":0,"admins":1,"manual
  "signups":[{"d":"2026-11-%02d"%d,"n":d%3} for d in range(15,29)],
  "config":{"mon":{"free":True,"sparks":False,"control":False,"invites":False,"referrals":False},"ai":{"on":False,"day_eur":2,"user_day":20,"cost_call":0.01,"month_eur":20},"goal":{"users":1000},"maint":{"on":False,"msg":"x"},"prices":{"currency":"RON","month":"","year":"","trial_days":0,"promo":None},"ref":{"max":12,"days":30,"new_days":30},"min_ver":{"ios":"","android":"","msg":""},"plans":{"tiers":[],"groups":{},"limits":{},"features":{}}}}
 RPC="""
-window.__calls=[];window.__pin=%s;window.__open=!window.__pin;
+window.__calls=[];window.__pin=%s;window.__open=!window.__pin||sessionStorage.getItem('open')=='1';
 window.__rpc={am_i_admin:async(a,s)=>!!(s&&s.user&&/admin/.test(s.user.email)),
  admin_call:async(a)=>{__calls.push(a.p_fn+':'+JSON.stringify(a.p_args));
   if(a.p_fn=='pin_status')return {set:!!__pin,locked_until:null};
-  if(a.p_fn=='pin_check'){if(a.p_args[0]=='1234'){__open=true;return {ok:true}}return {ok:false,left:4}}
+  if(a.p_fn=='pin_check'){if(a.p_args[0]=='1234'){__open=true;sessionStorage.setItem('open','1');return {ok:true}}return {ok:false,left:4}}
   if(__pin&&!__open)return {__err:'pin_required'};
   if(a.p_fn=='overview')return %s;
   if(['users','reports','invites','errors','testers','history','schedule_list','presets_list','export'].includes(a.p_fn))return [];
@@ -88,6 +88,11 @@ async def main():
         chk("server lock reopens PIN dialog",await p.evaluate("document.getElementById('lock').classList.contains('on')"))
         await p.fill("#lk_pin","1234");await p.click("#lk_go");await p.wait_for_timeout(800)
         chk("request retried after PIN",await p.evaluate("__calls.filter(x=>x.startsWith('users:')).length>=1"))
+        await p.reload();await p.wait_for_timeout(1500)
+        chk("reload while server keeps panel open: no PIN",await p.evaluate("!document.getElementById('lock').classList.contains('on')&&__calls.some(x=>x.startsWith('overview:'))"))
+        await p.evaluate("sessionStorage.removeItem('open')");await p.reload();await p.wait_for_timeout(1500)
+        chk("reload after server lock: PIN asked",await p.evaluate("document.getElementById('lock').classList.contains('on')"))
+        await p.fill("#lk_pin","1234");await p.click("#lk_go");await p.wait_for_timeout(800)
         # ieșire
         await p.click("#who_out");await p.wait_for_timeout(1200)
         chk("sign out returns to login",await p.evaluate("document.getElementById('login').classList.contains('on')"))

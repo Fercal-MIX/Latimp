@@ -586,6 +586,7 @@ window.LT_SB={url:"https://jzcwmucmxxedvwbtzrvp.supabase.co",key:"sb_publishable
    ws();const c=s.slice(i).match(/^::[a-z ]+?(?=\s*(,|$))/i);if(c)i+=c[0].length;
    out.push(v);ws();if(s[i]==",")i++;else if(i<s.length)throw {code:"web_sql",message:"Argumente nerecunoscute"}}
   return {fn:m[1].toLowerCase(),args:out}};
+ ADM.open=async function(){try{await ADM.call("select admin.pin_status() as r");const {error}=await SB.rpc("admin_call",{p_fn:"health",p_args:[]});return !error}catch(e){return false}};
  ADM.call=async function(sql){
   if(!SB)throw {code:"web_off",message:"Fără conexiune"};
   const p=ADM.parse(sql);
@@ -1476,7 +1477,7 @@ async function loadHist(){
   try{claude.use('downloads').then(d=>{downloads=d;if(d)$('x_dl').hidden=false}).catch(()=>{})}catch(_){}
   if(!mcp&&window.ADM){await ADM.ready()}
   else if(!mcp){showErr('Pagina nu poate ajunge la Supabase aici. Deschide-o în claude.ai sau în aplicația Claude, cu conectorul Supabase conectat.');$('monState').textContent='Neconectat';return}
-  try{const ps=await fn('admin.pin_status()');pinOn=!!ps.set;pinUI();if(pinOn)await pinPrompt(ps.locked_until?'Prea multe încercări. Așteaptă puțin, apoi introdu PIN-ul.':'Introdu PIN-ul',false)}catch(e){showErr(errText(e))}
+  try{const ps=await fn('admin.pin_status()');pinOn=!!ps.set;pinUI();if(pinOn&&!(window.ADM&&!mcp&&!ps.locked_until&&await ADM.open()))await pinPrompt(ps.locked_until?'Prea multe încercări. Așteaptă puțin, apoi introdu PIN-ul.':'Introdu PIN-ul',false)}catch(e){showErr(errText(e))}
   await loadOv(null);
   const h=location.hash.slice(1);if(h&&$(h)&&h!=='rezumat')go(h);
 })();
