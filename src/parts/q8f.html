@@ -1,0 +1,72 @@
+<style>
+/* 1.23: vremea automată */
+.wxc{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wxc .wxi{font-size:30px;line-height:1}
+.wxc .wxt{flex:1;min-width:180px}
+.wxc .wxt b{display:block;font-weight:700}
+.wxs{font-size:12px;margin-top:8px}
+.wxs a{color:inherit}
+.wxs .lk{background:none;border:0;padding:4px 2px;margin:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer;min-height:24px}
+</style>
+<script>
+/* ---------- 1.23: vremea automată în Timp liber ----------
+   Prognoza vine de la MET Norway (Institutul Meteorologic Norvegian, licență CC BY 4.0), prin serverul LaTimp:
+   telefonul trimite doar locația rotunjită la 0,1° (cam 10 km), serverul cere prognoza o dată pe oră pentru toată zona.
+   Locația rotunjită și ultima prognoză stau doar pe telefon (nu în agenda sincronizată). */
+const WXK="latimp.wx";
+function wxGet(){try{return JSON.parse(localStorage.getItem(WXK)||"null")}catch(e){return null}}
+function wxPut(o){try{o?localStorage.setItem(WXK,JSON.stringify(o)):localStorage.removeItem(WXK)}catch(e){}}
+let WXST="",WXA=false;
+const wxOk=()=>WEB&&typeof SB!="undefined"&&!!SB;
+/* ce scrie MET Norway în simbol → cuvinte și o pictogramă */
+function wxWord(sy){const s=String(sy||"");
+ return /thunder/.test(s)?["⛈️","furtună"]:/sleet/.test(s)?["🌨️","lapoviță"]:/snow/.test(s)?["❄️","ninsoare"]:/heavyrain/.test(s)?["🌧️","ploaie puternică"]:/rainshowers/.test(s)?["🌦️","averse"]:/rain/.test(s)?["🌧️","ploaie"]:/fog/.test(s)?["🌫️","ceață"]:/partlycloudy/.test(s)?["⛅","parțial noros"]:/cloudy/.test(s)?["☁️","înnorat"]:/fair/.test(s)?["🌤️","mai mult senin"]:/clearsky/.test(s)?["☀️","senin"]:["🌡️",""]}
+/* ziua → filtrul de vreme al ideilor */
+function wxKind(d){if(!d)return"";const s=String(d.sy||"");
+ if(/snow/.test(s)||(d.mx!==undefined&&+d.mx<8&&(+d.wet||0)<2))return"Frig";
+ if((+d.wet||0)>=2||(+d.pr||0)>=1||/rain|sleet|thunder/.test(s))return"Ploaie";
+ if(+d.mx>=27)return"Cald";
+ if(/clearsky|fair|partlycloudy/.test(s))return"Senin";
+ return""}
+function wxDay(off){const w=wxGet();if(!w||!w.d||!Array.isArray(w.d.days))return null;const t=td();t.setDate(t.getDate()+(off||0));const k=fmt(t);return w.d.days.find(x=>x.d==k)||null}
+function wxSat(){const t=td(),n=(6-t.getDay()+7)%7;return wxDay(n)}
+function wxApply(){const d=wxDay(0),k=wxKind(d);if(!FLT.wx||WXA){FLT.wx=k;WXA=!!k}}
+async function wxFetch(la,lo){
+ try{let{data,error}=await SB.rpc("wx_start",{p_lat:la,p_lon:lo});if(error||!data)return null;
+  for(let i=0;i<12&&data.status=="wait";i++){await new Promise(r=>setTimeout(r,1500));({data,error}=await SB.rpc("wx_poll",{p_lat:la,p_lon:lo}));if(error||!data)return null}
+  return data.status=="ok"&&data.data&&Array.isArray(data.data.days)?data.data:null}catch(e){return null}}
+async function wxLoad(force){
+ const w=wxGet();if(!w||!w.on||!wxOk()||WXST=="load")return;
+ if(!force&&w.d&&w.t&&Date.now()-w.t<60*60000&&wxDay(0)){wxApply();return}
+ if(navigator.onLine===false){WXST="err";return}
+ WXST="load";if(TAB=="free")soft();
+ const d=await wxFetch(w.la,w.lo);const v=wxGet();
+ if(d&&v&&v.on){v.d={now:d.now||null,days:d.days.slice(0,4).map(x=>({d:String(x.d),mn:+x.mn,mx:+x.mx,pr:+x.pr||0,wet:+x.wet||0,sy:String(x.sy||"").slice(0,40)}))};v.t=Date.now();wxPut(v);WXST="";wxApply()}else WXST="err";
+ if(TAB=="free")soft()}
+async function wxOn(){
+ if(!("geolocation" in navigator)){toast("Telefonul sau browserul nu oferă locația.");return}
+ WXST="load";render();
+ try{const p=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(ok,no,{enableHighAccuracy:false,timeout:15000,maximumAge:3600000}));
+  wxPut({on:1,la:Math.round(p.coords.latitude*10)/10,lo:Math.round(p.coords.longitude*10)/10});WXST="";tap("wx_on");await wxLoad(true)}
+ catch(e){WXST="";toast(e&&e.code==1?"Ai refuzat accesul la locație. Îl poți permite din setările browserului.":"Nu am putut afla locația. Încearcă din nou.");render()}}
+function wxOff(){wxPut({no:1});if(WXA){FLT.wx="";WXA=false}WXST="";render();toast("Vremea automată e oprită")}
+function wxLater(){wxPut({no:1});render()}
+function wxCard(){
+ if(!wxOk())return"";const w=wxGet()||{};
+ if(!w.on){if(w.no)return"";
+  return `<div class="card"><div class="wxc"><span class="wxi" aria-hidden="true">🌦️</span><div class="wxt"><b>Vremea automată</b><span class="mu">Ideile țin cont de vremea de azi de la tine. Folosim locația aproximativă (cam 10 km), doar pentru prognoză.</span></div></div><div class="acts"><button onclick="wxOn()"${WXST=="load"?" disabled":""}>${WXST=="load"?"Aflăm vremea…":"Pornește"}</button><button class="g" onclick="wxLater()">Nu acum</button></div></div>`}
+ const d=wxDay(0);
+ if(!d)return `<div class="card"><div class="wxc"><span class="wxi" aria-hidden="true">🌡️</span><div class="wxt"><b>${WXST=="err"?"Nu am putut afla vremea acum":"Aflăm vremea…"}</b>${WXST=="err"?`<span class="mu">Încearcă din nou peste puțin timp.</span>`:""}</div></div>${WXST=="err"?`<div class="acts"><button onclick="WXST='';wxLoad(true)">Încearcă din nou</button><button class="g" onclick="wxOff()">Oprește</button></div>`:""}</div>`;
+ const[ic,wd]=wxWord(d.sy),k=wxKind(d),n=wxGet().d.now;
+ const rng=(d.mn==d.mx?d.mx:d.mn+"…"+d.mx)+"°";
+ return `<div class="card"><div class="wxc"><span class="wxi" aria-hidden="true">${ic}</span><div class="wxt"><b>Azi: ${esc(rng)}${wd?", "+esc(wd):""}</b><span class="mu">${n&&n.tp!==undefined&&n.tp!==null?"Acum "+esc(String(n.tp))+"°. ":""}${k&&FLT.wx==k&&WXA?"Ideile țin cont de asta: „"+esc(k)+"”.":k?"Vremea pentru idei: „"+esc(k)+"”, din Ajustează.":"Vreme obișnuită, fără filtru."}</span></div></div><div class="wxs mu">Date meteo: <a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">MET Norway</a> · <button class="lk" onclick="wxOff()">Oprește</button></div></div>`}
+
+/* în Timp liber: cardul de vreme sub titlu; alegerea manuală a vremii are prioritate */
+{const iv2=ideasView;ideasView=function(){if(sitObj().c.k=="say")return iv2();const w=wxGet();if(w&&w.on)wxApply();let h=iv2();const c=wxCard();if(!c)return h;const k='<label style="margin-top:4px">Sugestii pentru tine</label>',i=h.indexOf(k);return i<0?c+h:h.slice(0,i)+c+h.slice(i)}}
+{const tg1=tg;tg=function(k,v){if(k=="wx")WXA=false;return tg1(k,v)}}
+/* weekendul: vremea de sâmbătă, dacă e în prognoză */
+if(typeof wkndIdeas=="function"){const wk1=wkndIdeas;wkndIdeas=function(){const s=wxSat(),w=wxGet();if(w&&w.on&&s&&(!FLT.wx||WXA)){const k=wxKind(s);if(k){FLT.wx=k;WXA=true}}return wk1.apply(this,arguments)}}
+/* la deschiderea Timp liber, prognoza se reîmprospătează cel mult o dată pe oră */
+{const tb2=tab;tab=function(t){const r=tb2.apply(this,arguments);if(t=="free")setTimeout(()=>wxLoad(false),300);return r}}
+setTimeout(()=>{if(TAB=="free")wxLoad(false)},1500);
+</script>

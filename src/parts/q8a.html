@@ -19,7 +19,7 @@
    și se pot schimba din panou: Conținut → „Reguli pentru termene” (cheia content.rules). */
 const RULES0={
  v:"2026-11",
- rov:{dur:[[1,"1 zi"],[10,"10 zile"],[30,"30 de zile"],[60,"60 de zile"],[365,"12 luni"]],p12:{ev:228,e6:254,e45:292,e03:330},note:"Din 1 octombrie 2026 rovinieta pentru autoturisme se cumpără doar de pe etoll.ro sau din aplicația TollRo. Prețul depinde de norma Euro."},
+ rov:{dur:[[1,"1 zi"],[10,"10 zile"],[30,"30 de zile"],[60,"60 de zile"],[365,"12 luni"]],p12:{ev:228,e6:254,e45:292,e03:330},p:{1:{ev:20,e6:22,e45:26,e03:29},10:{ev:27,e6:30,e45:35,e03:39},30:{ev:43,e6:48,e45:55,e03:62},60:{ev:68,e6:76,e45:87,e03:99}},pv:"1 octombrie 2026",note:"Din 1 octombrie 2026 prețul rovinietei depinde de norma Euro. O cumperi de pe etoll.ro, din aplicația TollRo, prin SMS sau de la distribuitorii autorizați. Tarifele se actualizează în fiecare an, de la 1 ianuarie."},
  itp:{first:36,next:24,old:12,oldAge:12},
  links:{
   rca:[["Verifică RCA pe AIDA","https://www.aida.info.ro"]],
@@ -31,15 +31,15 @@ const RULES0={
   ci:[["Programare pe HUB MAI","https://hub.mai.gov.ro"]],pas:[["Programare pe HUB MAI","https://hub.mai.gov.ro"]],pc:[["Programare pe HUB MAI","https://hub.mai.gov.ro"]]},
  early:{rca:30,rov:7,itp:30,ci:60,pas:60,pc:60,pad:12,imp:14,imp2:14,du:21,igz:30,rgz:30,cen:30},
  tips:{
-  rca:"Fără RCA valabil, amenda e de 1.000–2.000 de lei și poliția reține plăcuțele. Verifici gratuit pe AIDA, după număr sau serie de șasiu.",
-  itp:"Când ITP-ul expiră, înmatricularea se suspendă automat. Primul ITP vine la 3 ani de la prima înmatriculare, apoi la 2 ani; după 12 ani, în fiecare an.",
-  pad:"Polița PAD nouă intră în vigoare abia în a 5-a zi după plată, așa că reînnoiește din timp. Costă 130 de lei (tip A) sau 50 de lei (tip B) pe an.",
-  igz:"Verificarea instalației de gaz se face la 2 ani, iar revizia la 10 ani. Fără ele riști amenzi de 2.000–4.000 de lei și oprirea gazului.",
+  rca:"Fără RCA valabil, amenda e de 1.000–2.000 de lei, iar poliția reține certificatul de înmatriculare și plăcuțele până faci asigurarea. Verifici gratuit pe AIDA, după număr sau serie de șasiu.",
+  itp:"Când ITP-ul expiră, înmatricularea se suspendă automat și mașina nu mai are voie pe drum. Primul ITP vine la 3 ani de la prima înmatriculare, apoi la 2 ani; după 12 ani, în fiecare an.",
+  pad:"O poliță PAD nouă intră în vigoare abia în a 5-a zi după plată; reînnoită înainte să expire, continuă din ziua următoare. Costă 130 de lei (tip A) sau 50 de lei (tip B) pe an. Lipsa ei se amendează cu 100–500 de lei.",
+  igz:"Verificarea instalației de gaz se face cel puțin o dată la 2 ani, iar revizia la 10 ani. Dacă lipsesc, operatorul poate opri gazul chiar în ziua în care constată.",
   rgz:"Revizia instalației de gaz se face la 10 ani, de o firmă autorizată ANRE. Verificarea, separat, la 2 ani.",
-  du:"Declarația unică se depune până la 25 mai. Dacă o depui și plătești tot până la 15 aprilie, primești o reducere de 3%. Termenele exacte sunt pe site-ul ANAF.",
-  imp:"Impozitul local se plătește în două rate: 31 martie și 30 septembrie. Plătit integral până la 31 martie, multe primării dau o reducere (de obicei 10%).",
+  du:"Declarația unică se depune și se plătește până la 25 mai. În 2026, cine a depus-o și a plătit tot până la 15 aprilie a primit o bonificație de 3%; verifică pe ANAF dacă se acordă și anul acesta.",
+  imp:"Impozitul local se plătește în două rate: 31 martie și 30 septembrie. Plătit integral până la 31 martie, primăria poate da o reducere de până la 10%.",
   idx:"Indexul se transmite într-o fereastră lunară: Hidroelectrica, de regulă între 24 și 28; E.ON gaz, între 22 și 26. Fereastra exactă e pe factură. Cu contor inteligent nu e nevoie.",
-  ci:"Din 1 august 2026 se eliberează cartea electronică de identitate. Buletinele vechi (fără cip) rămân valabile până la data de pe ele, dar din 3 august 2031 nu mai pot fi folosite pentru călătorii în UE."},
+  ci:"Cartea electronică de identitate costă 70 de lei, iar cea simplă, fără cip, 40 de lei. Buletinele vechi (fără cip) rămân valabile până la data de pe ele, dar cel mult până la 3 august 2031. Programarea se face pe HUB MAI și poate dura câteva săptămâni."},
  fx:{EUR:5.0,USD:4.6,GBP:5.9,CHF:5.4}
 };
 const RL=()=>{const r=CNT&&CNT.rules&&typeof CNT.rules=="object"?CNT.rules:{};const o={};Object.keys(RULES0).forEach(k=>{const a=RULES0[k],b=r[k];o[k]=b&&typeof b=="object"&&!Array.isArray(b)&&typeof a=="object"&&!Array.isArray(a)?Object.assign({},a,b):b!==undefined?b:a});return o};
@@ -70,10 +70,10 @@ function euSet(v){const k=carOf(cur);if(k){k.eu=v;save()}cur.eu=v;drawItem(!!cur
 function autoExtra(c){
  const k=carOf(c)||{},R=RL();let h="";
  if(c.t=="rov"){
-  const eu=c.eu!==undefined?c.eu:k.eu||"",p=(R.rov.p12||{})[eu];
+  const eu=c.eu!==undefined?c.eu:k.eu||"",dd=+c.dur||365,pt=dd==365?R.rov.p12:R.rov.p&&R.rov.p[dd]?R.rov.p[dd]:null,p=(pt||{})[eu],dl=((R.rov.dur||[]).find(z=>+z[0]==dd)||[0,"12 luni"])[1];
   h+=`<label for="f_dur">Durata rovinietei</label><select id="f_dur" onchange="rovDur(this.value)">${opts([[0,"Aleg eu data"]].concat(R.rov.dur||[]),c.dur||0)}</select>`;
   h+=`<label for="f_eu">Norma Euro a mașinii</label><select id="f_eu" onchange="euSet(this.value)">${opts(EUN,eu)}</select>`;
-  h+=`<div class="note">${esc(R.rov.note||"")}${p?` Pentru 12 luni: ${money(p)} lei.`:""} Site-urile neoficiale cer mai mult.</div>`}
+  h+=`<div class="note">${esc(R.rov.note||"")}${p?` Pentru ${esc(dl)}: ${money(p)} lei${R.rov.pv?` (tariful din ${esc(R.rov.pv)})`:""}.`:""} Site-urile neoficiale cer mai mult.</div>`}
  if(c.t=="itp"){
   const fr=c.fr||k.fr||"";
   h+=`<label for="f_fr">Prima înmatriculare (opțional)</label><div class="row"><div><input id="f_fr" type="date" value="${esc(fr)}"></div><div><button class="btn alt" style="margin:0" onclick="itpGo()">Calculează data ITP</button></div></div><div class="note">Calculul urmează regula generală. Data de pe fișa ITP are întâietate: o poți corecta oricând.</div>`}
@@ -98,7 +98,7 @@ function trTg(on){grab();cur.tr=on?(cur.tr&&okDate(cur.tr)?cur.tr:plus(7)):"";dr
 /* ---- documente: buletinul vechi ---- */
 function docExtra(c){
  if(c.t!="ci")return"";
- return `<label class="ck"><input id="f_old" type="checkbox"${c.old?" checked":""}> Am buletin vechi, fără cip</label>${c.old?`<div class="note">Rămâne valabil până la data de pe el, dar din 3 august 2031 nu mai poate fi folosit pentru călătorii în UE. Îți amintim din timp.</div>`:""}`}
+ return `<label class="ck"><input id="f_old" type="checkbox"${c.old?" checked":""}> Am buletin vechi, fără cip</label>${c.old?`<div class="note">Rămâne valabil până la data de pe el, dar cel mult până la 3 august 2031. Îți amintim din timp.</div>`:""}`}
 
 /* ---- pe orice termen: fără memento-uri (pauză doar pentru el) ---- */
 const muteBox=c=>c.g=="per"&&c.auto?"":`<label class="ck"><input id="f_mu" type="checkbox"${c.mu?" checked":""}> Fără memento-uri pentru acest termen</label>`;
@@ -171,7 +171,7 @@ function paidBox(c){if(!c.id)return"";const x=S.items.find(i=>i.id==c.id);const 
  const now=Date.now(),end=now+60*DAY,en=S.lang=="en",add=[];
  const at=(ds,k)=>+remAt(ds,k);
  keep.filter(x=>!x.ex&&!x.mu&&x.g=="sub"&&x.tr&&okDate(x.tr)).forEach(x=>[2,1].forEach(k=>{const t=at(x.tr,k);if(t>now+60000&&t<=end)add.push({at:new Date(t).toISOString(),title:String(x.n||"LaTimp").slice(0,120),body:(en?`Free trial ends ${k==1?"tomorrow":"in 2 days"}. Keep it or cancel?`:`Proba gratuită se termină ${k==1?"mâine":"în 2 zile"}. Rămâi sau anulezi?`),tag:"lt-tr-"+x.id+"-"+k})}));
- keep.filter(x=>!x.ex&&!x.mu&&x.g=="doc"&&x.t=="ci"&&x.old).forEach(x=>{const lim=new Date(2031,7,3);[180,30].forEach(k=>{const d=new Date(lim);d.setDate(d.getDate()-k);const t=at(fmt(d),0);if(t>now+60000&&t<=end)add.push({at:new Date(t).toISOString(),title:en?"Old ID card":"Buletin vechi",body:en?"From 3 August 2031 the old ID card can no longer be used for travel in the EU.":"Din 3 august 2031 buletinul vechi nu mai poate fi folosit pentru călătorii în UE.",tag:"lt-ci-"+x.id+"-"+k})})});
+ keep.filter(x=>!x.ex&&!x.mu&&x.g=="doc"&&x.t=="ci"&&x.old).forEach(x=>{const lim=new Date(2031,7,3);[180,30].forEach(k=>{const d=new Date(lim);d.setDate(d.getDate()-k);const t=at(fmt(d),0);if(t>now+60000&&t<=end)add.push({at:new Date(t).toISOString(),title:en?"Old ID card":"Buletin vechi",body:en?"Old ID cards without a chip stop being valid on 3 August 2031. Book an appointment for the electronic ID card.":"Buletinele vechi, fără cip, nu mai sunt valabile din 3 august 2031. Programează-te pentru cartea electronică.",tag:"lt-ci-"+x.id+"-"+k})})});
  return l.concat(add).sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
 
 /* ---- prognoza pe 12 luni (Control: „budget”) ---- */

@@ -12,3 +12,55 @@ function wdOpen(){openSheet(`<h2>Retragere din contract</h2><div class="mu">Dac�
  const d=pd(s.ren);d.setDate(d.getDate()-14);const t=+remAt(fmt(d),0),now=Date.now(),en=S.lang=="en";if(t<=now+60000||t>now+60*DAY)return l;
  return l.concat({at:new Date(t).toISOString(),title:"LaTimp Control",body:en?`Your yearly plan renews on ${nice(s.ren)}. You can cancel it any time in More.`:`Abonamentul anual se reînnoiește pe ${nice(s.ren)}. Îl poți anula oricând din Mai mult.`,tag:"lt-ren-"+t}).sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
 </script>
+
+<script>
+/* ---------- 1.23: plăți pregătite (pornesc doar când plățile sunt active în panou) ----------
+   - proba Control fără card: o singură dată pe cont; la final accesul se oprește, nu se plătește nimic automat
+   - memento-uri cu 2 zile înainte și în ultima zi a probei; cardul din Agendă în ultimele 3 zile
+   - retragerea în 14 zile legată de plata reală pe web: serverul verifică plata și dă un număr de cerere
+   - mulțumirea pentru primii utilizatori: luni de Control gratuit, anunțate o singură dată */
+const PAYS=()=>WEB&&typeof SB!="undefined"&&!!SB&&!!SBU;
+const ACX=()=>(typeof accNow=="function"?accNow():{})||{};
+function trialAv(){const a=ACX(),t=a.trial||{};return PAYS()&&t.on&&!t.used&&!(a.pro&&a.source!="free")&&+t.days>0}
+function trialLeft(){const a=ACX();if(a.source!="trial"||!a.until)return null;return Math.max(0,Math.ceil((Date.parse(a.until)-Date.now())/DAY))}
+async function trialGo(){
+ if(!PAYS()){if(typeof needAcct=="function")needAcct("Proba e legată de cont. Conectează-te ca s-o pornești.",trialGo);return}
+ try{const{data,error}=await SB.rpc("start_trial");if(error||!data){toast("Nu am putut porni proba. Încearcă din nou.");return}
+  if(!data.ok){toast(data.why=="used"?"Ai folosit deja proba pe acest cont.":data.why=="active"?"Ai deja Control activ.":"Proba nu e disponibilă acum.");return}
+  ACC=data.access;lsSet("latimp.acc",ACC);if(typeof cfgApply=="function")cfgApply();closeSheet();render();tap("trial_start");
+  openSheet(`<h2>Proba Control a pornit</h2><div class="mu">Ai Control până pe ${esc(nice(fmt(new Date(data.until))))}. Nu ți-am cerut card și nu plătești nimic automat: la final, Control se oprește singur, iar datele tale rămân.</div><div class="note">Îți amintim cu 2 zile înainte și în ultima zi.</div><button class="btn" onclick="closeSheet()">Bine</button>`,"trial")}
+ catch(e){toast("Nu am putut porni proba. Încearcă din nou.")}}
+/* în foaia Control: butonul de probă, înaintea planurilor */
+{const op2=openPlan;openPlan=function(k){const r=op2.apply(this,arguments);
+ if(k=="agenda"&&trialAv()){const sh=$("sheet");if(sh){const d=+ACX().trial.days,b=document.createElement("div");
+  b.innerHTML=`<button class="btn" onclick="trialGo()">Încearcă Control ${d} ${d==1?"zi":"zile"} gratuit</button><div class="note" style="margin-top:-4px">Fără card. La final, Control se oprește singur; nu plătești nimic dacă nu alegi tu un plan.</div>`;
+  const at=sh.querySelector("button.pl")||[...sh.querySelectorAll("button.btn.alt")].pop();if(at)at.parentNode.insertBefore(b,at);else sh.appendChild(b)}}
+ return r}}
+/* în Agendă: proba se termină / mulțumirea pentru primii utilizatori */
+function payCard(){
+ if(!PAYS())return"";const a=ACX(),n=trialLeft();let h="";
+ if(n!==null&&n<=3&&S.trk!=fmt(td()))h+=`<div class="card"><strong>${n<=0?"Proba Control se termină azi":n==1?"Proba Control se termină mâine":"Proba Control se termină în "+n+" zile"}</strong><div class="mu" style="margin-top:4px">Nu se plătește nimic automat. Dacă vrei să păstrezi Control, alege un plan; altfel se oprește singur și datele rămân.</div><div class="acts"><button onclick="openPlan('agenda')">Vezi planurile</button><button class="g" onclick="S.trk=fmt(td());save();render()">Am înțeles</button></div></div>`;
+ if(a.founder&&a.founder.months&&!S.fdk)h+=`<div class="card"><strong>Mulțumim că ai fost printre primii!</strong><div class="mu" style="margin-top:4px">Ai ${+a.founder.months} ${+a.founder.months==1?"lună":"luni"} de Control gratuit${a.founder.until?", până pe "+esc(nice(fmt(new Date(a.founder.until))))+" "+new Date(a.founder.until).getFullYear():""}. Nu trebuie să faci nimic și nu îți cerem card.</div><div class="acts"><button onclick="S.fdk=1;save();render()">Mulțumesc</button></div></div>`;
+ return h}
+{const nc2=newsCard;newsCard=function(){return payCard()+nc2()}}
+/* memento-urile probei */
+{const rp5=remPlan;remPlan=function(){const l=rp5(),a=ACX();if(!PAYS()||a.source!="trial"||!a.until)return l;
+ const end=new Date(a.until),en=S.lang=="en",now=Date.now(),out=[];
+ [[2,en?"Your Control trial ends in 2 days. Nothing is charged automatically.":"Proba Control se termină în 2 zile. Nu se plătește nimic automat."],[0,en?"Your Control trial ends today. Nothing is charged; choose a plan only if you want to keep it.":"Proba Control se termină azi. Nu se plătește nimic; alegi un plan doar dacă vrei să-l păstrezi."]].forEach(([k,b])=>{const d=new Date(end);d.setDate(d.getDate()-k);let t=+remAt(fmt(d),0);if(k==0&&t>=end.getTime()){d.setDate(d.getDate()-1);t=+remAt(fmt(d),0);b=en?"Your Control trial ends tomorrow. Nothing is charged automatically.":"Proba Control se termină mâine. Nu se plătește nimic automat."}if(t>now+60000&&t<end.getTime()&&!out.some(o=>o.at==new Date(t).toISOString()))out.push({at:new Date(t).toISOString(),title:"LaTimp Control",body:b,tag:"lt-trial-"+k})});
+ return out.length?l.concat(out).sort((x,y)=>x.at<y.at?-1:1).slice(0,200):l}}
+/* retragerea: legată de plata reală pe web */
+const WDWHY={store:"Plata a fost făcută prin App Store sau Google Play: rambursarea se cere din magazin.",late:"Au trecut mai mult de 14 zile de la plată.",not_found:"Nu găsim această plată în contul tău.",login:"Conectează-te la cont ca să trimiți cererea."};
+{const wd1=wdOpen;wdOpen=async function(){
+ if(!PAYS())return wd1();
+ openSheet(`<h2>Retragere din contract</h2><div class="mu">Căutăm plățile tale…</div>`,"wd");
+ let L=[];try{const{data,error}=await SB.rpc("my_purchases");if(!error&&Array.isArray(data))L=data}catch(e){}
+ const web=L.filter(p=>p.store=="web"),money2=p=>esc(String(p.price))+" "+esc(p.currency||"");
+ const rows=web.map(p=>`<div class="it"><span><b>${esc(p.product=="control_y"?"Control anual":p.product=="control_m"?"Control lunar":String(p.product||"Control"))}, ${money2(p)}</b><div class="mu">Plătit pe ${esc(nice(fmt(new Date(p.at))))}${p.withdrawal?". Cererea "+esc(p.withdrawal.ref)+": "+esc(p.withdrawal.status):p.can_withdraw?". Te poți retrage până pe "+esc(nice(fmt(new Date(p.deadline)))):". Termenul de 14 zile a trecut"}</div></span>${p.can_withdraw?`<button onclick="wdAsk('${esc(p.id)}')">Retrage-te</button>`:""}</div>`).join("");
+ openSheet(`<h2>Retragere din contract</h2><div class="mu">Pentru Control cumpărat pe web ai 14 zile de la plată să te retragi, fără să spui de ce. Primești banii în cel mult 14 zile de la cerere, pe aceeași cale de plată.</div>${rows?`<div class="grp" style="margin-top:12px">${rows}</div>`:`<div class="note">Nu găsim nicio plată pe web în ultimele 60 de zile pe acest cont.</div>`}<div class="note">Pentru abonamentele din App Store sau Google Play, rambursarea se cere din magazin: App Store → Raportează o problemă; Google Play → Abonamente → Rambursare.</div><button class="btn alt" onclick="closeSheet()">Înapoi</button>`,"wd")}}
+function wdAsk(id){openSheet(`<h2>Te retragi din contract?</h2><div class="mu">Trimitem cererea acum. Control rămâne activ până procesăm rambursarea, apoi se oprește. Datele tale rămân.</div><button class="btn" onclick="wdSend('${esc(id)}')">Da, trimite cererea</button><button class="btn alt" onclick="wdOpen()">Nu</button>`,"wd")}
+async function wdSend(id){
+ try{const{data,error}=await SB.rpc("request_withdrawal",{p_event:id});if(error||!data){toast("Nu am putut trimite cererea. Încearcă din nou.");return}
+  if(!data.ok){openSheet(`<h2>Nu putem trimite cererea</h2><div class="mu">${esc(WDWHY[data.why]||"Încearcă din nou.")}</div><button class="btn alt" onclick="wdOpen()">Înapoi</button>`,"wd");return}
+  tap("withdraw");openSheet(`<h2>Cererea a fost înregistrată</h2><div class="mu">Numărul cererii: <b>${esc(data.ref)}</b>. Primești banii în cel mult 14 zile, pe aceeași cale de plată. Răspunsul vine și în Mai mult → Raportează o problemă.</div><button class="btn" onclick="closeSheet()">Bine</button>`,"wd")}
+ catch(e){toast("Nu am putut trimite cererea. Încearcă din nou.")}}
+</script>

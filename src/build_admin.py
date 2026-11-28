@@ -160,5 +160,28 @@ async function loadAct(){try{const a=await fn('admin.activation()');const P=(x,y
  const R=[['Conturi active (cu memento programat)',a.activated,a.users],['Cu notificări pe telefon',a.push,a.users],['Cu memento-uri pe e-mail',a.mail,a.users],['Au primit cel puțin un memento',a.delivered,a.users],['Revin a doua zi',a.ret1,a.cohort1]];
  $('st_act').innerHTML=R.map(([l,x,y])=>'<div class="hb"><b>'+esc(l)+'</b><div class="meter"><i style="width:'+(y?x/y*100:0)+'%"></i></div><span>'+esc(P(x,y))+' <span class="mut">('+esc(x)+' din '+esc(y)+')</span></span></div>').join('')+
   '<p class="mut">'+(a.hours_to_first!=null?'Primul memento ajunge, la jumătate dintre conturi, în '+esc(a.hours_to_first)+' ore de la creare.':'Încă nu a ajuns niciun memento numărat (se numără de la 28.11.2026).')+'</p>'}catch(e){$('st_act').innerHTML='<div class="empty">'+esc(errText(e))+'</div>'}}""")
+
+# 8. Monetizare → plăți pregătite: proba fără card, retragerile din contract, mulțumirea pentru primii utilizatori
+must('<label class="f" for="p_trial">Zile de probă</label>', '<label class="f" for="p_trial" title="Proba nu cere card și nu devine plătită singură: la final accesul se oprește, iar utilizatorul alege dacă plătește.">Zile de probă (fără card)</label>')
+must('  <button class="b" id="monSave">Salvează monetizarea și prețurile</button>\n</section>',
+ '  <button class="b" id="monSave">Salvează monetizarea și prețurile</button>\n'
+ '  <div class="card" style="margin-top:18px"><h3>Proba gratuită</h3><p class="mut">Pornește doar când „Abonamentul Control” e activ, aplicația nu mai e gratuită pentru toți și „Zile de probă” e peste 0. O singură probă pe cont, fără card. La final accesul se oprește singur; nu se plătește nimic automat. Utilizatorul primește un memento cu 2 zile înainte și în ultima zi.</p></div>\n'
+ '  <div class="card"><h3>Retrageri din contract</h3><p class="mut">Cereri făcute din aplicație pentru plățile pe web din ultimele 14 zile. Rambursarea o faci din procesatorul de plăți, în cel mult 14 zile de la cerere; aici notezi starea. Cererea apare și în Rapoarte, unde îi poți răspunde.</p><div id="pay_wd"><div class="empty">Se încarcă…</div></div></div>\n'
+ '  <div class="card"><h3>Mulțumire pentru primii utilizatori</h3><p class="mut">Când pornești plățile, cei care au cont de dinainte primesc Control gratuit câteva luni, fără cod și fără card. Se acordă o singură dată pe cont; cine are deja acces primește lunile în plus.</p>'
+ '<div class="grid2"><div><label class="f" for="fd_m">Luni gratuite</label><select id="fd_m"><option value="1">1 lună</option><option value="3" selected>3 luni</option><option value="6">6 luni</option><option value="12">12 luni</option></select></div><div><label class="f" for="fd_b">Conturi create înainte de</label><input type="text" id="fd_b" placeholder="AAAA-LL-ZZ (gol = acum)"></div></div>'
+ '<div class="row" style="margin-top:8px"><button class="b g sm" id="fd_prev" type="button">Câte conturi sunt?</button><button class="b sm" id="fd_go" type="button">Acordă mulțumirea</button></div><p class="mut" id="fd_out"></p></div>\n'
+ '</section>')
+must("lansari:loadLaunch,", "lansari:loadLaunch,monetizare:loadPay,")
+must("async function loadAct(){", """
+const WDS=['cerută','aprobată','rambursată','respinsă'];
+async function loadPay(){try{const a=await fn('admin.withdrawals()')||[];
+ $('pay_wd').innerHTML=a.length?a.map(w=>'<div class="hb" style="flex-wrap:wrap;gap:8px"><b>'+esc(w.ref)+'</b><span>'+esc(w.email||'—')+' · '+esc(w.amount)+' '+esc(w.currency||'')+' · cumpărat '+esc(String(w.bought_at||'').slice(0,10))+' · cerut '+esc(String(w.requested_at||'').slice(0,10))+'</span><select data-ref="'+esc(w.ref)+'" aria-label="Starea cererii '+esc(w.ref)+'">'+WDS.map(s=>'<option'+(s==w.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div>').join(''):'<div class="empty">Nicio cerere de retragere.</div>';
+ $('pay_wd').querySelectorAll('select').forEach(sel=>sel.onchange=()=>act(null,async()=>{await fn("admin.withdrawal_set("+sqlq(sel.dataset.ref)+","+sqlq(sel.value)+",'')");toast('Starea a fost salvată')}))}catch(e){$('pay_wd').innerHTML='<div class="empty">'+esc(errText(e))+'</div>'}}
+const sqlq=v=>"'"+String(v).replace(/'/g,"''")+"'";
+const fdB=()=>{const v=$('fd_b').value.trim();if(v&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(v))throw new Error('Data trebuie scrisă AAAA-LL-ZZ.');return v?sqlq(v)+'::timestamptz':'now()'};
+$('fd_prev').onclick=e=>act(e.target,async()=>{const r=await fn('admin.founders_preview('+fdB()+')');$('fd_out').textContent=r.users+' conturi create înainte de data aleasă; '+r.already+' au primit deja mulțumirea.'});
+$('fd_go').onclick=e=>{if(!sure(e.target,'Acordă mulțumirea'))return;act(e.target,async()=>{const m=parseInt($('fd_m').value,10)||3;const g=await fn('admin.founders_grant('+m+','+fdB()+')');$('fd_out').textContent='Gata: '+g.granted+' conturi au primit '+g.months+' luni de Control gratuit.';toast('Mulțumirea a fost acordată')})};
+async function loadAct(){""")
+
 open(OUT, "w", encoding="utf-8").write(h)
 print("admin.html:", len(h.encode()), "bytes")

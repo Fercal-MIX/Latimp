@@ -34,7 +34,7 @@ async def main():
             await pg.click("#t-more");await pg.wait_for_timeout(900)
             t=await pg.inner_text("#main")
             chk("install card in More","Instalează LaTimp pe telefon" in t,t[:200])
-            chk("footer says test version","versiune de test 1.22" in t)
+            chk("footer says test version","versiune de test 1.23" in t)
             await pg.click("#main .ins button:has-text('Instalează')");await pg.wait_for_timeout(700)
             chk("install steps sheet",await pg.evaluate("$('sheet').dataset.k")=="inst" and "Instalează LaTimp" in await pg.inner_text("#sheet"))
             await pg.evaluate("closeSheet()");await pg.wait_for_timeout(400)
@@ -55,7 +55,7 @@ async def main():
             await ctx.set_offline(False)
             # engleză
             await pg.evaluate("S.lang='en';save();langApply();tab('more')");await pg.wait_for_timeout(1200)
-            t=await pg.inner_text("#main");chk("EN footer","test version 1.22" in t,t[-120:])
+            t=await pg.inner_text("#main");chk("EN footer","test version 1.23" in t,t[-120:])
             chk("no page errors",not errs,errs)
             await ctx.close()
             for w in [320,360,560]:
