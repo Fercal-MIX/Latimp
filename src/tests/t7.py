@@ -40,7 +40,9 @@ async def main():
         chk("no page errors (first launch)", not errs, errs)
         await pg.screenshot(path=SC + "sp_4.png")
         # 2. second launch (same storage): quick mode
-        await pg.reload(wait_until="commit")
+        # (1.22: o reîmprospătare nu mai arată ecranul; o pornire nouă = o filă nouă, cu aceleași date)
+        pg = await ctx.new_page()
+        await pg.goto(URL, wait_until="commit")
         await pg.wait_for_selector("#spl", state="attached")
         try:
             await pg.wait_for_function("document.getElementById('spl')&&document.getElementById('spl').classList.contains('q')", timeout=1500)

@@ -4,13 +4,16 @@
 function splashOff(){return new Promise(res=>{
  const e=document.getElementById("spl"),rdy=()=>document.documentElement.dataset.rdy="1";if(!e){rdy();res();return}
  const q=e.classList.contains("q"),rm=matchMedia("(prefers-reduced-motion:reduce)").matches,min=rm?300:q?700:1700;
- setTimeout(()=>{try{localStorage.setItem("latimp.sp","1")}catch(x){}e.classList.add("off");rdy();res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
+ setTimeout(()=>{try{localStorage.setItem("latimp.sp","1");sessionStorage.setItem("latimp.ss","1")}catch(x){}e.classList.add("off");rdy();res();setTimeout(()=>e.remove(),560)},Math.max(0,min-performance.now()))})}
 (async function boot(){
  theme();langApply();render();
+ /* reîmprospătare: aplicația apare direct, fără ecranul de pornire și fără animația de intrare */
+ const fast=!document.getElementById("spl");
+ if(fast){try{sessionStorage.setItem("latimp.ss","1")}catch(x){}requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.dataset.rdy="1"))}
  await caps();
  await Promise.race([RDY,new Promise(r=>setTimeout(r,2200))]);
  touch();invCheck();refSub();
- await splashOff();enter(0);
+ if(!fast){await splashOff();enter(0)}
  if(!S.onb)onboard();else setTimeout(remCheck,700);
  soft()})();
 </script>
