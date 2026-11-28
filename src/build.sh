@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
-cd /tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/
-cat q1.html q2.html q3a.html q3b.html q3c.html q4a1.html q4a2.html q4b.html q4c.html q5a.html q5a2.html q5c.html q5d.html q5e.html q5f.html q5g.html q5h.html q5i.html q5j.html q7w.html q7s.html q7a.html q7p.html q7c.html q7f.html q7l.html q7x.html q7y.html q7z.html q8a.html q8b.html q8c.html q8d.html q8e.html q6.html q6d.html q5b.html > new.html
+# merge din dosarul lui (în depozit: src/, cu părțile în src/parts/)
+D="$(cd "$(dirname "$0")" && pwd)"; cd "$D"
+P=.; [ -d parts ] && [ ! -f q1.html ] && P=parts
+cat $P/q1.html $P/q2.html $P/q3a.html $P/q3b.html $P/q3c.html $P/q4a1.html $P/q4a2.html $P/q4b.html $P/q4c.html $P/q5a.html $P/q5a2.html $P/q5c.html $P/q5d.html $P/q5e.html $P/q5f.html $P/q5g.html $P/q5h.html $P/q5i.html $P/q5j.html $P/q7w.html $P/q7s.html $P/q7a.html $P/q7p.html $P/q7c.html $P/q7f.html $P/q7l.html $P/q7x.html $P/q7y.html $P/q7z.html $P/q8a.html $P/q8b.html $P/q8c.html $P/q8d.html $P/q8e.html $P/q6.html $P/q6d.html $P/q5b.html > new.html
 python3 - <<'PY'
 import re,subprocess
 s=open("new.html").read()
@@ -13,5 +15,5 @@ for i,b in enumerate(blocks):
     if r.returncode: print("SYNTAX ERR in block",i,r.stderr[:400]); raise SystemExit(1)
 print("syntax ok")
 PY
-cp new.html /mnt/user-data/outputs/buzunar.html
+if [ -d /mnt/user-data/outputs ]; then cp new.html /mnt/user-data/outputs/buzunar.html; fi
 echo built $(wc -c < new.html) bytes

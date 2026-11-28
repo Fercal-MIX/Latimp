@@ -44,7 +44,7 @@ function roll(){carsMigrate();S.items.forEach(x=>{if(!(x.g=="sub"||x.auto)||!okD
 const MON=["ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","nov","dec"];
 const sev=n=>n<=1?"d":n<=maxT()?"wa":"";
 const leaf=x=>{const d=pd(x.d);return `<div class="lf ${sev(left(x.d))}" role="img" aria-label="${esc(nice(x.d))}"><i>${MON[d.getMonth()]}.</i><b>${d.getDate()}</b></div>`};
-const mlab=x=>{const d=pd(x.d),m=d.toLocaleDateString(LOC(),{month:"long"});return m.charAt(0).toUpperCase()+m.slice(1)+(d.getFullYear()!=td().getFullYear()?" "+d.getFullYear():"")};
+const mlab=x=>{const d=pd(x.d),m=fmtr("ml",l=>new Intl.DateTimeFormat(l,{month:"long"})).format(d);return m.charAt(0).toUpperCase()+m.slice(1)+(d.getFullYear()!=td().getFullYear()?" "+d.getFullYear():"")};
 function ledger(l,allow,months){
  let h="",last="";
  l.forEach(x=>{if(months!==false){const m=mlab(x);if(m!=last){h+=`<div class="mh">${m}</div>`;last=m}}h+=card(x,allow())});

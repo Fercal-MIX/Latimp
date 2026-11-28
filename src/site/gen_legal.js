@@ -7,7 +7,8 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const ctx = { esc, S: { lang: "ro" }, legalTxt: null, legal: null, window: {}, CFG: { f: {} } };
 vm.createContext(ctx);
 vm.runInContext(js, ctx);
-const cfg = fs.existsSync(path.join(path.dirname(src), "site/legal.json")) ? JSON.parse(fs.readFileSync(path.join(path.dirname(src), "site/legal.json"), "utf8")) : {};
+const LJ = [path.join(__dirname, "legal.json"), path.join(path.dirname(src), "site/legal.json")].find((f) => fs.existsSync(f));
+const cfg = LJ ? JSON.parse(fs.readFileSync(LJ, "utf8")) : {};
 vm.runInContext("var CFGW={legal:" + JSON.stringify(cfg) + "}", ctx);
 const P = {
   priv: { ro: ["confidentialitate.html", "Politica de confidențialitate"], en: ["privacy.html", "Privacy policy"] },

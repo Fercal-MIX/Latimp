@@ -9,7 +9,7 @@
 <div class="ov" id="ov" onclick="closeSheet(event)"><div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="gr" id="gr"></div><div id="sb"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
-const VER="1.20",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
+const VER="1.21",K="buzunar.v2",K1="buzunar.v1",FREE_ITEMS=20,FREE_CARS=1,FREE_PHOTOS=3,FREE_IDEAS=3,DAY=864e5,ORDER=["agenda","free","more"];
 const fresh=()=>({cars:[],saved:[],items:[],pro:false,credits:0,used:0,day:"",photos:0,theme:"auto",warn:30,onb:false,stats:false,aic:0,inv:null,fam:null,acct:null,nt:{d:7,h:"09:00",rep:false,n:3,i:7,day:false,wk:false},ui:{fs:"n",simple:false,motion:"auto"},nl:0,wkd:"",aiq:0,sub:null,prof:null,nh:[],np:"",ppl:{},bud:null,nd:"",lang:"ro",tl:[],ch:null,poll:null,ref:"",rfu:0,rfg:0,bx:null,bw:false,rep:0,at:0,st:{first:"",days:{},adds:0,reads:0,taps:{}}});
 let S=fresh(),TAB="agenda",FIL="all",FSEG="ideas",VIEW="main",DEV=false,first=true,PSEG=0;
 const $=i=>document.getElementById(i);
@@ -18,11 +18,15 @@ const pd=s=>{const[a,b,c]=s.split("-").map(Number);return new Date(a,b-1,c)};
 const td=()=>{const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate())};
 const fmt=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const plus=n=>{const d=td();d.setDate(d.getDate()+n);return fmt(d)};
-const left=s=>Math.round((pd(s)-td())/DAY);
-const nice=s=>pd(s).toLocaleDateString(LOC(),{day:"numeric",month:"short"});
+/* zilele rămase: memorate pe zi (se calculează de sute de ori la fiecare afișare a agendei) */
+const LFC={d:"",m:new Map()};
+const left=s=>{const t=td(),k=t.getFullYear()*400+t.getMonth()*32+t.getDate();if(LFC.d!==k){LFC.d=k;LFC.m.clear()}let v=LFC.m.get(s);if(v===undefined){v=Math.round((pd(s)-t)/DAY);if(LFC.m.size<5000)LFC.m.set(s,v)}return v};
+/* formatoarele de dată și sumă se creează o singură dată pe limbă (toLocaleString creează unul nou la fiecare apel și e lent) */
+const FMTC={},fmtr=(k,mk)=>{const l=LOC(),id=l+"|"+k;return FMTC[id]||(FMTC[id]=mk(l))};
+const nice=s=>fmtr("ds",l=>new Intl.DateTimeFormat(l,{day:"numeric",month:"short"})).format(pd(s));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money=n=>n.toLocaleString(LOC(),{maximumFractionDigits:0});
+const money=n=>fmtr("m0",l=>new Intl.NumberFormat(l,{maximumFractionDigits:0})).format(n);
 const addM=(d,n,a)=>{const y=d.getFullYear(),m=d.getMonth()+n,dim=new Date(y,m+1,0).getDate();return new Date(y,m,Math.min(a||d.getDate(),dim))};
 const mon=x=>x.c=="y"?x.p/12:x.p;
 const okDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||"")&&fmt(pd(s))==s;

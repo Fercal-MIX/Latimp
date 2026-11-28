@@ -3,7 +3,7 @@
 .chn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--ac) 8%,transparent);font-size:14px}
 .chn b{font-weight:700}
 .chn.no{background:color-mix(in srgb,var(--wa,#b26b00) 12%,transparent)}
-.chn button{margin-left:auto}
+.chn button{margin-left:auto;min-height:40px;padding:0 14px}
 .prm{font-size:44px;line-height:1;margin:4px 0 8px}
 </style>
 <script>
@@ -14,7 +14,10 @@
    - mesajele care nu sunt memento-uri au comutatoare separate */
 const remTagX=x=>"~"+x.id+(actCode(x)?"~"+actCode(x):"");
 const actCode=x=>!x||x.ex?"":x.g=="fac"||x.g=="fis"?"p":x.g=="auto"||x.g=="doc"?"r":x.g=="casa"||x.g=="san"?"f":x.g=="per"&&!x.auto?"g":"";
-const chOn=()=>WEB&&((typeof pushState=="function"&&pushState()=="on")||!!S.nt.mail);
+/* starea notificărilor se citește o dată la 2 secunde, nu pentru fiecare card */
+let CHM=0,CHV=false;const chOn=()=>{if(!WEB)return false;const n=Date.now();if(n-CHM>2000){CHM=n;CHV=(typeof pushState=="function"&&pushState()=="on")||!!S.nt.mail}return CHV};
+const chReset=()=>{CHM=0};
+{const sv9=save;save=function(){CHM=0;return sv9.apply(this,arguments)}}
 function chText(){
  if(!WEB)return "în aplicație";
  const p=typeof pushState=="function"&&pushState()=="on",m=!!S.nt.mail;
@@ -38,7 +41,7 @@ function chLine(c){
  return l.sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
 
 /* memento de test peste o oră */
-function testRem(){
+function testRem(){chReset();
  if(!chOn()){toast("Pornește întâi notificările sau e-mailul");return}
  const d=new Date(Date.now()+60*60000);d.setSeconds(0,0);S.nt.test=d.toISOString();save();remSync.last="";remSync();render();
  toast("Programat la "+d.toLocaleTimeString(LOC(),{hour:"2-digit",minute:"2-digit"})+". Poți închide aplicația.")}

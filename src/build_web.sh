@@ -1,15 +1,16 @@
 #!/bin/bash
 set -e
-D=/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad
-B=/mnt/user-data/outputs/latimp-brand/icons
+D="$(cd "$(dirname "$0")" && pwd)"
+P=$D; [ -d $D/parts ] && [ ! -f $D/q1.html ] && P=$D/parts
+B=${LT_ICONS:-/mnt/user-data/outputs/latimp-brand/icons}
 cd $D && bash build.sh >/dev/null
 W=$D/web; rm -rf $W; mkdir -p $W/icons
-cp $B/pwa/icon-192.png $B/pwa/icon-512.png $B/pwa/icon-maskable-512.png $B/pwa/apple-touch-icon-180.png $B/favicon/favicon.svg $B/favicon/favicon-32.png $B/favicon/favicon.ico $W/icons/
-VER=$(grep -o 'const VER="[^"]*"' q2.html | cut -d'"' -f2)
-python3 - "$W" "$VER" <<'PY'
+if [ -d $B/pwa ]; then cp $B/pwa/icon-192.png $B/pwa/icon-512.png $B/pwa/icon-maskable-512.png $B/pwa/apple-touch-icon-180.png $B/favicon/favicon.svg $B/favicon/favicon-32.png $B/favicon/favicon.ico $W/icons/; else cp $D/../icons/* $W/icons/; fi
+VER=$(grep -o 'const VER="[^"]*"' $P/q2.html | cut -d'"' -f2)
+python3 - "$W" "$VER" "$D" <<'PY'
 import sys,json
-W,VER=sys.argv[1],sys.argv[2]
-body=open("/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/new.html").read()
+W,VER,D=sys.argv[1],sys.argv[2],sys.argv[3]
+body=open(D+"/new.html").read()
 body=body.replace('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">','<style>@font-face{font-family:"Plus Jakarta Sans";src:url("fonts/plus-jakarta-sans.woff") format("woff");font-weight:200 800;font-style:normal;font-display:swap}</style>').replace('<title>LaTimp</title>\n','').replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
 head=f'''<!doctype html><html lang="ro"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -37,7 +38,7 @@ open(W+"/index.html","w").write(head+body+"\n</body></html>\n")
 m={"name":"LaTimp","short_name":"LaTimp","description":"Termenele, plățile și zilele importante la timp, plus idei pentru timpul liber.","lang":"ro","dir":"ltr","id":"./","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#11523a","theme_color":"#eff1f2","categories":["productivity","lifestyle","finance"],
 "icons":[{"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
 json.dump(m,open(W+"/manifest.webmanifest","w"),ensure_ascii=False,indent=1)
-sw=open("/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/sw.tpl.js").read().replace("__VER__",VER)
+sw=open(D+"/sw.tpl.js").read().replace("__VER__",VER)
 open(W+"/sw.js","w").write(sw)
 open(W+"/.nojekyll","w").write("")
 open(W+"/404.html","w").write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./"><title>LaTimp</title>')
@@ -52,7 +53,7 @@ s=s.replace('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?fami
 assert 'fonts.g' not in s
 open(p,'w').write(s)
 PY2
-node $D/site/gen_legal.js $D/q7l.html $W
+node $D/site/gen_legal.js $P/q7l.html $W
 python3 $D/min_web.py $W
 python3 $D/build_admin.py $D/admin_panel.html $W/admin.html
 node --check $W/sw.js
