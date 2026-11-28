@@ -6,6 +6,9 @@ import webpush from "npm:web-push@3.6.7";
 import nodemailer from "npm:nodemailer@6.9.16";
 
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
+const BASE = "https://fercal-mix.github.io/Latimp/";
+const ACT_RO: Record<string, string> = { p: "Am plătit", r: "Am reînnoit", f: "Am făcut", g: "Gata" };
+const ACT_EN: Record<string, string> = { p: "Paid", r: "Renewed", f: "Done", g: "Done" };
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
 Deno.serve(async (req) => {
@@ -26,16 +29,25 @@ Deno.serve(async (req) => {
   if (!due?.length) return json({ ok: true, due: 0, sent: 0 });
 
   const users = [...new Set(due.map((r) => r.user_id))];
-  const { data: subs } = await db.from("push_subs").select("id,user_id,endpoint,p256dh,auth,fails").in("user_id", users);
+  const { data: subs } = await db.from("push_subs").select("id,user_id,endpoint,p256dh,auth,fails,lang").in("user_id", users);
   let sent = 0, gone = 0, mailed = 0;
-  const done: number[] = [];
+  const done: number[] = [], okIds: number[] = [];
   for (const r of due) {
     const mine = (subs || []).filter((s) => s.user_id === r.user_id);
-    const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag || ("r" + r.id), url: "./?from=push" });
+    // eticheta „lt-<timp>~<id termen>~<p|r|f|g>” spune ce termen deschide notificarea și ce buton are („Am plătit” etc.)
+    const m = /~([A-Za-z0-9_-]{3,40})(?:~([prfg]))?$/.exec(r.tag || "");
+    const it = m?.[1] || "", act = m?.[2] || "";
+    const link = BASE + "?from=push" + (it ? "&it=" + encodeURIComponent(it) : "");
     for (const s of mine) {
+      const en = s.lang === "en";
+      const actions = act ? [{ action: "done", title: (en ? ACT_EN : ACT_RO)[act] }] : [];
+      // câmpurile de sus le citește service worker-ul; „notification” e formatul declarativ (Safari 18.4+), care se afișează și fără service worker
+      const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag || ("r" + r.id), url: link, it, actions,
+        web_push: 8030, notification: { title: r.title, body: r.body, navigate: link, tag: r.tag || ("r" + r.id), lang: en ? "en" : "ro" } });
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: "normal" });
         sent++;
+        if (!okIds.includes(r.id)) okIds.push(r.id);
         await db.from("push_subs").update({ last_ok: now.toISOString(), fails: 0 }).eq("id", s.id);
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode || 0;
@@ -72,10 +84,14 @@ Deno.serve(async (req) => {
           `<p style="margin:14px 0 0;font-size:13px;color:#5c6253">Oprești memento-urile pe e-mail din aplicație: Mai mult → Notificări.</p></div>`;
         await tr.sendMail({ from: { name: "LaTimp", address: su! }, to, subject, text, html });
         mailed++;
+        for (const r of list) if (!okIds.includes(r.id)) okIds.push(r.id);
       } catch (e) { console.error("mail", String(e).slice(0, 200)); }
     }
   }
   // marcate ca trimise chiar dacă utilizatorul nu are abonare: nu se trimit mai târziu, întârziat
   for (let i = 0; i < done.length; i += 200) await db.from("reminders").update({ sent_at: now.toISOString() }).in("id", done.slice(i, i + 200));
+  // ajuns pe cel puțin un telefon: folosit în panou (timpul până la primul memento livrat)
+  for (let i = 0; i < okIds.length; i += 200) await db.from("reminders").update({ delivered: true }).in("id", okIds.slice(i, i + 200));
+  if (okIds.length) { const us = [...new Set(due.filter((r) => okIds.includes(r.id)).map((r) => r.user_id))]; await db.rpc("note_delivered", { p_users: us }); }
   return json({ ok: true, due: due.length, sent, gone, mailed });
 });

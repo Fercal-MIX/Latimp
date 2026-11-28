@@ -1,0 +1,81 @@
+<style>
+/* 1.20: Timp liber cu context */
+.itg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rf{margin:4px 0 14px}
+.rf .chips{margin-top:6px}
+.evl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.evl a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:99px;background:var(--card);box-shadow:inset 0 0 0 1px var(--ln);color:inherit;font-weight:700;text-decoration:none}
+.evl a:after{content:"↗";margin-left:6px;opacity:.7;font-weight:400}
+.hw{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+</style>
+<script>
+/* ---------- 1.20: Timp liber: context pe idei, rafinare, evenimente reale, vot pe link fără cont, „cum a fost?” ---------- */
+const OUTW=/\b(parc|drumeți|plimbare|afară|traseu|munte|lac|pădure|bicicl|picnic|piață|târg|tren|oraș|grădin|ștrand|excursie|alergare|plajă|zoo|cort în curte)/i;
+const INW=/\b(acasă|în casă|sufragerie|bucătărie|film|joc de societate|jocuri de societate|carte|muzeu|cinema|teatru|cafenea|atelier|podcast|stretching|baie)/i;
+function ideaWhere(x){const t=(x.t||"")+" "+(x.d||"");if(OUTW.test(t)&&!/muzeu|cinema|teatru|cafenea/i.test(t))return"out";if(INW.test(t))return"in";const k=(sitObj().c||{}).k;return k=="out"?"out":k=="home"?"in":""}
+function ideaPrice(c){const s=String(c||"").toLowerCase();if(/gratis|gratuit|(^|[^0-9])0 lei/.test(s))return 0;const m=s.match(/(\d+)/);return m?+m[1]:null}
+function ideaDur(x){const t=((x.t||"")+" "+(x.d||"")).toLowerCase();if(/weekend|cazare|două zile/.test(t))return"weekend";if(/o zi|de o zi|toată ziua|tren|drumeție|excursie/.test(t))return"o zi";if(/seară|seara|cină/.test(t))return"o seară";if(/minute|o oră|1 oră|scurt/.test(t))return"sub o oră";return""}
+function ideaTags(x){const w=ideaWhere(x),p=ideaPrice(x.c),d=ideaDur(x),a=[];
+ if(w)a.push(w=="out"?"afară":"în casă");if(p!==null)a.push(p==0?"gratis":p<=50?"sub 50 lei":p<=150?"sub 150 lei":"peste 150 lei");if(d)a.push(d);
+ if(w=="out"&&(FLT.wx=="Ploaie"||FLT.wx=="Frig"))a.push("verifică vremea");
+ return a}
+{const ic1=ideaCard;ideaCard=function(x,i,saved){let h=ic1(x,i,saved);if(!saved&&sitObj().c.k=="say")return h;const a=ideaTags(x).filter(t=>!(x.c&&t==String(x.c).toLowerCase()));if(!a.length)return h;
+ const k='<div class="acts">',j=h.lastIndexOf(k);return j<0?h:h.slice(0,j)+`<div class="itg">${a.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>`+h.slice(j)}}
+
+/* rafinare: mai ieftin, mai scurt, în casă, vreme rea */
+const BSTEP=["Orice buget","Sub 150 lei","Sub 50 lei","Gratis"],TSTEP=["Weekend","O zi","O seară","1 oră"];
+function refine(k){
+ if(k=="cheap"){const i=Math.max(0,BSTEP.indexOf(BUD));BUD=BSTEP[Math.min(BSTEP.length-1,i+1)]}
+ if(k=="short"){const i=TSTEP.indexOf(FLT.time);FLT.time=TSTEP[Math.min(TSTEP.length-1,i<0?1:i+1)]}
+ if(k=="in"){if(CAT!="home"&&CAT!="me"){CAT="home";SIT=CATS.find(c=>c.k=="home").s[0][0]}FLT.wx=FLT.wx||"Ploaie"}
+ if(k=="rain"){FLT.wx="Ploaie";if(CAT=="out"){CAT="home";SIT=CATS.find(c=>c.k=="home").s[0][0]}}
+ ADJ=true;tap("refine");askIdeas()}
+function refineBar(){return `<div class="rf"><div class="mu sm">Nu e ce cauți?</div><div class="chips">${[["cheap","Mai ieftin"],["short","Mai scurt"],["in","În casă"],["rain","Vreme rea"]].map(([k,n])=>`<button onclick="refine('${k}')"${BUSY?" disabled":""}>${n}</button>`).join("")}</div></div>`}
+
+/* evenimente reale: doar legături spre site-urile care le publică (fără preluarea listelor) */
+const EVL0=[["Zile și Nopți","https://zilesinopti.ro"],["iabilet","https://www.iabilet.ro"],["Fever București","https://feverup.com/en/bucuresti"]];
+const evL=()=>{const r=CNT&&CNT.rules&&Array.isArray(CNT.rules.events)?CNT.rules.events:EVL0;return r.filter(a=>Array.isArray(a)&&a[0]&&/^https:\/\/[^\s"'<>]+$/.test(a[1]||"")).slice(0,5)};
+function evCard(){const L=evL();if(!L.length)return"";return `<div class="card"><strong>Evenimente reale</strong><div class="mu" style="margin-top:4px">Concerte, spectacole și ieșiri de weekend, pe site-urile care le publică.</div><div class="evl">${L.map(a=>`<a href="${esc(a[1])}" target="_blank" rel="noopener noreferrer" onclick="tap('events')">${esc(a[0])}</a>`).join("")}</div></div>`}
+
+{const iv1=ideasView;ideasView=function(){let h=iv1();const say=sitObj().c.k=="say";if(say)return h;
+ if(IDEAS.length&&!(BUSY&&!BM)){const g=h.indexOf('<div class="gt">Idei ·');if(g>=0){const n=h.indexOf('<div class="note">',g);if(n>=0)h=h.slice(0,n)+refineBar()+h.slice(n)}}
+ if(CAT=="out"||CAT=="soc")h+=evCard();
+ return h}}
+
+/* ideile locale respectă bugetul, durata și vremea */
+{const fb1=fallback;fallback=function(){let a=fb1();const k=sitObj().c.k;if(k=="say")return a;
+ const lim=BUD=="Gratis"?0:BUD=="Sub 50 lei"?50:BUD=="Sub 150 lei"?150:null;
+ const f=(l,fn)=>{const r=l.filter(fn);return r.length>=2?r:l};
+ if(lim!==null)a=f(a,x=>{const p=ideaPrice(x.c);return p!==null&&p<=lim});
+ if(FLT.time=="1 oră"||FLT.time=="O seară")a=f(a,x=>!/o zi|weekend/.test(ideaDur(x)));
+ if(FLT.wx=="Ploaie"||FLT.wx=="Frig")a=f(a,x=>ideaWhere(x)!="out");
+ return a}}
+
+/* vot pe link: prietenii votează din browser, fără cont */
+const voteURL=()=>S.poll?"https://fercal-mix.github.io/Latimp/vot.html?c="+S.poll.c:"";
+function voteShare(){if(!S.poll)return;const u=voteURL(),t="Ce facem? Votează aici, fără cont: "+u;
+ try{if(navigator.share){navigator.share({title:"Votează planul",text:"Ce facem? Votează aici, fără cont.",url:u}).catch(()=>{});return}}catch(e){}
+ try{navigator.clipboard.writeText(t).then(()=>toast("Linkul a fost copiat. Trimite-l prietenilor."),()=>toast(u))}catch(e){toast(u)}}
+const waURL=()=>"https://wa.me/?text="+encodeURIComponent("Ce facem? Votează aici, fără cont: "+voteURL());
+{const pc1=pollCard;pollCard=function(){let h=pc1();if(!S.poll||!WEB)return h;
+ h=h.replace(/Prietenii îl introduc în LaTimp, la Timp liber › Salvate\./,"Prietenii votează din linkul trimis de tine, fără cont, sau cu codul în LaTimp.");
+ h=h.replace(`<button onclick="pollCopy()">Copiază codul</button>`,`<button onclick="voteShare()">Trimite linkul</button><a href="${esc(waURL())}" target="_blank" rel="noopener noreferrer" onclick="tap('wa')">WhatsApp</a><button class="g" onclick="pollCopy()">Copiază codul</button>`);
+ return h}}
+if(WEB){
+ const pv1=pvLoad;pvLoad=async function(){await pv1();if(!onCloud()||!S.poll)return;
+  try{const{data,error}=await SB.from("poll_guest_votes").select("opt,tm,name").eq("poll_owner",SBU.id);if(error)return;
+   const g=(data||[]).map(r=>({o:r.opt,t:r.tm,n:r.name,g:1})),base=POLLV.filter(v=>!v.g),all=base.concat(g);
+   if(JSON.stringify(all)!=JSON.stringify(POLLV)){POLLV=all;if(FSEG=="saved"&&TAB=="free")soft()}}catch(e){}};
+ const pm1=pollMake;pollMake=async function(){await pm1();if(S.poll&&$("ov")&&!$("ov").classList.contains("on"))setTimeout(voteShare,300)};
+}
+
+/* „cum a fost?”: după o ieșire aleasă la vot, o întrebare scurtă în Agendă */
+{const cd4=card;card=function(x,allow){let h=cd4(x,allow);
+ if(x.g=="per"&&x.t=="ev"&&!x.rt&&/^Ales la vot/.test(x.note||"")&&okDate(x.d)&&left(x.d)<0&&left(x.d)>=-14){
+  const q=`<div class="hw"><span class="mu">Cum a fost?</span><button class="g" onclick="howWas('${x.id}',2)">Grozav</button><button class="g" onclick="howWas('${x.id}',1)">Așa și așa</button></div>`;
+  const k='<div class="acts">',j=h.lastIndexOf(k);if(j>0)h=h.slice(0,j)+q+h.slice(j)}
+ return h}}
+function howWas(id,v){const x=S.items.find(i=>i.id==id);if(!x)return;x.rt=v;save();render();
+ if(v==2){openSheet(`<h2>Mă bucur!</h2><div class="mu">Facem din nou ceva împreună? Salvează idei noi și pornește încă un vot.</div><button class="btn" onclick="closeSheet();FSEG='ideas';tab('free')">Idei noi</button><button class="btn alt" onclick="closeSheet()">Mai târziu</button>`,"how")}
+ else toast("Notat. Data viitoare încercăm altceva.")}
+</script>

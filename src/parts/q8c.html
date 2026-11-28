@@ -1,0 +1,32 @@
+<script>
+/* ---------- 1.20: prima experiență și recapitularea lunară ---------- */
+/* primii pași: întâi un termen adevărat, apoi calea memento-ului; pe iPhone instalarea vine înainte, fiindcă notificările cer aplicația pe ecranul principal */
+{const fs1=fsSteps;fsSteps=function(){const l=fs1(),g=k=>l.find(s=>s.k==k),o=[g("add")];
+ if(WEB&&typeof isIOS=="function"&&isIOS())o.push(g("inst"),g("nt"));else o.push(g("nt"),g("inst"));
+ o.push(g("idea"));return o.filter(Boolean)}}
+
+/* fără acces la bancă: spus de la început */
+{const ob1=drawOb;drawOb=function(){const r=ob1.apply(this,arguments);const sb=$("sb");if(sb&&$("sheet").dataset.k=="onb"&&!$("obnb")){const m=sb.querySelector(".mu");if(m)m.insertAdjacentHTML("afterend",`<div class="note" id="obnb">Nu cerem acces la contul tău bancar. Tu scrii datele, LaTimp le ține minte.</div>`)}return r}}
+
+/* recapitularea lunară: pe 1 ale lunii, ce urmează în luna asta (un mesaj care nu e memento; se oprește din Notificări) */
+const MR_ON=()=>S.nt.mr!==false;
+function mrTg(){S.nt.mr=!MR_ON();save();render()}
+function mrPlan(){
+ if(!MR_ON())return[];
+ const out=[],now=Date.now(),en=S.lang=="en",[h,m]=ntH().split(":").map(Number),pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0,t0=td();
+ for(let i=1;i<=2;i++){
+  const at=new Date(t0.getFullYear(),t0.getMonth()+i,1,h,m,0,0),t=+at;if(t<=now+60000||t>now+60*DAY||t<pz)continue;
+  const s=+new Date(at.getFullYear(),at.getMonth(),1),e=+new Date(at.getFullYear(),at.getMonth()+1,1);
+  const l=S.items.filter(x=>!x.ex&&!x.mu&&okDate(x.d)&&+pd(x.d)>=s&&+pd(x.d)<e).sort((a,b)=>+pd(a.d)-+pd(b.d));
+  const fc=typeof fcData=="function"?fcData().M.find(z=>+z.d==s):null,sum=fc?Math.round(fc.v):0;
+  if(!l.length&&!sum)continue;
+  const mo=en?at.toLocaleDateString("en-GB",{month:"long"}):MONL[at.getMonth()];
+  const first=l[0]?String(ttl(l[0])||"").slice(0,40):"";
+  const body=en?`In ${mo}: ${l.length} ${l.length==1?"due date":"due dates"}${sum?", about "+sum+" lei to pay":""}.${first?" First: "+first+", on the "+pd(l[0].d).getDate()+".":""}`
+   :`În ${mo}: ${l.length==1?"un termen":l.length+" termene"}${sum?", cam "+sum.toLocaleString("ro-RO")+" lei de plătit":""}.${first?" Primul: "+first+", pe "+pd(l[0].d).getDate()+".":""}`;
+  out.push({at:at.toISOString(),title:en?"Your month":"Luna ta",body:body.slice(0,300),tag:"lt-mr-"+t})}
+ return out}
+if(WEB){const rp3=remPlan;remPlan=function(){return rp3().concat(mrPlan()).sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
+{const nv4=notifView;notifView=function(){let h=nv4();const row=rw("Recapitulare lunară","Pe 1 ale lunii: câte termene urmează și cât ai de plătit în luna aceea.",swb(MR_ON(),"Recapitulare lunară","mrTg()"));
+ const k='<div class="gt">Alte mesaje, nu memento-uri</div><div class="grp">',i=h.indexOf(k);return i<0?h:h.slice(0,i+k.length)+row+h.slice(i+k.length)}}
+</script>

@@ -382,7 +382,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
     <div id="cc_lists"></div>
     <button class="b s" id="cc_addlist">Adaugă o listă</button>
   </div>
-  <div class="savebar"><button class="b" id="cc_save">Salvează conținutul</button><span class="mut" id="cc_at"></span></div>
+  <h3 style="margin-top:22px">Reguli pentru termene</h3><p class="mut">Durate, linkuri oficiale, memento-uri recomandate și sfaturi pentru termenele românești. Gol = regulile din aplicație. Scrii doar ce schimbi (de exemplu prețurile rovinietei), restul rămâne implicit. Linkurile trebuie să înceapă cu https://.</p><textarea id="cc_rules" rows="10" spellcheck="false" style="font-family:ui-monospace,monospace;font-size:13px" placeholder="{ }"></textarea><div class="row" style="margin-top:6px"><button class="b g sm" id="cc_rules_def" type="button">Pune regulile implicite</button><span class="mut" id="cc_rules_e"></span></div><div class="savebar"><button class="b" id="cc_save">Salvează conținutul</button><span class="mut" id="cc_at"></span></div>
   </div>
   <div>
   <h2 style="margin-top:22px">Texte din aplicație</h2>
@@ -486,7 +486,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
 <section id="statistici">
   <div class="row" style="justify-content:space-between"><h2>Statistici de folosire</h2><button class="b s sm" id="st_ref">Reîncarcă</button></div>
   <div class="kpis" id="st_kpis"></div>
-  <div class="card"><h3>Cât revin utilizatorii</h3><div id="st_ret"></div></div>
+  <div class="card"><h3>Activare și primul memento</h3><p class="mut">Activ = are cel puțin un memento programat: un termen cu dată și notificări sau e-mail pornite. Numărate pe server, fără date din agendă.</p><div id="st_act"></div></div><div class="card"><h3>Cât revin utilizatorii</h3><div id="st_ret"></div></div>
   <div class="card"><h3>Funcțiile folosite cel mai mult</h3><p class="mut">Din statisticile trimise de aplicație: câți utilizatori au folosit funcția și de câte ori în total.</p><div id="st_feat"></div></div>
   <div class="card"><h3>Test de preț A/B</h3><div id="st_ab"></div></div>
 </section>
@@ -678,7 +678,7 @@ function go(t){
   tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));
   document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.id===t));
   if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);
-  ({lansari:loadLaunch,recomandari:loadRef,erori:loadErr,continut:loadContent,programari:loadSched,venituri:loadRev,ai:loadAI,server:loadHealth,planuri:loadPlans,coduri:loadInv,utilizatori:loadUsers,rapoarte:loadRep,statistici:loadStats,istoric:loadHist}[t]||(()=>{}))();
+  ({lansari:loadLaunch,recomandari:loadRef,erori:loadErr,continut:loadContent,programari:loadSched,venituri:loadRev,ai:loadAI,server:loadHealth,planuri:loadPlans,coduri:loadInv,utilizatori:loadUsers,rapoarte:loadRep,statistici:()=>{loadStats();loadAct()},istoric:loadHist}[t]||(()=>{}))();
 }
 tabs.forEach(b=>b.onclick=()=>go(b.dataset.t));
 
@@ -1215,10 +1215,11 @@ async function loadContent(){
 }
 function fillContent(){
   const c=content.challenge||{};$('cc_month').value=c.month||'';$('cc_title').value=c.title||'';$('cc_text').value=c.text||'';$('cc_steps').value=(c.steps||[]).join('\n');
-  $('cc_ideas').value=(content.fallback_ideas||[]).map(x=>typeof x==='string'?x:x.text).join('\n');ideasN();renderLists();
+  $('cc_rules').value=content.rules&&Object.keys(content.rules).length?JSON.stringify(content.rules,null,1):'';$('cc_ideas').value=(content.fallback_ideas||[]).map(x=>typeof x==='string'?x:x.text).join('\n');ideasN();renderLists();
 }
 function ideasN(){const n=lines($('cc_ideas').value).length;$('cc_ideas_n').textContent=n?n+(n===1?' idee':' idei'):'Nicio idee: aplicația folosește ideile ei de rezervă.'}
 $('cc_ideas').oninput=ideasN;
+$('cc_rules_def').onclick=()=>{$('cc_rules').value=JSON.stringify({  "v": "2026-11",  "rov": {   "dur": [    [     1,     "1 zi"    ],    [     10,     "10 zile"    ],    [     30,     "30 de zile"    ],    [     60,     "60 de zile"    ],    [     365,     "12 luni"    ]   ],   "p12": {    "ev": 228,    "e6": 254,    "e45": 292,    "e03": 330   },   "note": "Din 1 octombrie 2026 rovinieta pentru autoturisme se cumpără doar de pe etoll.ro sau din aplicația TollRo. Prețul depinde de norma Euro."  },  "itp": {   "first": 36,   "next": 24,   "old": 12,   "oldAge": 12  },  "links": {   "rca": [    [     "Verifică RCA pe AIDA",     "https://www.aida.info.ro"    ]   ],   "rov": [    [     "Rovinietă pe etoll.ro (oficial)",     "https://www.etoll.ro"    ]   ],   "itp": [    [     "RAR: stații ITP",     "https://www.rarom.ro"    ]   ],   "imp": [    [     "Plătește pe ghiseul.ro",     "https://www.ghiseul.ro"    ]   ],   "imp2": [    [     "Plătește pe ghiseul.ro",     "https://www.ghiseul.ro"    ]   ],   "pad": [    [     "Verifică PAD (PAID)",     "https://www.padrom.ro"    ]   ],   "du": [    [     "ANAF: Spațiul Privat Virtual",     "https://www.anaf.ro"    ]   ],   "ci": [    [     "Programare pe HUB MAI",     "https://hub.mai.gov.ro"    ]   ],   "pas": [    [     "Programare pe HUB MAI",     "https://hub.mai.gov.ro"    ]   ],   "pc": [    [     "Programare pe HUB MAI",     "https://hub.mai.gov.ro"    ]   ]  },  "early": {   "rca": 30,   "rov": 7,   "itp": 30,   "ci": 60,   "pas": 60,   "pc": 60,   "pad": 12,   "imp": 14,   "imp2": 14,   "du": 21,   "igz": 30,   "rgz": 30,   "cen": 30  },  "tips": {   "rca": "Fără RCA valabil, amenda e de 1.000–2.000 de lei și poliția reține plăcuțele. Verifici gratuit pe AIDA, după număr sau serie de șasiu.",   "itp": "Când ITP-ul expiră, înmatricularea se suspendă automat. Primul ITP vine la 3 ani de la prima înmatriculare, apoi la 2 ani; după 12 ani, în fiecare an.",   "pad": "Polița PAD nouă intră în vigoare abia în a 5-a zi după plată, așa că reînnoiește din timp. Costă 130 de lei (tip A) sau 50 de lei (tip B) pe an.",   "igz": "Verificarea instalației de gaz se face la 2 ani, iar revizia la 10 ani. Fără ele riști amenzi de 2.000–4.000 de lei și oprirea gazului.",   "rgz": "Revizia instalației de gaz se face la 10 ani, de o firmă autorizată ANRE. Verificarea, separat, la 2 ani.",   "du": "Declarația unică se depune până la 25 mai. Dacă o depui și plătești tot până la 15 aprilie, primești o reducere de 3%. Termenele exacte sunt pe site-ul ANAF.",   "imp": "Impozitul local se plătește în două rate: 31 martie și 30 septembrie. Plătit integral până la 31 martie, multe primării dau o reducere (de obicei 10%).",   "idx": "Indexul se transmite într-o fereastră lunară: Hidroelectrica, de regulă între 24 și 28; E.ON gaz, între 22 și 26. Fereastra exactă e pe factură. Cu contor inteligent nu e nevoie.",   "ci": "Din 1 august 2026 se eliberează cartea electronică de identitate. Buletinele vechi (fără cip) rămân valabile până la data de pe ele, dar din 3 august 2031 nu mai pot fi folosite pentru călătorii în UE."  },  "fx": {   "EUR": 5,   "USD": 4.6,   "GBP": 5.9,   "CHF": 5.4  } },null,1);$('cc_rules_e').textContent='Regulile implicite. Schimbă ce vrei, apoi salvează.'};
 function renderLists(){
   const L=content.try_lists||[];
   $('cc_lists').innerHTML=L.length?L.map((l,i)=>'<div class="tx"><div class="row"><input type="text" data-ln="'+i+'" value="'+esc(l.name||'')+'" maxlength="50" placeholder="Numele listei" style="flex:1 1 200px"><button class="b d sm" data-lrm="'+i+'">Șterge lista</button></div><label class="f" for="li_'+i+'">Ce e în listă (câte una pe rând)</label><textarea id="li_'+i+'" data-li="'+i+'" style="font:15px/1.5 Manrope,sans-serif">'+esc((l.items||[]).join('\n'))+'</textarea></div>').join(''):'<div class="empty">Nicio listă. Aplicația le folosește pe ale ei.</div>';
@@ -1228,7 +1229,8 @@ $('cc_addlist').onclick=()=>{content.try_lists=readLists();content.try_lists.pus
 $('cc_lists').addEventListener('click',e=>{const b=e.target.closest('[data-lrm]');if(!b)return;if(!sure(b,'Șterge lista'))return;content.try_lists=readLists();const i=+b.dataset.lrm;const all=[...document.querySelectorAll('[data-ln]')].map(x=>+x.dataset.ln);content.try_lists=all.filter(x=>x!==i).map(x=>({name:document.querySelector('[data-ln="'+x+'"]').value.trim(),items:lines(document.querySelector('[data-li="'+x+'"]').value)}));renderLists()});
 $('cc_save').onclick=e=>act(e.target,async()=>{
   const m=$('cc_month').value;if(m&&!/^\d{4}-\d{2}$/.test(m))throw new Error('Alege luna provocării.');
-  const next={...content,challenge:{month:m,title:$('cc_title').value.trim(),text:$('cc_text').value.trim(),steps:lines($('cc_steps').value)},fallback_ideas:lines($('cc_ideas').value),try_lists:readLists()};
+  let rules=null;const rt=$('cc_rules').value.trim();if(rt){try{rules=JSON.parse(rt)}catch(x){throw new Error('Regulile nu sunt JSON valid: '+x.message)}if(!rules||typeof rules!=='object'||Array.isArray(rules))throw new Error('Regulile trebuie să fie un obiect JSON: { ... }.')}
+  const next={...content,challenge:{month:m,title:$('cc_title').value.trim(),text:$('cc_text').value.trim(),steps:lines($('cc_steps').value)},fallback_ideas:lines($('cc_ideas').value),try_lists:readLists()};if(rules)next.rules=rules;else delete next.rules;
   content=await fn("admin.set_key('content', "+lit(JSON.stringify(next))+'::jsonb)');fillContent();$('cc_at').textContent='Salvat la '+new Date().toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});toast('Conținut salvat');
 });
 function fillTexts(){
@@ -1493,7 +1495,11 @@ async function loadStats(){
     $('st_ab').innerHTML=AB.length?AB.map(g=>'<div class="hb"><b>Grupul '+esc(g.g)+'</b><div class="meter"><i style="width:'+(g.users?g.paid/g.users*100:0)+'%"></i></div><span>'+esc(pctOf(g.paid,g.users))+' <span class="mut">plătesc ('+esc(g.paid)+' din '+esc(g.users)+')</span></span></div>').join(''):'<div class="empty">Niciun test de preț în desfășurare.</div>';
   });
 }
-$('st_ref').onclick=()=>loadStats();
+$('st_ref').onclick=()=>{loadStats();loadAct()};
+async function loadAct(){try{const a=await fn('admin.activation()');const P=(x,y)=>y?Math.round(x/y*100)+'%':'—';
+ const R=[['Conturi active (cu memento programat)',a.activated,a.users],['Cu notificări pe telefon',a.push,a.users],['Cu memento-uri pe e-mail',a.mail,a.users],['Au primit cel puțin un memento',a.delivered,a.users],['Revin a doua zi',a.ret1,a.cohort1]];
+ $('st_act').innerHTML=R.map(([l,x,y])=>'<div class="hb"><b>'+esc(l)+'</b><div class="meter"><i style="width:'+(y?x/y*100:0)+'%"></i></div><span>'+esc(P(x,y))+' <span class="mut">('+esc(x)+' din '+esc(y)+')</span></span></div>').join('')+
+  '<p class="mut">'+(a.hours_to_first!=null?'Primul memento ajunge, la jumătate dintre conturi, în '+esc(a.hours_to_first)+' ore de la creare.':'Încă nu a ajuns niciun memento numărat (se numără de la 28.11.2026).')+'</p>'}catch(e){$('st_act').innerHTML='<div class="empty">'+esc(errText(e))+'</div>'}}
 
 /* Istoric */
 async function loadHist(){

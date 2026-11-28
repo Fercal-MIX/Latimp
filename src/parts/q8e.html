@@ -1,0 +1,14 @@
+<script>
+/* ---------- 1.20: corectitudine la plăți (pregătit pentru când pornesc plățile) ----------
+   - fără etichete care nu se pot dovedi („Cel mai ales”); doar fapte: prețul mai mic
+   - drepturile tale lângă abonament: anulare oricând, retragere în 14 zile pentru plata pe web
+   - memento de reînnoire pentru planul anual, cu 14 zile înainte */
+PACKS.forEach(p=>{if(p[2]=="Cel mai ales")p[2]=""});
+{let bi=-1,bv=1e9;PACKS.forEach((p,i)=>{const v=parseFloat(String(p[1]).replace(",","."))/p[0];if(v<bv){bv=v;bi=i}});if(bi>=0)PACKS[bi][2]="Cel mai mic preț pe scânteie"}
+{const op1=openPlan;openPlan=function(k){const r=op1.apply(this,arguments);const sb=$("sb");if(sb)sb.querySelectorAll(".rb").forEach(e=>{if(e.textContent=="Cel mai ales")e.textContent="Mai ieftin pe lună"});return r}}
+function wdOpen(){openSheet(`<h2>Retragere din contract</h2><div class="mu">Dacă ai cumpărat Control pe web, ai 14 zile de la cumpărare să te retragi, fără să spui de ce. Primești banii înapoi în cel mult 14 zile.</div><div class="note">Pentru abonamentele din App Store sau Google Play, rambursarea se cere din magazin: App Store → Raportează o problemă; Google Play → Abonamente → Rambursare.</div><button class="btn" onclick="closeSheet();RK='Retragere din contract';reportOpen();setTimeout(()=>{RK='Retragere din contract';const t=$('rt');if(t){t.value='Vreau să mă retrag din contractul pentru Control, cumpărat pe web.';RTXT=t.value}},50)">Retrage-te din contract</button><button class="btn alt" onclick="closeSheet()">Înapoi</button>`,"wd")}
+{const sb1=subBox;subBox=function(){const h=sb1();if(!S.sub)return h;return h+`<div class="note">Anulezi reînnoirea oricând, iar accesul rămâne până la sfârșitul perioadei plătite. Te anunțăm cu 14 zile înainte de reînnoirea anuală.</div><button class="btn alt" onclick="wdOpen()">Retragere din contract (14 zile)</button>`}}
+{const rp4=remPlan;remPlan=function(){const l=rp4(),s=S.sub;if(!s||!s.auto||s.pl!="y"||!okDate(s.ren))return l;
+ const d=pd(s.ren);d.setDate(d.getDate()-14);const t=+remAt(fmt(d),0),now=Date.now(),en=S.lang=="en";if(t<=now+60000||t>now+60*DAY)return l;
+ return l.concat({at:new Date(t).toISOString(),title:"LaTimp Control",body:en?`Your yearly plan renews on ${nice(s.ren)}. You can cancel it any time in More.`:`Abonamentul anual se reînnoiește pe ${nice(s.ren)}. Îl poți anula oricând din Mai mult.`,tag:"lt-ren-"+t}).sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
+</script>

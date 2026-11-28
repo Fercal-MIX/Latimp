@@ -12,7 +12,7 @@
    async verifyOtp(o){if(o.token!="123456")return{data:{user:null,session:null},error:{status:403,message:"bad"}};const u={id:"u-"+o.email,email:o.email},s={user:u,access_token:"t"};P(sk,s);subs.forEach(f=>f("SIGNED_IN",s));return{data:{user:u,session:s},error:null}},
    async signInWithOAuth(o){__sb.oauth=o;return{data:{},error:null}},
    async signOut(){__sb.signedOut++;localStorage.removeItem(sk);subs.forEach(f=>f("SIGNED_OUT",null));return{error:null}}};
-  function from(t){if(t=="app_config"){const q={_k:"app",select(){return q},eq(c,v){q._k=v;return q},async maybeSingle(){const c=L(q._k=="content"?"fake.cnt":q._k=="texts"?"fake.txt":"fake.cfg");return{data:c?{value:c}:null,error:null}}};return q}
+  function from(t){if(t=="app_config"){const q={_k:"app",select(){return q},eq(c,v){q._k=v;return q},async maybeSingle(){if(q._k=="fx")return{data:window.__fx?{value:window.__fx}:null,error:null};const c=L(q._k=="content"?"fake.cnt":q._k=="texts"?"fake.txt":"fake.cfg");return{data:c?{value:c}:null,error:null}}};return q}
    const rec=(k,v)=>{const a=L(k)||[];a.push(v);P(k,a)};
    if(t=="poll_votes"){const q={select(){return q},async eq(){return{data:L("fake.pv")||[],error:null}}};return q}
    if(t=="polls")return{delete(){return{async eq(){__sb.pollDel=(__sb.pollDel||0)+1;return{error:null}}}}};

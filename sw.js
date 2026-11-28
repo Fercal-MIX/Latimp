@@ -1,5 +1,5 @@
 /* LaTimp: funcționare fără internet. Pagina vine de pe rețea când se poate (ca să primești versiunea nouă), altfel din copia salvată. */
-const V="latimp-1.19";
+const V="latimp-1.20";
 const CORE=["./","index.html","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable-512.png","icons/apple-touch-icon-180.png","icons/favicon.svg","icons/favicon-32.png","fonts/plus-jakarta-sans.woff","i18n-en.js"];
 const FONTS=/^https:\/\/(fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@)/;
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
@@ -17,6 +17,10 @@ self.addEventListener("fetch",e=>{
 
 /* memento-uri trimise de server */
 self.addEventListener("push",e=>{let d={};try{d=e.data?e.data.json():{}}catch(x){d={title:"LaTimp",body:e.data?e.data.text():""}}
- e.waitUntil(self.registration.showNotification(d.title||"LaTimp",{body:d.body||"",tag:d.tag||undefined,icon:"icons/icon-192.png",data:{url:d.url||"./"}}))});
-self.addEventListener("notificationclick",e=>{e.notification.close();const u=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href;
- e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(cs=>{for(const c of cs){if(c.url.startsWith(self.registration.scope)&&"focus" in c)return c.focus()}return self.clients.openWindow(u)}))});
+ const n=d.notification||{},o={body:d.body||n.body||"",tag:d.tag||n.tag||undefined,icon:"icons/icon-192.png",badge:"icons/icon-192.png",data:{url:d.url||n.navigate||"./",it:d.it||""}};
+ if(Array.isArray(d.actions)&&d.actions.length)o.actions=d.actions.slice(0,2);
+ e.waitUntil(self.registration.showNotification(d.title||n.title||"LaTimp",o))});
+self.addEventListener("notificationclick",e=>{e.notification.close();const dt=e.notification.data||{},done=e.action=="done";
+ let u=new URL(dt.url||"./",self.registration.scope);if(done&&dt.it)u.searchParams.set("done","1");u=u.href;
+ const msg={lt:"open",it:dt.it||"",done:done};
+ e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(cs=>{for(const c of cs){if(c.url.startsWith(self.registration.scope)&&"focus" in c){try{c.postMessage(msg)}catch(x){}return c.focus()}}return self.clients.openWindow(u)}))});

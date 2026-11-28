@@ -1,0 +1,94 @@
+<style>
+/* 1.20: memento-uri sigure */
+.chn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--ac) 8%,transparent);font-size:14px}
+.chn b{font-weight:700}
+.chn.no{background:color-mix(in srgb,var(--wa,#b26b00) 12%,transparent)}
+.chn button{margin-left:auto}
+.prm{font-size:44px;line-height:1;margin:4px 0 8px}
+</style>
+<script>
+/* ---------- 1.20: memento-uri sigure ----------
+   - după primul termen adevărat, o întrebare „Vrei să-ți amintim la timp?” (cererea de notificări pornește din atingere, ca pe iPhone)
+   - pe fiecare termen se vede calea memento-ului; un memento de test peste o oră
+   - notificarea deschide termenul și poate avea butonul „Am plătit” / „Am reînnoit”
+   - mesajele care nu sunt memento-uri au comutatoare separate */
+const remTagX=x=>"~"+x.id+(actCode(x)?"~"+actCode(x):"");
+const actCode=x=>!x||x.ex?"":x.g=="fac"||x.g=="fis"?"p":x.g=="auto"||x.g=="doc"?"r":x.g=="casa"||x.g=="san"?"f":x.g=="per"&&!x.auto?"g":"";
+const chOn=()=>WEB&&((typeof pushState=="function"&&pushState()=="on")||!!S.nt.mail);
+function chText(){
+ if(!WEB)return "în aplicație";
+ const p=typeof pushState=="function"&&pushState()=="on",m=!!S.nt.mail;
+ return p&&m?"notificare pe telefon și e-mail":p?"notificare pe telefon":m?"e-mail":"doar când deschizi aplicația"}
+function chLine(c){
+ if(c.mu)return "";
+ const a=remDays(c).filter(k=>k>=0).sort((x,y)=>y-x),ok=!WEB||chOn();
+ const when=a.length?a.map(k=>k==0?"în ziua termenului":k==1?"cu o zi înainte":k+" zile înainte").join(", "):"";
+ return `<div class="chn${ok?"":" no"}"><span>🔔</span><span><b>Memento:</b> ${esc(chText())}${when?", "+esc(when)+", la "+esc(ntH()):""}.</span>${WEB&&!ok?`<button class="g" onclick="closeSheet();notifGo()">Pornește</button>`:""}</div>`}
+
+/* în formular: calea memento-ului */
+{const di3=drawItem;drawItem=function(ed){di3(ed);const nt=$("f_note");if(nt&&cur&&!cur.ex){const ref=$("f_mu")?$("f_mu").closest("label"):nt;ref.insertAdjacentHTML("afterend",chLine(cur))}}}
+/* pe card: avertisment discret când memento-ul nu are pe unde să ajungă */
+{const cd3=card;card=function(x,allow){let h=cd3(x,allow);if(WEB&&!x.ex&&!x.mu&&!chOn()&&okDate(x.d)&&left(x.d)>=0&&left(x.d)<=Math.max(mT(x),7))h=h.replace('<div class="mt">','<div class="mt"><span class="tag wn">memento doar în aplicație</span>');return h}}
+
+/* eticheta notificării poartă termenul și butonul potrivit */
+{const rp2=remPlan;remPlan=function(){
+ const l=rp2(),en=S.lang=="en",now=Date.now();
+ const t=S.nt.test?Date.parse(S.nt.test):0;
+ if(t>now+30000)l.unshift({at:new Date(t).toISOString(),title:"LaTimp",body:en?"Test reminder: this is how a reminder looks. If you see it, reminders reach you.":"Memento de test: așa arată un memento. Dacă îl vezi, memento-urile ajung la tine.",tag:"lt-test-"+t});
+ return l.sort((a,b)=>a.at<b.at?-1:1).slice(0,200)}}
+
+/* memento de test peste o oră */
+function testRem(){
+ if(!chOn()){toast("Pornește întâi notificările sau e-mailul");return}
+ const d=new Date(Date.now()+60*60000);d.setSeconds(0,0);S.nt.test=d.toISOString();save();remSync.last="";remSync();render();
+ toast("Programat la "+d.toLocaleTimeString(LOC(),{hour:"2-digit",minute:"2-digit"})+". Poți închide aplicația.")}
+function testOff(){delete S.nt.test;save();remSync.last="";remSync();render()}
+
+/* mesajele care nu sunt memento-uri */
+const NEWS_ON=()=>S.nt.news!==false;
+function newsTg(){S.nt.news=!NEWS_ON();save();render()}
+{const nc1=newsCard;newsCard=function(){return NEWS_ON()?nc1():""}}
+
+{const nv3=notifView;notifView=function(){
+ let h=nv3();
+ /* memento-ul timpuriu recomandat pe tip */
+ const sm=rw("Memento din timp pentru actele importante","RCA, ITP, rovinietă, buletin, pașaport, PAD, impozite: încă un memento mai devreme (de exemplu cu 30 de zile înainte de RCA).",swb(S.nt.smart!==false,"Memento din timp pentru actele importante","smartTg()"));
+ h=h.replace('<div class="gt">Cum arată</div>','<div class="gt">Acte importante</div><div class="grp">'+sm+'</div><div class="gt">Cum arată</div>');
+ /* testul peste o oră */
+ if(WEB){const t=S.nt.test?Date.parse(S.nt.test):0,act=t>Date.now();
+  const row=rw("Memento de test peste o oră",act?"Programat la "+new Date(t).toLocaleTimeString(LOC(),{hour:"2-digit",minute:"2-digit"})+". Închide aplicația și așteaptă-l.":chOn()?"Verifici că memento-urile ajung, chiar și cu aplicația închisă.":"Pornește întâi notificările sau e-mailul, mai sus.",`<span class="acts" style="margin:0">${act?`<button class="g" onclick="testOff()">Anulează</button>`:`<button onclick="testRem()"${chOn()?"":" disabled"}>Programează</button>`}</span>`,1);
+  h+=`<div class="gt">Verifică</div><div class="grp">${row}</div>`}
+ /* alte mesaje */
+ const other=rw("Anunțuri LaTimp","Noutăți despre aplicație, în Agendă. Memento-urile pentru termene nu depind de asta.",swb(NEWS_ON(),"Anunțuri LaTimp","newsTg()"));
+ if(h.includes('<div class="gt">Rezumat</div><div class="grp">'))h=h.replace('<div class="gt">Rezumat</div><div class="grp">','<div class="gt">Alte mesaje, nu memento-uri</div><div class="grp">'+other);
+ else h+=`<div class="gt">Alte mesaje, nu memento-uri</div><div class="grp">${other}</div>`;
+ return h}}
+function smartTg(){S.nt.smart=S.nt.smart===false;save();render()}
+
+/* după primul termen adevărat: întrebarea despre memento-uri */
+{const si2=saveItem;saveItem=function(ed){
+ const n0=S.items.filter(x=>!x.ex).length;si2(ed);const n1=S.items.filter(x=>!x.ex).length;
+ if(!ed&&n0==0&&n1==1&&WEB&&!chOn()&&!S.nt.ask)setTimeout(primeOpen,500)}}
+function primeOpen(){
+ const x=S.items.find(i=>!i.ex);if(!x)return;S.nt.ask=fmt(td());save();
+ const st=typeof pushState=="function"?pushState():"unsupported",d=remDays(x).filter(k=>k>=0).sort((a,b)=>b-a)[0]||0;
+ const what=`Îți trimitem o notificare ${d==0?"chiar în ziua":d==1?"cu o zi înainte de":"cu "+d+" zile înainte de"} „${esc(ttl(x))}”, la ${esc(ntH())}, chiar și cu aplicația închisă.`;
+ let b="";
+ if(st=="off")b=`<button class="btn" onclick="closeSheet();pushOn()">Da, trimite-mi notificări</button>`;
+ else if(st=="ios")b=`<div class="note">Pe iPhone, notificările merg doar cu LaTimp pe ecranul principal. Durează un minut.</div><button class="btn" onclick="pushHelp()">Arată-mi cum</button>`;
+ else b=`<div class="note">${st=="denied"?"Notificările sunt blocate pentru LaTimp în setările telefonului.":"Browserul acesta nu primește notificări de la aplicații web."}</div>`;
+ if(typeof mailAv=="function"&&mailAv())b+=`<button class="btn alt" onclick="closeSheet();mailTog()">Primește-le pe e-mail</button>`;
+ openSheet(`<div class="prm" aria-hidden="true">🔔</div><h2>Vrei să-ți amintim la timp?</h2><div class="mu">${what}</div>${b}<button class="btn alt" onclick="closeSheet()">Mai târziu</button><div class="note">Le poți porni oricând din Mai mult → Notificări.</div>`,"prime")}
+
+/* notificarea deschide termenul; „Am plătit” cere o confirmare */
+function openItem(id,done){
+ const x=S.items.find(i=>i.id==id);if(!x)return;
+ const go=()=>{if($("lk")){setTimeout(go,600);return}
+  VIEW="main";FIL="all";if(TAB!="agenda")tab("agenda");else render();
+  setTimeout(()=>{const c=$("c_"+id);if(c){c.scrollIntoView({block:"center",behavior:reduce()?"auto":"smooth"});flashCard(id)}},350);
+  const lab=x.g=="sub"||(x.g=="per"&&x.auto)?"":DONE[x.g]||"Gata";
+  if(done&&lab)setTimeout(()=>openSheet(`<h2>${esc(lab)}?</h2><div class="mu">„${esc(ttl(x))}”, termenul din ${esc(nice(x.d))}. Dacă apeși, trece la următoarea dată.</div><button class="btn" onclick="closeSheet();renew('${x.id}')">${esc(lab)}</button><button class="btn alt" onclick="closeSheet()">Nu încă</button>`,"done"),500)};
+ go()}
+(function(){try{const q=new URLSearchParams(location.search),it=q.get("it");if(it&&/^[a-z0-9]{3,40}$/i.test(it)){const dn=q.get("done")=="1";history.replaceState(null,"",location.pathname+location.hash);setTimeout(()=>openItem(it,dn),1200)}}catch(e){}})();
+if(WEB&&navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",e=>{const d=e.data||{};if(d.lt=="open"&&d.it&&/^[a-z0-9]{3,40}$/i.test(d.it))openItem(d.it,!!d.done)});
+</script>

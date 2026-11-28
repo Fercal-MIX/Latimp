@@ -42,7 +42,7 @@ open(W+"/sw.js","w").write(sw)
 open(W+"/.nojekyll","w").write("")
 open(W+"/404.html","w").write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./"><title>LaTimp</title>')
 PY
-cp $D/site/prezentare.html $D/site/*.webp $D/site/logo-*.svg $W/
+cp $D/site/prezentare.html $D/site/vot.html $D/site/*.webp $D/site/logo-*.svg $W/
 mkdir -p $W/fonts && cp $D/fonts/plus-jakarta-sans.woff $D/fonts/OFL.txt $W/fonts/
 python3 - $W/prezentare.html <<'PY2'
 import sys

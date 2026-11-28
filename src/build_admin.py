@@ -134,5 +134,31 @@ must("""  if(!mcp){showErr('Pagina nu poate ajunge la Supabase aici. Deschide-o 
 must("if(pinOn)await pinPrompt(ps.locked_until?", "if(pinOn&&!(window.ADM&&!mcp&&!ps.locked_until&&await ADM.open()))await pinPrompt(ps.locked_until?")
 must("ADM.call=async function(sql){", """ADM.open=async function(){try{await ADM.call("select admin.pin_status() as r");const {error}=await SB.rpc("admin_call",{p_fn:"health",p_args:[]});return !error}catch(e){return false}};
  ADM.call=async function(sql){""")
+
+# 6. Conținut → „Reguli pentru termene” (content.rules): durate, linkuri oficiale, memento-uri recomandate, sfaturi, cursuri de rezervă
+import subprocess as _sp, json as _json, os as _os
+_q8 = open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "q8a.html"), encoding="utf-8").read() if _os.path.exists(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "q8a.html")) else open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "parts", "q8a.html"), encoding="utf-8").read()
+_m = re.search(r"const RULES0=(\{.*?\n\});", _q8, re.S)
+if not _m: raise SystemExit("nu găsesc RULES0 în q8a.html")
+_def = _sp.run(["node", "-e", "process.stdout.write(JSON.stringify(" + _m.group(1) + ",null,1))"], capture_output=True, text=True, check=True).stdout
+must('<div class="savebar"><button class="b" id="cc_save">',
+ '<h3 style="margin-top:22px">Reguli pentru termene</h3><p class="mut">Durate, linkuri oficiale, memento-uri recomandate și sfaturi pentru termenele românești. Gol = regulile din aplicație. Scrii doar ce schimbi (de exemplu prețurile rovinietei), restul rămâne implicit. Linkurile trebuie să înceapă cu https://.</p>'
+ '<textarea id="cc_rules" rows="10" spellcheck="false" style="font-family:ui-monospace,monospace;font-size:13px" placeholder="{ }"></textarea>'
+ '<div class="row" style="margin-top:6px"><button class="b g sm" id="cc_rules_def" type="button">Pune regulile implicite</button><span class="mut" id="cc_rules_e"></span></div>'
+ '<div class="savebar"><button class="b" id="cc_save">')
+must("$('cc_ideas').value=(content.fallback_ideas||[])", "$('cc_rules').value=content.rules&&Object.keys(content.rules).length?JSON.stringify(content.rules,null,1):'';$('cc_ideas').value=(content.fallback_ideas||[])")
+must("  const next={...content,challenge:", "  let rules=null;const rt=$('cc_rules').value.trim();if(rt){try{rules=JSON.parse(rt)}catch(x){throw new Error('Regulile nu sunt JSON valid: '+x.message)}if(!rules||typeof rules!=='object'||Array.isArray(rules))throw new Error('Regulile trebuie să fie un obiect JSON: { ... }.')}\n  const next={...content,challenge:")
+must("try_lists:readLists()};", "try_lists:readLists()};if(rules)next.rules=rules;else delete next.rules;")
+must("$('cc_ideas').oninput=ideasN;", "$('cc_ideas').oninput=ideasN;\n$('cc_rules_def').onclick=()=>{$('cc_rules').value=JSON.stringify(" + _def.replace("\n"," ").replace("</","<\\/") + ",null,1);$('cc_rules_e').textContent='Regulile implicite. Schimbă ce vrei, apoi salvează.'};")
+
+# 7. Statistici → „Activare și primul memento” (admin.activation)
+must('<div class="card"><h3>Cât revin utilizatorii</h3><div id="st_ret"></div></div>',
+ '<div class="card"><h3>Activare și primul memento</h3><p class="mut">Activ = are cel puțin un memento programat: un termen cu dată și notificări sau e-mail pornite. Numărate pe server, fără date din agendă.</p><div id="st_act"></div></div><div class="card"><h3>Cât revin utilizatorii</h3><div id="st_ret"></div></div>')
+must("statistici:loadStats", "statistici:()=>{loadStats();loadAct()}")
+must("$('st_ref').onclick=()=>loadStats();", """$('st_ref').onclick=()=>{loadStats();loadAct()};
+async function loadAct(){try{const a=await fn('admin.activation()');const P=(x,y)=>y?Math.round(x/y*100)+'%':'—';
+ const R=[['Conturi active (cu memento programat)',a.activated,a.users],['Cu notificări pe telefon',a.push,a.users],['Cu memento-uri pe e-mail',a.mail,a.users],['Au primit cel puțin un memento',a.delivered,a.users],['Revin a doua zi',a.ret1,a.cohort1]];
+ $('st_act').innerHTML=R.map(([l,x,y])=>'<div class="hb"><b>'+esc(l)+'</b><div class="meter"><i style="width:'+(y?x/y*100:0)+'%"></i></div><span>'+esc(P(x,y))+' <span class="mut">('+esc(x)+' din '+esc(y)+')</span></span></div>').join('')+
+  '<p class="mut">'+(a.hours_to_first!=null?'Primul memento ajunge, la jumătate dintre conturi, în '+esc(a.hours_to_first)+' ore de la creare.':'Încă nu a ajuns niciun memento numărat (se numără de la 28.11.2026).')+'</p>'}catch(e){$('st_act').innerHTML='<div class="empty">'+esc(errText(e))+'</div>'}}""")
 open(OUT, "w", encoding="utf-8").write(h)
 print("admin.html:", len(h.encode()), "bytes")

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Votează planul · LaTimp</title>
+<meta name="description" content="Un prieten te întreabă ce faceți. Alege ideea și ora care îți plac. Nu ai nevoie de cont.">
+<meta property="og:title" content="Votează planul cu prietenii">
+<meta property="og:description" content="Alege ideea și ora care îți plac. Fără cont, durează zece secunde.">
+<meta property="og:image" content="https://fercal-mix.github.io/Latimp/icons/icon-512.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#11523a">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f4f2ea;--paper:#fff;--ink:#1b1f16;--mu:#5c6253;--ln:#e2ddcc;--f1:#11523a;--f2:#1c7752;--t1:#b03d0b;--on:#fff;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0e110b;--paper:#171b12;--ink:#f0f1e8;--mu:#a4a995;--ln:#2a2f22;--f1:#1c7752;--f2:#74d3a3;--t1:#f29a6e;color-scheme:dark}}
+@font-face{font-family:"Plus Jakarta Sans";src:url(fonts/plus-jakarta-sans.woff) format("woff");font-weight:400 800;font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--f1);text-decoration:none;font-size:18px}
+@media (prefers-color-scheme:dark){.brand{color:var(--f2)}}
+.brand img{width:32px;height:32px}
+h1{font-size:clamp(26px,6vw,32px);line-height:1.15;font-weight:800;margin:22px 0 6px;text-wrap:balance}
+.mu{color:var(--mu)}
+fieldset{border:0;margin:22px 0 0;padding:0}
+legend{font-weight:700;margin-bottom:8px}
+.op{display:flex;align-items:center;gap:12px;min-height:52px;padding:10px 14px;margin:8px 0;background:var(--paper);border-radius:14px;box-shadow:0 0 0 1px var(--ln);cursor:pointer;font-weight:700}
+.op input{width:22px;height:22px;accent-color:var(--f1);flex:none}
+.op:has(input:checked){box-shadow:0 0 0 2px var(--f1)}
+@media (prefers-color-scheme:dark){.op:has(input:checked){box-shadow:0 0 0 2px var(--f2)}}
+label.f{display:block;font-weight:700;margin:22px 0 8px}
+input[type=text]{width:100%;font:inherit;padding:12px 14px;border-radius:12px;border:1px solid var(--ln);background:var(--paper);color:var(--ink)}
+.btn{display:block;width:100%;margin-top:22px;min-height:52px;border:0;border-radius:14px;background:var(--f1);color:var(--on);font:inherit;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.6}
+.btn:focus-visible,input:focus-visible,.op:focus-within{outline:3px solid var(--t1);outline-offset:3px}
+.msg{margin-top:14px;min-height:1.4em;font-weight:700}
+.msg.e{color:var(--t1)}
+.ok{text-align:center;padding:24px 0}
+.ok b{display:block;font-size:52px;line-height:1}
+.ok a{color:var(--f1);font-weight:700}
+@media (prefers-color-scheme:dark){.ok a{color:var(--f2)}}
+.note{font-size:14px;color:var(--mu);margin-top:26px}
+</style>
+</head>
+<body>
+<main>
+ <a class="brand" href="./prezentare.html"><img src="icons/favicon.svg" alt="" width="32" height="32">LaTimp</a>
+ <div id="app"><h1>Se încarcă votul…</h1></div>
+ <p class="note">Votul tău se vede doar la cel care a pornit votul: numele scris de tine, ideea și ora. Nu ai nevoie de cont. Pe același telefon poți schimba votul oricând.</p>
+</main>
+<script>
+(function(){
+ const URL0="https://jzcwmucmxxedvwbtzrvp.supabase.co",KEY="sb_publishable_qZDRrfEWVRhr9xeDBmME9A_y_7wIg5k";
+ const $=id=>document.getElementById(id),app=$("app");
+ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ const rpc=async(fn,body)=>{const r=await fetch(URL0+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"apikey":KEY,"Authorization":"Bearer "+KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error("http "+r.status);return r.json()};
+ const code=(new URLSearchParams(location.search).get("c")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+ let tok="";try{tok=localStorage.getItem("latimp.vt")||""}catch(e){}
+ if(!/^[a-f0-9]{32}$/.test(tok)){tok=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");try{localStorage.setItem("latimp.vt",tok)}catch(e){}}
+ let nm="";try{nm=localStorage.getItem("latimp.vn")||""}catch(e){}
+ const fail=t=>{app.innerHTML=`<h1>${esc(t)}</h1><p class="mu">Cere-i prietenului care te-a invitat un link nou.</p>`};
+ if(!/^[A-HJ-NP-Z2-9]{8}$/.test(code)){fail("Linkul de vot nu e complet.");return}
+ rpc("find_poll_guest",{p_code:code}).then(d=>{
+  if(!d||!Array.isArray(d.options)||d.options.length<2){fail("Votul s-a închis sau nu mai există.");return}
+  const o=d.options.slice(0,4),t=Array.isArray(d.times)?d.times.slice(0,6):[];
+  app.innerHTML=`<h1>Ce facem?</h1><p class="mu">Un prieten îți propune ${o.length} idei. Alege-o pe cea care îți place${t.length?", apoi ora":""}.</p>
+  <fieldset><legend>Ideea</legend>${o.map((x,i)=>`<label class="op"><input type="radio" name="o" value="${i}"${i==0?" checked":""}>${esc(x)}</label>`).join("")}</fieldset>
+  ${t.length?`<fieldset><legend>Când</legend>${t.map((x,i)=>`<label class="op"><input type="radio" name="t" value="${i}">${esc(x)}</label>`).join("")}<label class="op"><input type="radio" name="t" value="-1" checked>Oricând</label></fieldset>`:""}
+  <label class="f" for="n">Numele tău</label><input id="n" type="text" maxlength="20" autocomplete="given-name" placeholder="De exemplu: Ana" value="${esc(nm)}">
+  <button class="btn" id="go">Trimite votul</button><div class="msg" id="m" role="status"></div>`;
+  $("go").onclick=async()=>{
+   const n=$("n").value.trim();if(!n){$("m").className="msg e";$("m").textContent="Scrie-ți numele, ca prietenul să știe cine a votat.";$("n").focus();return}
+   const op=+document.querySelector("input[name=o]:checked").value,tt=document.querySelector("input[name=t]:checked"),tm=tt&&+tt.value>=0?+tt.value:null;
+   $("go").disabled=true;$("m").className="msg";$("m").textContent="Se trimite…";
+   try{const r=await rpc("vote_poll_guest",{p_code:code,p_opt:op,p_tm:tm,p_name:n,p_token:tok});
+    if(!r||!r.ok){const E={invalid:"Votul s-a închis între timp.",full:"Votul are deja prea multe voturi.",name:"Scrie un nume de cel mult 20 de litere."};$("m").className="msg e";$("m").textContent=E[r&&r.err]||"Nu am putut trimite votul. Încearcă din nou.";$("go").disabled=false;return}
+    try{localStorage.setItem("latimp.vn",n)}catch(e){}
+    app.innerHTML=`<div class="ok"><b aria-hidden="true">✓</b><h1>Ai votat</h1><p class="mu">Ai ales „${esc(o[op])}”${tm!=null?", "+esc(t[tm]):""}. Prietenul tău vede votul în LaTimp.</p><p><a href="">Schimbă votul</a></p><p class="mu">Și tu poți ține minte termenele și găsi idei de weekend: <a href="./prezentare.html">vezi LaTimp</a>.</p></div>`}
+   catch(e){$("m").className="msg e";$("m").textContent="Fără internet sau serverul nu răspunde. Încearcă din nou.";$("go").disabled=false}}
+ }).catch(()=>fail("Nu am putut încărca votul. Verifică internetul și reîncarcă pagina."));
+})();
+</script>
+</body>
+</html>
