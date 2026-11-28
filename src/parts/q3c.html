@@ -23,7 +23,7 @@ const TIP={
  pas:"Pentru pașaport, alege un memento cu 1–2 luni înainte: programarea poate dura.",
  ci:"Pentru buletin, alege un memento cu o lună înainte.",
  cb:"Banca trimite de obicei cardul nou singură. Memento-ul te ajută să verifici că a ajuns."};
-const mT=x=>{const r=x&&S.pro&&x.rd!==undefined&&x.rd!==null&&x.rd!==""?+x.rd:NaN;return Math.max(1,isFinite(r)?r:maxT())};
+const mT=x=>{const r=x&&can("custom_reminder")&&x.rd!==undefined&&x.rd!==null&&x.rd!==""?+x.rd:NaN;return Math.max(1,isFinite(r)?r:maxT())};
 const isOther=t=>/^x[a-z]$/.test(t||"");
 const opts=(l,v)=>l.map(o=>`<option value="${o[0]}"${String(o[0])==String(v)?" selected":""}>${o[1]}</option>`).join("");
 const nextOcc=(mo,d)=>{const t=td();let x=new Date(t.getFullYear(),mo,d);if(x<t)x=new Date(t.getFullYear()+1,mo,d);return fmt(x)};
@@ -31,13 +31,13 @@ const nextOcc=(mo,d)=>{const t=td();let x=new Date(t.getFullYear(),mo,d);if(x<t)
 /* ---- editor: grupuri, tipuri, câmpuri ---- */
 function editItem(id,rn){
  if(!id&&!S.pro&&S.items.filter(x=>!x.ex).length>=FREE_ITEMS){toast("Ai atins limita gratuită de "+FREE_ITEMS+" de termene.");openPlan("agenda");return}
- if(!id&&!S.pro&&PAIDG.includes(FIL)){toast(GN[FIL]+" fac parte din Control.");openPlan("agenda");return}
+ if(!id&&PAIDG.includes(FIL)&&gate("cat_extra",GN[FIL]+" fac parte din Control."))return;
  const g=GORD.includes(FIL)?FIL:"sub";
  cur=id?{...S.items.find(i=>i.id==id)}:g=="sub"?{g:"sub",t:"sub",e:"📦",n:"",p:"",c:"m",d:plus(30),rep:0,note:""}:g=="auto"?{g:"auto",t:"itp",n:"",d:"",rep:24,note:""}:g=="per"?{g:"per",t:"zi",n:"",d:"",rep:12,auto:true,note:""}:{g,t:XT[g][0][0],n:"",d:"",rep:XT[g][0][2],note:"",p:""};
  if(id&&rn){cur.rn=1;cur.d=""}
  drawItem(!!id)}
 function setG(k){
- if(PAIDG.includes(k)&&!S.pro){toast(GN[k]+" fac parte din Control.");openPlan("agenda");return}
+ if(PAIDG.includes(k)&&gate("cat_extra",GN[k]+" fac parte din Control."))return;
  grab();cur.g=k;if(k=="auto"){cur.n="";delete cur.car}
  if(XT[k]){cur.t=XT[k][0][0];cur.rep=XT[k][0][2];cur.auto=false}
  else{cur.t=k=="sub"?"sub":k=="auto"?"itp":"zi";cur.rep=k=="auto"?24:k=="per"?12:0;cur.auto=k=="per"}
@@ -72,14 +72,14 @@ const ONOM=[["Vasile",0,1],["Ion, Ioan, Ioana",0,7],["Haralambie",1,10],["Gheorg
 const onomSel=c=>`<label for="f_on">Sfântul (opțional)</label><select id="f_on" onchange="onomPick(this.value)"><option value="">Aleg eu data</option>${ONOM.map((o,i)=>`<option value="${i}">${o[0]}, ${o[2]} ${MON[o[1]]}.</option>`).join("")}</select><div class="note">Doar sărbătorile cu dată fixă. Pentru celelalte, alege data de mai jos.</div>`;
 function onomPick(i){if(i==="")return;const o=ONOM[+i];if(!o)return;grab();cur.d=nextOcc(o[1],o[2]);cur.rep=12;cur.auto=true;if(!(cur.n||"").trim())cur.n=o[0].split(",")[0];drawItem(!!cur.id)}
 function itemExtras(c){
- let h=`<label for="f_rd">Memento pentru acest termen${S.pro?"":" (Control)"}</label><select id="f_rd"${S.pro?"":" disabled"}>${opts([["","Ca în Notificări"],[0,"În ziua termenului"],[1,"Cu o zi înainte"],[3,"Cu 3 zile înainte"],[7,"Cu o săptămână înainte"],[14,"Cu 2 săptămâni înainte"],[30,"Cu o lună înainte"],[60,"Cu 2 luni înainte"],[90,"Cu 3 luni înainte"]],c.rd==null?"":c.rd)}</select>`;
- if(c.g=="auto"&&(c.t=="ulei"||c.t=="rev"))h+=`<div class="row"><div><label for="f_kmi">La câți km${S.pro?"":" (Control)"}</label><input id="f_kmi" type="number" inputmode="numeric" min="0" max="100000" placeholder="15000" value="${esc(c.kmi==null?"":c.kmi)}"${S.pro?"":" disabled"}></div><div><label for="f_kml">Km la ultimul schimb</label><input id="f_kml" type="number" inputmode="numeric" min="0" max="2000000" value="${esc(c.kml==null?"":c.kml)}"${S.pro?"":" disabled"}></div></div>`;
- if(c.g=="auto"&&S.pro)h+=`<label for="f_cost">Cost (lei, opțional)</label><input id="f_cost" type="number" inputmode="decimal" min="0" value="${esc(c.p==null?"":c.p)}">`;
+ let h=fHid("custom_reminder")?"":`<label for="f_rd">Memento pentru acest termen${ptag("custom_reminder")}</label><select id="f_rd"${can("custom_reminder")?"":" disabled"}>${opts([["","Ca în Notificări"],[0,"În ziua termenului"],[1,"Cu o zi înainte"],[3,"Cu 3 zile înainte"],[7,"Cu o săptămână înainte"],[14,"Cu 2 săptămâni înainte"],[30,"Cu o lună înainte"],[60,"Cu 2 luni înainte"],[90,"Cu 3 luni înainte"]],c.rd==null?"":c.rd)}</select>`;
+ if(c.g=="auto"&&(c.t=="ulei"||c.t=="rev")&&!fHid("car_km"))h+=`<div class="row"><div><label for="f_kmi">La câți km${ptag("car_km")}</label><input id="f_kmi" type="number" inputmode="numeric" min="0" max="100000" placeholder="15000" value="${esc(c.kmi==null?"":c.kmi)}"${can("car_km")?"":" disabled"}></div><div><label for="f_kml">Km la ultimul schimb</label><input id="f_kml" type="number" inputmode="numeric" min="0" max="2000000" value="${esc(c.kml==null?"":c.kml)}"${can("car_km")?"":" disabled"}></div></div>`;
+ if(c.g=="auto"&&can("item_history"))h+=`<label for="f_cost">Cost (lei, opțional)</label><input id="f_cost" type="number" inputmode="decimal" min="0" value="${esc(c.p==null?"":c.p)}">`;
  return h+stepBox(c)+histBox(c)+attBox(c)}
 function saveItem(ed){
  grab();const c=cur;
  if(!okDate(c.d)){toast(c.t=="cb"?"Alege luna și anul":"Alege o dată validă");return}
- if(XT[c.g]&&!S.pro){toast(GN[c.g]+" fac parte din Control.");openPlan("agenda");return}
+ if(XT[c.g]&&gate("cat_extra",GN[c.g]+" fac parte din Control."))return;
  if(c.g=="sub"){const p=parseFloat(c.p);if(!(c.n||"").trim()||!(p>=0)){toast("Completează numele și prețul");return}c.p=p}
  if((c.g=="per"||isOther(c.t))&&!(c.n||"").trim()){toast("Completează un nume");return}
  if(c.g=="auto"){
@@ -92,16 +92,16 @@ function saveItem(ed){
  const o={g:c.g,t:c.t,n:(c.n||"").trim(),d:c.d,note:(c.note||"").trim(),sh:!!c.sh&&c.g!="sub"};
  if(c.g=="sub"){o.e=c.e||"📦";o.p=c.p;o.c=c.c||"m";o.ad=pd(c.d).getDate()}
  else if(XT[c.g]){o.rep=c.g=="fac"?1:+c.rep||0;o.auto=false;o.ad=pd(c.d).getDate();const p=parseFloat(c.p);o.p=p>=0?Math.round(p*100)/100:null}
- else{o.rep=+c.rep||0;o.auto=c.g=="per"&&o.rep>0;if(o.auto)o.ad=pd(c.d).getDate();if(c.g=="auto")o.car=c.car;if(c.g=="auto"&&S.pro){const p=parseFloat(c.p);o.p=p>=0?Math.round(p*100)/100:null}}
- if(S.pro){o.rd=c.rd===null||c.rd===undefined||c.rd===""||!isFinite(+c.rd)?null:Math.max(0,Math.min(365,+c.rd))}
- if(c.g=="auto"&&(c.t=="ulei"||c.t=="rev")&&S.pro){const i=Math.round(+c.kmi),l=Math.round(+c.kml);o.kmi=i>0&&i<=1e5?i:null;o.kml=c.kml!==""&&l>=0&&l<=2e6?l:null}
+ else{o.rep=+c.rep||0;o.auto=c.g=="per"&&o.rep>0;if(o.auto)o.ad=pd(c.d).getDate();if(c.g=="auto")o.car=c.car;if(c.g=="auto"&&can("item_history")){const p=parseFloat(c.p);o.p=p>=0?Math.round(p*100)/100:null}}
+ if(can("custom_reminder")){o.rd=c.rd===null||c.rd===undefined||c.rd===""||!isFinite(+c.rd)?null:Math.max(0,Math.min(365,+c.rd))}
+ if(c.g=="auto"&&(c.t=="ulei"||c.t=="rev")&&can("car_km")){const i=Math.round(+c.kmi),l=Math.round(+c.kml);o.kmi=i>0&&i<=1e5?i:null;o.kml=c.kml!==""&&l>=0&&l<=2e6?l:null}
  if(ed){const x=S.items.find(i=>i.id==c.id);
   if(x.g=="sub"&&o.g=="sub"&&+x.p!==+o.p&&x.p!==undefined)x.ph=(Array.isArray(x.ph)?x.ph:[]).concat({d:fmt(td()),p:+x.p}).slice(-12);
   Object.assign(x,o);delete x.ex}
  else{const n={id:uid(),...o};if(n.g=="sub")n.uc=fmt(td());S.items.push(n);if(S.stats)S.st.adds=(S.st.adds||0)+1}
  save();closeSheet();render();toast(ed?"Salvat":"Adăugat în agendă")}
 function fisPack(){
- if(!S.pro){openPlan("agenda");return}
+ if(gate("cat_extra"))return;
  const add=[["imp",2,31],["du",4,25],["imp2",8,30]];let n=0;
  add.forEach(([t,mo,d])=>{if(S.items.some(x=>x.g=="fis"&&x.t==t))return;S.items.push({id:uid(),g:"fis",t,n:"",d:nextOcc(mo,d),rep:12,auto:false,ad:d,note:"",sh:false,p:null});n++});
  save();closeSheet();FIL="fis";render();toast(n?"Am adăugat "+n+(n==1?" termen fiscal":" termene fiscale"):"Le ai deja în agendă")}
@@ -140,14 +140,14 @@ function renew(id){
   else editItem(id,true)}
  else if(x.g=="per"&&!x.auto){S.items=S.items.filter(i=>i.id!=id);save();render();toast("Gata, l-am scos din agendă")}}
 function emptyX(){
- if(!S.pro)return `<div class="card"><h3>${esc(GN[FIL])} fac parte din Control</h3><div class="mu" style="margin-top:4px">Facturi, casă, sănătate, documente și taxe, fiecare cu memento-ul lui.</div><button class="btn alt" onclick="openPlan('agenda')">Vezi Control</button></div>`;
+ if(!can("cat_extra"))return fHid("cat_extra")?"":`<div class="card"><h3>${esc(GN[FIL])} fac parte din ${esc(planName("cat_extra"))}</h3><div class="mu" style="margin-top:4px">Facturi, casă, sănătate, documente și taxe, fiecare cu memento-ul lui.</div><button class="btn alt" onclick="gate('cat_extra')">Vezi ${esc(planName("cat_extra"))}</button></div>`;
  const H={fac:"Curent, gaz, internet, chirie: scadența și suma, cu „Am plătit”.",casa:"Verificarea centralei, asigurarea PAD, coșul de fum, filtrele.",san:"Stomatolog, analize, vaccinul și deparazitarea animalului.",doc:"Buletin, pașaport, permis, card bancar: când expiră.",fis:"Impozitul local și declarația unică, cu termenele obișnuite."};
  return `<div class="card"><h3>Nimic aici încă</h3><div class="mu" style="margin-top:4px">${H[FIL]||""}</div>${FIL=="fis"?`<button class="btn alt" onclick="fisPack()">Adaugă termenele fiscale obișnuite</button>`:""}</div>`}
 function giftFor(id){const x=S.items.find(i=>i.id==id);if(!x)return;GIFT.occ=x.t=="onom"?"Onomastică":x.t=="anv"?"Aniversare":"Zi de naștere";GIFT.det=(x.n?"Pentru "+x.n:"").slice(0,200);GL=[];FSEG="gifts";tab("free");tap("giftfor")}
 
 /* ---- banii pe abonamente și facturi (Control) ---- */
 function moneyCard(){
- if(!S.pro)return"";
+ if(!can("monthly_total"))return"";
  const subs=S.items.filter(x=>!x.ex&&x.g=="sub"),bills=S.items.filter(x=>!x.ex&&x.g=="fac"&&+x.p>0);
  if(!subs.length&&!bills.length)return"";
  const ms=subs.reduce((s,x)=>s+mon(x),0),by={};bills.forEach(x=>by[x.t]=(by[x.t]||0)+(+x.p));
@@ -155,7 +155,7 @@ function moneyCard(){
  const ch=subs.filter(x=>Array.isArray(x.ph)&&x.ph.length).map(x=>({x,l:x.ph[x.ph.length-1]})).filter(o=>okDate(o.l.d)&&(td()-pd(o.l.d))/DAY<=365&&+o.l.p!=+o.x.p);
  return `<div class="card"><strong>Pe lună, în total</strong><div class="ar"><span>Abonamente</span><span>${money(ms)} lei</span></div>${Object.keys(by).map(k=>`<div class="ar"><span>${esc(TYN[k])}</span><span>${money(by[k])} lei</span></div>`).join("")}<div class="ar" style="border-top:1px solid var(--ln);padding-top:8px"><b>Total</b><b>${money(tot)} lei</b></div><div class="mu sm" style="margin-top:6px">Cam ${money(tot*12)} lei pe an. Facturile intră cu suma aproximativă pe care ai scris-o.</div>${ch.length?`<div style="margin-top:10px"><b>Prețuri schimbate în ultimul an</b>${ch.map(o=>`<div class="ar"><span>${esc(o.x.n)}</span><span class="${+o.x.p>+o.l.p?"wn":"ok"}">${money(+o.l.p)} → ${money(+o.x.p)} lei</span></div>`).join("")}</div>`:""}</div>`}
 function useCard(){
- if(!S.pro)return"";const lim=fmt(new Date(td().getTime()-90*DAY));
+ if(!can("still_using"))return"";const lim=fmt(new Date(td().getTime()-90*DAY));
  S.items.forEach(x=>{if(x.g=="sub"&&!x.ex&&!okDate(x.uc||""))x.uc=fmt(td())});
  const x=S.items.find(x=>x.g=="sub"&&!x.ex&&!x.k&&x.uc<=lim);
  return x?`<div class="card"><strong>Mai folosești ${esc(x.n)}?</strong><div class="mu" style="margin-top:4px">Plătești ${money(mon(x))} lei pe lună. Te întrebăm o dată la 3 luni.</div><div class="acts"><button onclick="useAns('${x.id}',1)">Da, îl folosesc</button><button onclick="useAns('${x.id}',0)">Nu, vreau să-l anulez</button></div></div>`:""}
@@ -165,7 +165,7 @@ function useAns(id,y){const x=S.items.find(i=>i.id==id);if(!x)return;x.uc=fmt(td
 const kmAvg=k=>{const r=(Array.isArray(k.kr)?k.kr:[]).filter(x=>okDate(x.d));if(r.length>=2){const a=r[0],b=r[r.length-1],d=(pd(b.d)-pd(a.d))/DAY;if(d>=7&&b.km>a.km)return (b.km-a.km)/d}return 33};
 const kmReal=k=>{const r=(Array.isArray(k.kr)?k.kr:[]);return r.length>=2&&kmAvg(k)!==33};
 function kmLine(x){
- if(x.g!="auto"||!S.pro||!(+x.kmi>0)||x.kml==null||x.kml==="")return"";
+ if(x.g!="auto"||!can("car_km")||!(+x.kmi>0)||x.kml==null||x.kml==="")return"";
  const k=S.cars.find(z=>z.id==x.car);if(!k)return"";
  const next=+x.kml+(+x.kmi);
  if(!+k.km)return `<div class="mu sm" style="margin-top:4px">La ${money(next)} km. <button class="lkb" onclick="kmOpen('${k.id}')">Scrie kilometrii de acum</button></div>`;
@@ -175,7 +175,7 @@ function kmLine(x){
  return `<div class="sm" style="margin-top:4px"><span class="${days<=maxT()?"st wa":"mu"}">Mai ai ${money(rem)} km până la ${money(next)}, cam până pe ${esc(nice(plus(days)))}</span></div>`}
 function kmOpen(id){
  const k=S.cars.find(z=>z.id==id);if(!k)return;
- if(!S.pro){toast("Kilometrii fac parte din Control.");openPlan("agenda");return}
+ if(gate("car_km","Kilometrii fac parte din Control."))return;
  openSheet(`<h2>Kilometri · ${esc(k.n)}</h2><div class="mu">Scrie cât arată acum bordul. Din citiri, aplicația estimează când ajungi la următorul schimb de ulei sau la revizie.</div><label for="km_v">Kilometri acum</label><input id="km_v" type="number" inputmode="numeric" min="0" max="2000000" value="${+k.km||""}"><div class="note">${kmReal(k)?"Media ta: cam "+money(kmAvg(k))+" km pe zi.":"Până ai două citiri la cel puțin o săptămână distanță, socotim 12.000 km pe an."}</div><div style="margin-top:14px"><button class="btn" onclick="kmSave('${k.id}')">Salvează</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"km")}
 function kmSave(id){
  const k=S.cars.find(z=>z.id==id),v=Math.round(+(($("km_v")||{}).value||NaN));if(!k)return;
@@ -214,10 +214,10 @@ function qaParse(raw){
  let n=o.split("").filter((c,i)=>!mask[i]).join("").replace(/\s+/g," ").replace(/^[\s,.;:–-]+|[\s,.;:–-]+$/g,"").replace(/^(pe|la|de|pentru|lui|ei)\s+/i,"").trim().slice(0,40);
  if(n)n=n.charAt(0).toUpperCase()+n.slice(1);
  return {g,t,n,d,p}}
-function qaBox(){return S.pro?`<div class="qa"><input id="qa_t" maxlength="120" placeholder="Ex.: RCA 12 martie 450 lei" aria-label="Adaugă rapid din text" onkeydown="if(event.key=='Enter')qaGo()"><button onclick="qaGo()">Completează</button></div>`:""}
+function qaBox(){return can("quick_add")?`<div class="qa"><input id="qa_t" maxlength="120" placeholder="Ex.: RCA 12 martie 450 lei" aria-label="Adaugă rapid din text" onkeydown="if(event.key=='Enter')qaGo()"><button onclick="qaGo()">Completează</button></div>`:""}
 function qaGo(){
  const e=$("qa_t"),v=e?e.value.trim():"";if(!v){toast("Scrie ce vrei să adaugi");return}
- if(!S.pro){openPlan("agenda");return}
+ if(gate("quick_add"))return;
  const r=qaParse(v),base=r.g=="sub"?{e:"📦",c:"m",rep:0}:r.g=="auto"?{rep:(AT.find(a=>a[0]==r.t)||[0,12])[1]}:r.g=="per"?{rep:(PT.find(a=>a[0]==r.t)||[0,0])[1]}:{rep:(XT[r.g].find(a=>a[0]==r.t)||[0,0,0])[2]};
  cur=Object.assign({note:""},base,{g:r.g,t:r.t,n:r.n,d:r.d||"",p:r.p==null?"":r.p,fromText:1});
  if(r.g=="per")cur.auto=cur.rep>0;
@@ -227,16 +227,17 @@ function qaGo(){
 /* ---- documente atașate (Control) ---- */
 const ATT_T=["application/pdf","image/jpeg","image/png","image/webp"];
 function attBox(c){
- let h=`<label>Documente atașate${S.pro?"":" (Control)"}</label>`;
+ if(fHid("attachments"))return"";
+ let h=`<label>Documente atașate${ptag("attachments")}</label>`;
  if(!c.id)return h+`<div class="note">Poți atașa polița sau contractul după ce salvezi termenul.</div>`;
  if(!AS)return h+`<div class="note">Atașarea nu este disponibilă aici.</div>`;
  const l=(Array.isArray(c.att)?c.att:[]).filter(a=>/^[0-9a-f]{32}$/.test(a.id||""));
  h+=l.map(a=>`<div class="ar"><a href="/_blob/${a.id}" target="_blank" rel="noopener noreferrer">${a.t=="pdf"?"📄":"🖼️"} ${esc(a.n)}</a><button class="lkb dg" onclick="attDel('${a.id}')">Scoate</button></div>`).join("");
- if(S.pro&&l.length<3)h+=`<input id="att_f" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="attAdd(this.files[0])" style="margin-top:8px">`;
+ if(can("attachments")&&l.length<3)h+=`<input id="att_f" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="attAdd(this.files[0])" style="margin-top:8px">`;
  return h+`<div class="note dg" id="att_m" role="alert"></div><div class="note">PDF sau poză, cel mult 3, sub 5 MB. Acoperă CNP-ul și alte date pe care nu vrei să le păstrezi.</div>`}
 async function attAdd(f){
  const m=t=>{const e=$("att_m");if(e)e.textContent=t};
- if(!f||!AS||!S.pro)return;const x=S.items.find(i=>i.id==cur.id);if(!x)return;
+ if(!f||!AS||!can("attachments"))return;const x=S.items.find(i=>i.id==cur.id);if(!x)return;
  if((x.att||[]).length>=3){m("Poți atașa cel mult 3 documente.");return}
  if(!ATT_T.includes(f.type)){m("Alege un PDF sau o imagine.");return}
  if(f.size>5e6){m("Fișierul are peste 5 MB.");return}
@@ -249,11 +250,11 @@ function attDel(id){const x=S.items.find(i=>i.id==cur.id);if(!x)return;grab();x.
 /* ---- calendar și widget (Control; simulate în prototip) ---- */
 const CALP={google:"Google Calendar",apple:"Calendarul Apple",outlook:"Outlook"};
 function phoneCard(){
- if(!S.pro||!S.items.some(x=>!x.ex))return"";
+ if(!can("calendar_sync")||!S.items.some(x=>!x.ex))return"";
  const c=S.cal&&CALP[S.cal.p];
  return `<div class="card xs"><strong>Calendar și widget</strong><div class="ph2"><div><b>Sincronizare cu calendarul</b><div class="mu">${c?"Conectat la "+c+" (demo). Termenele noi și cele schimbate ajung singure în calendar.":"Termenele apar singure în calendarul telefonului, fără fișiere."}</div><div class="acts">${c?`<button onclick="calOff()">Deconectează</button>`:`<button onclick="calOpen()">Conectează</button>`}</div></div><div><b>Widget pe ecranul telefonului</b><div class="mu">Următoarele termene, fără să deschizi aplicația.</div><div class="acts"><button onclick="wgShow()">Vezi cum arată</button></div></div></div></div>`}
 function calOpen(){openSheet(`<h2>Sincronizare cu calendarul</h2><div class="mu">Alege calendarul. Termenele, cu memento-urile tale, apar acolo și se actualizează singure.</div><div class="prv">${Object.keys(CALP).map(p=>`<button class="btn alt" onclick="calSet('${p}')">${CALP[p]}</button>`).join("")}</div><button class="btn alt" onclick="closeSheet()">Renunță</button><div class="note">Prototip: conectarea este simulată și nu ajunge nimic în calendarul tău. Până la aplicația instalată, folosește „Descarcă pentru calendar”.</div>`,"cal")}
-function calSet(p){if(!CALP[p]||!S.pro)return;S.cal={p,at:Date.now()};save();closeSheet();render();toast("Conectat la "+CALP[p]+" (demo)")}
+function calSet(p){if(!CALP[p]||!can("calendar_sync"))return;S.cal={p,at:Date.now()};save();closeSheet();render();toast("Conectat la "+CALP[p]+" (demo)")}
 function calOff(){S.cal=null;save();render();toast("Calendarul a fost deconectat")}
 function wgShow(){
  const a=S.items.filter(x=>!x.ex&&okDate(x.d)&&left(x.d)>=0).sort((x,y)=>left(x.d)-left(y.d)),nx=a[0];

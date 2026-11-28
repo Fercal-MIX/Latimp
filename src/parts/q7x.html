@@ -2,7 +2,7 @@
 /* ---------- Doar în versiunea web: rezumatul săptămânii pe telefon, documente atașate în cont, prețuri și texte din panou, conectare cu Google ---------- */
 /* rezumatul săptămânii: luni, la ora memento-urilor, ce ai de rezolvat în acea săptămână */
 function wkPlan(){
- if(!S.pro||!S.nt||!S.nt.wk)return[];
+ if(!can("weekly_summary")||!S.nt||!S.nt.wk)return[];
  const out=[],now=Date.now(),en=S.lang=="en",pz=typeof pauseOn=="function"&&pauseOn()?+pd(S.np)+DAY:0,[h,m]=ntH().split(":").map(Number);
  const d0=new Date();d0.setHours(h,m,0,0);d0.setDate(d0.getDate()+((8-d0.getDay())%7));
  for(let w=0;w<9;w++){
@@ -35,7 +35,7 @@ if(WEB){
  const ab0=attBox;attBox=function(c){
   AS=attStore();
   if(!AS&&c&&c.id){const n=(Array.isArray(c.att)?c.att.length:0);
-   return `<label>Documente atașate${S.pro?"":" (Control)"}</label><div class="note">${n?"Documentele atașate le vezi după ce te conectezi la cont.":"Documentele se păstrează în contul tău, ca să le ai pe orice telefon."}</div><button class="btn alt" style="margin-top:8px" onclick="closeSheet();acctOpen('Conectează-te ca să atașezi documente. Le găsești apoi pe orice telefon.')">Conectează-te</button>`}
+   return `<label>Documente atașate${ptag("attachments")}</label><div class="note">${n?"Documentele atașate le vezi după ce te conectezi la cont.":"Documentele se păstrează în contul tău, ca să le ai pe orice telefon."}</div><button class="btn alt" style="margin-top:8px" onclick="closeSheet();acctOpen('Conectează-te ca să atașezi documente. Le găsești apoi pe orice telefon.')">Conectează-te</button>`}
   return ab0(c).replace(/<a href="\/_blob\/([0-9a-f]{32})"[^>]*>/g,(_,id)=>`<a href="#" onclick="attOpen('${id}');return false">`)};
  const lim=()=>{const v=CFGW&&CFGW.plans&&CFGW.plans.limits&&+CFGW.plans.limits.attachments_max;return v>0&&v<=20?Math.round(v):3};
  const aa0=attAdd;attAdd=async function(f){

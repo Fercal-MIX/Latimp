@@ -16,7 +16,7 @@ function carsMigrate(){
 function autoView(a){
  let sc=0,h="";
  S.cars.forEach(k=>{const l=a.filter(x=>x.car==k.id);
-  h+=`<div class="gt car"><span>🚗 ${esc(k.n)}</span><span>${S.pro?`<button onclick="kmOpen('${k.id}')">${+k.km?money(+k.km)+" km":"Kilometri"}</button>`:""}<button onclick="editCar('${k.id}')">Editează</button></span></div>`;
+  h+=`<div class="gt car"><span>🚗 ${esc(k.n)}</span><span>${can("car_km")?`<button onclick="kmOpen('${k.id}')">${+k.km?money(+k.km)+" km":"Kilometri"}</button>`:""}<button onclick="editCar('${k.id}')">Editează</button></span></div>`;
   h+=carCost(k);h+=l.length?ledger(l,()=>sc++<2,false):`<div class="card"><div class="mu">Nu are termene încă.</div><button class="btn alt" onclick="addForCar('${k.id}')">Adaugă un termen</button></div>`});
  return h+`<button class="btn alt" onclick="editCar()">Adaugă mașină${!S.pro&&S.cars.length>=FREE_CARS?" · Control":""}</button>`}
 let CE=null;
@@ -112,7 +112,7 @@ function card(x,allow){
  return `<div class="li" id="c_${x.id}" data-s="${sev(left(x.d))}">${leaf(x)}<div class="bd"><div class="top"><strong>${sub&&x.e?esc(x.e)+" ":""}${esc(ttl(x))}</strong>${pr}</div><div class="mt">${tg}${x.k?`<span class="tag ok">de anulat</span>`:""}${x.sh&&S.fam?`<span class="tag">distribuit</span>`:""}${stat(x)}</div>${x.note?`<div class="mu" style="margin-top:4px">${esc(x.note)}</div>`:""}${sugg(x,allow)}<div class="acts">${prim}<button class="g" onclick="editItem('${x.id}')">Editează</button></div></div></div>`}
 function calCard(){
  if(!S.items.some(x=>!x.ex))return"";
- return `<div class="card"><div class="top"><strong>Alerte în calendarul telefonului</strong><span class="tag k">Control</span></div><div class="mu" style="margin-top:6px">Un fișier cu termenele tale și memento-urile alese în Notificări. Le primești și când aplicația e închisă.</div>${DL?(S.pro?`<button class="btn alt" onclick="exportIcs()">Descarcă pentru calendar</button><div class="note">Termenele noi sau schimbate ulterior trebuie exportate din nou.</div>`:`<button class="btn alt" onclick="openPlan('agenda')">Vezi Control</button>`):`<div class="note">Descărcarea nu este disponibilă aici.</div>`}</div>`}
+ return `<div class="card"><div class="top"><strong>Alerte în calendarul telefonului</strong><span class="tag k">Control</span></div><div class="mu" style="margin-top:6px">Un fișier cu termenele tale și memento-urile alese în Notificări. Le primești și când aplicația e închisă.</div>${DL?(can("calendar_sync")?`<button class="btn alt" onclick="exportIcs()">Descarcă pentru calendar</button><div class="note">Termenele noi sau schimbate ulterior trebuie exportate din nou.</div>`:fHid("calendar_sync")?"":`<button class="btn alt" onclick="gate('calendar_sync')">Vezi ${esc(planName("calendar_sync"))}</button>`):`<div class="note">Descărcarea nu este disponibilă aici.</div>`}</div>`}
 /* fișierul de calendar: același pentru descărcare și pentru calendarul abonat */
 function icsText(it,feed){
  const e=v=>String(v==null?"":v).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"),
@@ -132,7 +132,7 @@ function icsText(it,feed){
  L.push("END:VCALENDAR");
  return L.map(fold).join("\r\n")+"\r\n"}
 async function exportIcs(){
- if(!S.pro){openPlan("agenda");return}
+ if(gate("calendar_sync"))return;
  if(!DL){toast("Descărcarea nu e disponibilă aici");return}
  const it=S.items.filter(x=>!x.ex&&okDate(x.d));
  if(!it.length){toast("Nu ai termene de exportat");return}

@@ -111,6 +111,24 @@ textarea{min-height:110px;font:14px/1.45 ui-monospace,monospace}
 .vbars div{background:var(--g2);border-radius:3px 3px 0 0;min-height:2px}.vbars div.z{background:var(--line)}.vbars div.hot{background:var(--a)}
 input[type=date],input[type=time]{width:100%;font:16px Manrope,sans-serif;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:44px}
 .reply{border-left:3px solid var(--g2);padding:6px 10px;margin:8px 0;background:var(--soft);border-radius:0 8px 8px 0;font-size:15px}
+.tcard{border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--card)}
+.tcard b{font-size:16px}
+.tform{border:2px solid var(--g2)}
+.colb{width:36px;height:36px;min-height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}
+.colb[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+.fchips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.fchips button{flex:none;font:600 14px Manrope,sans-serif;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:7px 12px;min-height:38px;cursor:pointer;white-space:nowrap}
+.fchips button[aria-pressed=true]{background:var(--g);color:light-dark(#f4f2ea,#0f1a13);border-color:var(--g)}
+.fchips i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+details.fg{border-top:1px solid var(--line);padding:4px 0}details.fg:first-of-type{border-top:0}
+details.fg>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;min-height:44px}
+details.fg>summary::-webkit-details-marker{display:none}
+details.fg>summary b{font-size:16px}details.fg>summary b:before{content:"▸ ";color:var(--mut)}details.fg[open]>summary b:before{content:"▾ "}
+details.fg>summary select{width:auto;min-height:38px;padding:6px 10px;font-size:14px}
+.pf select{width:auto;min-width:150px;min-height:42px;border-left:6px solid var(--tc)}
+.inc label{display:flex;align-items:center;gap:10px;min-height:40px;font-size:15px}
+.inc input{width:22px;height:22px}
+@media(max-width:620px){.pf select{width:100%}details.fg>summary{flex-wrap:wrap}details.fg>summary select{width:100%}}
 .lock{position:fixed;inset:0;z-index:20;background:#11523a;color:#f4f2ea;display:none;align-items:center;justify-content:center;padding:24px}
 .lock.on{display:flex}.lock .in{width:min(360px,100%);text-align:center}
 .lock h2{font-size:28px;margin:0 0 6px}.lock p{opacity:.85;margin:0 0 16px}
@@ -221,24 +239,43 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
 </section>
 
 <section id="planuri">
-  <h2>Ce e gratuit și ce e în Control</h2>
-  <div class="card big" id="pl_head">
-    <span class="mut">Pentru fiecare funcție alegi: <b>Gratuit</b>, <b>Control</b> (abonament), <b>Scântei</b> (se plătește per folosire) sau <b>Oprit</b> (ascunsă tuturor).</span>
-    <div class="tally" id="pl_tally"></div>
-    <p class="mut" id="pl_mode" style="margin:10px 0 0"></p>
+  <h2>Planuri și funcții</h2>
+  <p class="mut" id="pl_mode"></p>
+  <div class="card">
+    <div class="gh"><h3 style="margin:0">Planurile tale</h3><button class="b sm" id="tp_new">+ Plan nou</button></div>
+    <div id="tp_list"></div>
+  </div>
+  <div class="card tform" id="tp_form" hidden>
+    <h3 id="tp_title">Plan nou</h3>
+    <label class="f" for="tp_name">Nume</label><input type="text" id="tp_name" maxlength="30" placeholder="ex. Familie">
+    <label class="f" for="tp_desc">Ce primește cine îl are</label><input type="text" id="tp_desc" maxlength="120" placeholder="ex. Agenda comună pentru toată familia">
+    <span class="f" style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px">Culoare</span><div class="row" id="tp_cols" role="group" aria-label="Culoare"></div>
+    <div id="tp_paid">
+      <div class="grid2"><div><label class="f" for="tp_pm">Preț pe lună</label><input type="text" id="tp_pm" inputmode="decimal" placeholder="ex. 14,99"></div><div><label class="f" for="tp_py">Preț pe an</label><input type="text" id="tp_py" inputmode="decimal" placeholder="ex. 119,99"></div></div>
+      <span class="f" style="display:block;font-size:14px;font-weight:600;margin:12px 0 4px">Include și funcțiile din</span><div id="tp_inc"></div>
+      <div class="sw"><div class="t"><b>Se vinde</b><span>Apare ca ofertă în aplicație când plățile sunt pornite.</span></div><input type="checkbox" class="tg" id="tp_sale" aria-label="Se vinde"></div>
+    </div>
+    <p class="mut" id="tp_note"></p>
+    <div class="row"><button class="b" id="tp_ok">Gata</button><button class="b s" id="tp_cancel">Renunță</button><button class="b d" id="tp_del">Șterge planul</button></div>
+  </div>
+  <div class="card">
+    <h3>Funcții</h3>
+    <p class="mut" style="margin-top:0">Alege pentru fiecare funcție planul din care face parte. „Oprit” o ascunde tuturor.</p>
+    <input type="search" id="fl_q" placeholder="Caută o funcție" aria-label="Caută o funcție">
+    <div class="fchips" id="fl_f" role="group" aria-label="Arată"></div>
+    <div id="pl_groups"></div>
   </div>
   <div class="card"><h3>Cum vede aplicația un utilizator</h3>
-    <div class="row"><select id="pv_t" style="max-width:300px"><option value="free">Pe plan gratuit</option><option value="sparks">Gratuit, cu scântei cumpărate</option><option value="control">Cu Control</option><option value="invite">Cu cod de invitație</option><option value="new">Cont nou, gratuit</option></select></div>
-    <p class="mut" style="margin:8px 0 0">Include alegerile încă nesalvate de mai jos.</p>
+    <div class="row"><select id="pv_t" style="max-width:320px" aria-label="Tip de utilizator"></select></div>
+    <p class="mut" style="margin:8px 0 0">Include alegerile încă nesalvate.</p>
     <div id="pv_out"></div></div>
-  <div id="pl_groups"></div>
   <div class="card">
     <h3>Limite pentru planul gratuit</h3>
     <div class="grid2">
       <div><label class="f" for="l_items">Termene în agendă</label><select id="l_items"><option value="0">Nelimitat</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option></select></div>
       <div><label class="f" for="l_rem">Memento-uri pe termen</label><select id="l_rem"><option>1</option><option>2</option><option>3</option><option>5</option></select></div>
       <div><label class="f" for="l_sp">Scântei gratuite pe lună</label><select id="l_sp"><option>0</option><option>3</option><option>5</option><option>10</option><option>20</option></select></div>
-      <div><label class="f" for="l_att">Documente pe termen (în Control)</label><select id="l_att"><option>1</option><option>3</option><option>5</option><option>10</option></select></div>
+      <div><label class="f" for="l_att">Documente pe termen (planuri plătite)</label><select id="l_att"><option>1</option><option>3</option><option>5</option><option>10</option></select></div>
     </div>
   </div>
   <div class="card">
@@ -247,6 +284,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
     <label class="f" for="nf_name">Nume</label><input type="text" id="nf_name" maxlength="70" placeholder="ex. Rețete pentru weekend">
     <div class="grid2">
       <div><label class="f" for="nf_group">Meniu</label><select id="nf_group"></select></div>
+      <div><label class="f" for="nf_tier">Plan</label><select id="nf_tier"></select></div>
       <div><label class="f" for="nf_key">Cheie pentru cod</label><input type="text" id="nf_key" maxlength="40" placeholder="se completează singură"></div>
     </div>
     <div style="margin-top:12px"><button class="b s" id="nf_add">Adaugă în listă</button></div>
@@ -322,7 +360,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
   </div>
   <div class="card">
     <h3>Idei de rezervă</h3>
-    <p class="mut">Apar când ideile cu AI sunt oprite sau s-a atins plafonul. Câte una pe rând.</p>
+    <p class="mut">Apar când ideile cu AI sunt oprite sau s-a atins plafonul. Câte una pe rând, în forma <code>categorie | titlu | descriere | cost</code>. Categoriile: acasă, afară, cu cineva, pentru mine (fără categorie, ideea apare peste tot). Descrierea și costul sunt opționale; scrie „gratis” la cost pentru ideile fără bani. Exemplu: <code>afară | Plimbare în parc | Ia o pătură și o carte | gratis</code></p>
     <textarea id="cc_ideas" style="min-height:160px;font:15px/1.5 Manrope,sans-serif"></textarea>
     <p class="mut" id="cc_ideas_n"></p>
   </div>
@@ -757,7 +795,7 @@ function access(u){
 async function loadUsers(){
   await act($('u_go'),async()=>{
     const L=await fn('admin.users('+lit($('u_q').value.trim())+', 100)')||[];
-    $('u_list').innerHTML=L.length?L.map(u=>{const a=access(u);const id=esc(u.id);return '<div class="item"><div class="row" style="justify-content:space-between"><b style="overflow-wrap:anywhere">'+esc(u.email||'fără e-mail')+'</b><span>'+(u.banned?'<span class="pill r">blocat</span> ':'')+'<span class="pill '+a[1]+'">'+esc(a[0])+'</span></span></div>'+
+    $('u_list').innerHTML=L.length?L.map(u=>{const a=access(u);const id=esc(u.id);return '<div class="item"><div class="row" style="justify-content:space-between"><b style="overflow-wrap:anywhere">'+esc(u.email||'fără e-mail')+'</b><span>'+(u.banned?'<span class="pill r">blocat</span> ':'')+(u.tiers||[]).map(t=>'<span class="pill" style="background:'+esc(tierCol(t))+';color:#fff">'+esc(tierName(t))+'</span> ').join('')+'<span class="pill '+a[1]+'">'+esc(a[0])+'</span></span></div>'+
       '<div class="mut">Cont din '+esc(fmtD(u.created_at))+' · ultima conectare '+esc(fmtD(u.last))+(u.provider?' · '+esc(u.provider):'')+' · '+esc(u.sparks)+' scântei'+(u.admin?' · <b>administrator</b>':'')+'</div>'+
       '<div class="row" style="margin-top:8px"><button class="b sm" data-det="'+id+'">Fișa</button><select aria-label="Durata accesului" data-dur="'+id+'" style="width:auto;min-height:38px;padding:6px 10px"><option value="30">30 de zile</option><option value="365">1 an</option><option value="">Nelimitat</option></select>'+
       '<button class="b sm" data-u="'+id+'" data-a="grant">Dă Control</button><button class="b d sm" data-u="'+id+'" data-a="revoke">Retrage accesul</button>'+
@@ -834,53 +872,135 @@ $('cfgSave').onclick=e=>act(e.target,async()=>{
 
 /* Planuri */
 function resetPlan(){plan=null;if($('planuri').classList.contains('on'))loadPlans()}
-const TIER={free:'Gratuit',control:'Control',sparks:'Scântei',off:'Oprit'};
-let plan=null, impact={};
+const BUILTIN_TIERS=[{id:'free',name:'Gratuit',builtin:true,color:'#5d6357',desc:'Ce primește oricine, fără plată.'},{id:'control',name:'Control',builtin:true,color:'#b03d0b',desc:'Abonamentul pentru Agendă.'},{id:'sparks',name:'Scântei',builtin:true,kind:'use',color:'#c8962b',desc:'Se plătește la fiecare folosire, în Timp liber.'}];
+const TCOL=['#1c7752','#2f6f9f','#7a4fa3','#c2185b','#b03d0b','#c8962b','#5d6357'];
+const RESERVED=['free','control','sparks','off'];
+let plan=null, impact={}, tcount={}, flt='all', editT=null, editCol=TCOL[0];
 const clone=o=>JSON.parse(JSON.stringify(o||{}));
 const LIMK={l_items:'free_items',l_rem:'free_reminders',l_sp:'free_sparks_month',l_att:'attachments_max'};
 const sparkable=(k,f)=>f.tier==='sparks'||/\(AI\)/.test(f.name||'')||/idei|ideas/i.test(k);
 function setSel(id,v){const s=$(id);v=String(v);if(![...s.options].some(o=>o.value===v))s.add(new Option(v,v));s.value=v}
+const tiersOf=p=>(p&&Array.isArray(p.tiers)&&p.tiers.length)?p.tiers:BUILTIN_TIERS;
+const tierById=id=>tiersOf(plan||(cfg&&cfg.plans)).find(t=>t.id===id)||tiersOf(cfg&&cfg.plans).find(t=>t.id===id);
+const tierName=id=>id==='off'?'Oprit':((tierById(id)||{}).name||id);
+const tierCol=id=>id==='off'?'#9a9a90':((tierById(id)||{}).color||'#5d6357');
+const curr=()=>((cfg&&cfg.prices&&cfg.prices.currency)||'RON');
+function tierOn(t){const m={...MON_DEF,...(cfg&&cfg.mon||{})};if(t.id==='free')return null;if(t.id==='control')return !!m.control;if(t.id==='sparks')return !!m.sparks;return !!t.sale}
+const effTier=f=>f.fixed?'free':(f.tier||'free');
+function expand(ids){const T=tiersOf(plan);let s=new Set(ids),ch=true,n=0;while(ch&&n<5){ch=false;n++;T.forEach(t=>{if(s.has(t.id))(t.includes||[]).forEach(x=>{if(x!=='sparks'&&!s.has(x)){s.add(x);ch=true}})})}return s}
+function tierOpts(k,f){const T=tiersOf(plan).filter(t=>t.id!=='free'&&(t.kind!=='use'||sparkable(k,f)));const o=[['free','Gratuit']].concat(T.map(t=>[t.id,t.name]),[['off','Oprit']]);if(!o.some(x=>x[0]===effTier(f)))o.push([effTier(f),effTier(f)]);return o}
 function loadPlans(){
   if(!plan)plan=clone(cfg&&cfg.plans);
-  plan.features=plan.features||{};plan.groups=plan.groups||{};plan.limits=plan.limits||{};
+  plan.features=plan.features||{};plan.groups=plan.groups||{};plan.limits=plan.limits||{};if(!Array.isArray(plan.tiers)||!plan.tiers.length)plan.tiers=clone(BUILTIN_TIERS);
   renderPlans();
-  fn('admin.plan_impact()').then(r=>{impact=r||{};renderPlans()}).catch(()=>{});
+  fn('admin.plan_impact()').then(r=>{impact=r||{};renderFeat()}).catch(()=>{});
+  fn('admin.tier_counts()').then(r=>{tcount=r||{};renderTiers()}).catch(()=>{});
 }
-function renderPlans(){
-  const F=plan.features, G=plan.groups, keys=Object.keys(F);
-  const c={free:0,control:0,sparks:0,off:0};keys.forEach(k=>c[F[k].fixed?'free':(F[k].tier||'free')]++);
-  $('pl_tally').innerHTML=Object.keys(c).map(t=>'<span class="t-'+t+'">'+c[t]+' '+esc(TIER[t].toLowerCase())+'</span>').join('');
-  const m={...MON_DEF,...(cfg&&cfg.mon||{})};
-  $('pl_mode').textContent=m.free?'Acum aplicația e gratuită pentru toți, deci toți au acces la tot ce nu e oprit. Alegerile de aici intră în vigoare când oprești modul gratuit din Monetizare.':'Plățile sunt pornite: alegerile de aici se aplică imediat după salvare.';
+const featCount=id=>Object.values(plan.features).filter(f=>effTier(f)===id).length;
+function renderTiers(){
+  $('tp_list').innerHTML=plan.tiers.map(t=>{const on=tierOn(t), n=featCount(t.id), cur=curr();
+    const users=t.id==='control'?tcount.control:t.builtin?null:(tcount.tiers||{})[t.id]||0;
+    const price=t.id==='free'?'':t.id==='control'?((cfg&&cfg.prices&&cfg.prices.month)?cfg.prices.month+' '+cur+' pe lună':'prețul din Monetizare'):t.kind==='use'?'plătit per folosire':[t.price_month&&t.price_month+' '+cur+' pe lună',t.price_year&&t.price_year+' '+cur+' pe an'].filter(Boolean).join(', ')||'fără preț încă';
+    const inc=(t.includes||[]).map(tierName).join(', ');
+    return '<div class="tcard" style="--tc:'+esc(t.color||'#5d6357')+'"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1"><b>'+esc(t.name)+'</b> '+(on===null?'':'<span class="pill '+(on?'':'n')+'">'+(on?'se vinde':'nu se vinde')+'</span>')+
+      '<div class="mut" style="margin-top:2px">'+esc([t.desc,n+(n===1?' funcție':' funcții'),price,inc&&'include '+inc,users!=null&&users+(users===1?' utilizator':' utilizatori')].filter(Boolean).join(' · '))+'</div></div><button class="b s sm" data-tedit="'+esc(t.id)+'">Editează</button></div></div>'}).join('');
+}
+function renderFilters(){
+  const opts=[['all','Toate',Object.keys(plan.features).length]].concat(plan.tiers.map(t=>[t.id,t.name,featCount(t.id)]),[['off','Oprite',featCount('off')]]);
+  if(!opts.some(o=>o[0]===flt))flt='all';
+  $('fl_f').innerHTML=opts.map(([id,n,c])=>'<button data-flt="'+esc(id)+'" aria-pressed="'+(flt===id)+'">'+(id==='all'?'':'<i style="background:'+esc(tierCol(id))+'"></i>')+esc(n)+' '+c+'</button>').join('');
+}
+function renderFeat(){
+  const F=plan.features, G=plan.groups, keys=Object.keys(F), q=$('fl_q').value.trim().toLowerCase();
   const GO=['agenda','notif','family','leisure','tools','account'];
   const groups=[...new Set([...GO.filter(g=>g in G),...Object.keys(G),...keys.map(k=>F[k].group||'altele')])];
-  $('pl_groups').innerHTML=groups.map(g=>{
-    const ks=keys.filter(k=>(F[k].group||'altele')===g).sort((a,b)=>(F[a].fixed?1:0)-(F[b].fixed?1:0)||String(F[a].name||a).localeCompare(String(F[b].name||b),'ro'));if(!ks.length)return '';
-    return '<div class="card"><div class="gh"><h3 style="margin:0">'+esc(G[g]||g)+'</h3><div class="row" style="gap:6px"><button class="b s sm" data-bulk="'+esc(g)+'" data-v="free">Toate gratuite</button><button class="b s sm" data-bulk="'+esc(g)+'" data-v="control">Toate în Control</button></div></div>'+
-    ks.map(k=>{const f=F[k], t=f.tier||'free';
+  const opened=new Set([...document.querySelectorAll('details.fg[open]')].map(d=>d.dataset.g));
+  const first=!document.querySelector('details.fg');
+  const moveOpts='<option value="">Mută tot meniul în…</option><option value="free">Gratuit</option>'+plan.tiers.filter(t=>t.id!=='free'&&t.kind!=='use').map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'<option value="off">Oprit</option>';
+  const html=groups.map(g=>{
+    const ks=keys.filter(k=>(F[k].group||'altele')===g&&(flt==='all'||effTier(F[k])===flt)&&(!q||String(F[k].name||'').toLowerCase().includes(q)||k.includes(q)))
+      .sort((a,b)=>(F[a].fixed?1:0)-(F[b].fixed?1:0)||String(F[a].name||a).localeCompare(String(F[b].name||b),'ro'));
+    if(!ks.length)return '';
+    const open=q||flt!=='all'||first||opened.has(g);
+    return '<details class="fg" data-g="'+esc(g)+'"'+(open?' open':'')+'><summary><b>'+esc(G[g]||g)+' <span class="mut" style="font-weight:400">'+ks.length+'</span></b></summary><div class="row" style="padding:0 0 6px"><select data-bulkg="'+esc(g)+'" aria-label="Mută tot meniul '+esc(G[g]||g)+'" style="width:auto;min-height:40px;font-size:14px">'+moveOpts+'</select></div>'+
+    ks.map(k=>{const f=F[k], t=effTier(f);
       if(f.fixed)return '<div class="pf"><div class="nm"><b>'+esc(f.name||k)+'</b><span>'+esc(f.fixed)+'</span></div><span class="pill">Mereu gratuit</span></div>';
-      const opts=['free','control'].concat(sparkable(k,f)?['sparks']:[],['off']);
-      const im=impact[k], warn=(t==='control'||t==='off')&&im&&im.free_users?'<span class="imp">'+im.free_users+' utilizatori fără Control o folosesc acum</span>':(im&&im.users?'<span>folosită de '+im.users+' utilizatori</span>':'');
-      return '<div class="pf"><div class="nm"><b>'+esc(f.name||k)+'</b>'+(warn||'<span>'+esc(k)+'</span>')+'</div><div class="seg" role="group" aria-label="'+esc(f.name||k)+'">'+
-        opts.map(v=>'<button data-pk="'+esc(k)+'" data-v="'+v+'" aria-pressed="'+(t===v)+'">'+TIER[v]+'</button>').join('')+'</div></div>'}).join('')+'</div>'}).join('');
-  for(const id in LIMK)setSel(id,plan.limits[LIMK[id]]??$(id).options[0].value);
-  renderPreview();
+      const im=impact[k], paid=t!=='free';
+      const note=paid&&im&&im.free_users?'<span class="imp">'+im.free_users+' utilizatori fără plan plătit o folosesc acum</span>':(im&&im.users?'<span>folosită de '+im.users+' utilizatori</span>':'')+(f.beta?'<span>doar testeri</span>':f.rollout!=null&&f.rollout<100?'<span>lansată la '+f.rollout+'%</span>':'');
+      return '<div class="pf"><div class="nm"><b>'+esc(f.name||k)+'</b>'+(note||'<span>'+esc(k)+'</span>')+'</div><select data-pk="'+esc(k)+'" style="--tc:'+esc(tierCol(t))+'" aria-label="Planul pentru '+esc(f.name||k)+'">'+tierOpts(k,f).map(([v,n])=>'<option value="'+esc(v)+'"'+(v===t?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></div>'}).join('')+'</details>'}).join('');
+  $('pl_groups').innerHTML=html||'<div class="empty">Nicio funcție găsită.</div>';
   $('nf_group').innerHTML=groups.map(g=>'<option value="'+esc(g)+'">'+esc(G[g]||g)+'</option>').join('');
-  markDirty();
+  const nt=$('nf_tier').value;$('nf_tier').innerHTML='<option value="free">Gratuit</option>'+plan.tiers.filter(t=>t.id!=='free'&&t.kind!=='use').map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'<option value="off">Oprit</option>';if(nt)$('nf_tier').value=nt;
+}
+function renderPlans(){
+  const m={...MON_DEF,...(cfg&&cfg.mon||{})};
+  $('pl_mode').textContent=m.free?'Acum aplicația e gratuită pentru toți: toți au acces la tot ce nu e oprit. Alegerile de aici intră în vigoare când oprești modul gratuit din Monetizare.':'Plățile sunt pornite: alegerile de aici se aplică imediat după salvare.';
+  renderTiers();renderFilters();renderFeat();
+  for(const id in LIMK)setSel(id,plan.limits[LIMK[id]]??$(id).options[0].value);
+  const pv=$('pv_t').value;
+  $('pv_t').innerHTML='<option value="free">Pe plan gratuit</option><option value="sparks">Gratuit, cu scântei cumpărate</option>'+plan.tiers.filter(t=>t.id!=='free'&&t.kind!=='use').map(t=>'<option value="tier:'+esc(t.id)+'">Cu '+esc(t.name)+'</option>').join('')+'<option value="invite">Cu cod de invitație</option><option value="new">Cont nou, gratuit</option>';
+  if(pv&&[...$('pv_t').options].some(o=>o.value===pv))$('pv_t').value=pv;
+  renderPreview();markDirty();
 }
 function markDirty(){
   const orig=JSON.stringify(cfg&&cfg.plans||{}), now=JSON.stringify(plan||{});
   let n=0;const a=(cfg&&cfg.plans&&cfg.plans.features)||{}, b=plan.features;
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{if(JSON.stringify(a[k])!==JSON.stringify(b[k]))n++});
   const la=(cfg&&cfg.plans&&cfg.plans.limits)||{};for(const id in LIMK)if(String(la[LIMK[id]])!==String(plan.limits[LIMK[id]]))n++;
-  $('pl_dirty').textContent=orig===now?'Nicio modificare':n+' '+(n===1?'modificare nesalvată':'modificări nesalvate');
-  $('pl_save').disabled=orig===now;$('pl_reset').disabled=orig===now;
+  const ta=tiersOf(cfg&&cfg.plans);new Set([...ta.map(t=>t.id),...plan.tiers.map(t=>t.id)]).forEach(id=>{if(JSON.stringify(ta.find(t=>t.id===id))!==JSON.stringify(plan.tiers.find(t=>t.id===id)))n++});
+  const same=orig===now||n===0;
+  $('pl_dirty').textContent=same?'Nicio modificare':n+' '+(n===1?'modificare nesalvată':'modificări nesalvate');
+  $('pl_save').disabled=same;$('pl_reset').disabled=same;
 }
+/* editorul de plan */
+function openT(id){
+  editT=id;const t=id?plan.tiers.find(x=>x.id===id):null, builtin=t&&t.builtin;
+  editCol=(t&&t.color)||TCOL.find(c=>!plan.tiers.some(x=>x.color===c))||TCOL[0];
+  $('tp_title').textContent=t?'Editează „'+t.name+'”':'Plan nou';
+  $('tp_name').value=t?t.name:'';$('tp_desc').value=(t&&t.desc)||'';
+  $('tp_pm').value=(t&&t.price_month)||'';$('tp_py').value=(t&&t.price_year)||'';$('tp_sale').checked=!!(t&&t.sale);
+  $('tp_paid').hidden=!!builtin;$('tp_del').hidden=!t||builtin;
+  $('tp_note').textContent=builtin?(t.id==='control'?'Prețul și vânzarea pentru Control se setează în Monetizare.':t.id==='sparks'?'Pachetele de scântei se pornesc din Monetizare.':'Gratuit e planul de bază: numele și descrierea apar în aplicație.'):'Prețul real se stabilește în magazine; aici trebuie să fie același. Până la legarea plăților, planul se poate da manual din fișa utilizatorului.';
+  const others=plan.tiers.filter(x=>x.id!=='free'&&x.kind!=='use'&&x.id!==id);
+  $('tp_inc').innerHTML=others.length?'<div class="inc">'+others.map(x=>'<label><input type="checkbox" value="'+esc(x.id)+'"'+(t&&(t.includes||[]).includes(x.id)?' checked':'')+'> '+esc(x.name)+'</label>').join('')+'</div>':'<p class="mut">Nu există alte planuri plătite.</p>';
+  renderCols();$('tp_form').hidden=false;$('tp_form').scrollIntoView({behavior:'smooth',block:'start'});$('tp_name').focus({preventScroll:true});
+}
+function renderCols(){$('tp_cols').innerHTML=TCOL.map(c=>'<button type="button" class="colb" data-col="'+c+'" style="background:'+c+'" aria-label="Culoarea '+c+'" aria-pressed="'+(c===editCol)+'"></button>').join('')}
+$('tp_new').onclick=()=>openT(null);
+$('tp_cancel').onclick=()=>{$('tp_form').hidden=true;editT=null};
+$('tp_ok').onclick=()=>{
+  try{
+    const name=$('tp_name').value.trim();if(!name)throw new Error('Dă un nume planului.');
+    if(plan.tiers.some(x=>x.id!==editT&&x.name.toLowerCase()===name.toLowerCase()))throw new Error('Există deja un plan cu numele „'+name+'”.');
+    let t=editT?plan.tiers.find(x=>x.id===editT):null;
+    if(!t){let id=slug(name).slice(0,24)||'plan';if(RESERVED.includes(id))id='plan_'+id;let i=2;const base=id;while(plan.tiers.some(x=>x.id===id))id=base+'_'+i++;t={id};plan.tiers.push(t)}
+    t.name=name;t.desc=$('tp_desc').value.trim();t.color=editCol;
+    if(!t.builtin){t.price_month=price($('tp_pm').value);t.price_year=price($('tp_py').value);t.sale=$('tp_sale').checked;t.includes=[...$('tp_inc').querySelectorAll('input:checked')].map(x=>x.value)}
+    showErr('');$('tp_form').hidden=true;const was=editT;editT=null;renderPlans();toast(was?'Plan actualizat. Nu uita să salvezi.':'Plan adăugat. Alege-i funcțiile mai jos și salvează.');
+  }catch(e){showErr(e.message)}
+};
+$('tp_del').onclick=e=>{
+  if(!editT)return;const t=plan.tiers.find(x=>x.id===editT);if(!t||t.builtin)return;
+  const n=featCount(t.id);if(!sure(e.target,'Șterge planul'))return;
+  Object.values(plan.features).forEach(f=>{if(f.tier===t.id)f.tier='control'});
+  plan.tiers.forEach(x=>{if(x.includes)x.includes=x.includes.filter(y=>y!==t.id)});
+  plan.tiers=plan.tiers.filter(x=>x.id!==t.id);$('tp_form').hidden=true;editT=null;renderPlans();
+  toast(n?'Plan șters. Cele '+n+' funcții ale lui au trecut în Control.':'Plan șters.');
+};
 $('planuri').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.pk){plan.features[b.dataset.pk].tier=b.dataset.v;renderPlans()}
-  if(b.dataset.bulk){for(const k in plan.features){const f=plan.features[k];if((f.group||'altele')===b.dataset.bulk&&!f.fixed&&f.tier!=='off'&&f.tier!=='sparks')f.tier=b.dataset.v}renderPlans()}
+  if(b.dataset.flt){flt=b.dataset.flt;renderFilters();renderFeat()}
+  if(b.dataset.tedit)openT(b.dataset.tedit);
+  if(b.dataset.col){editCol=b.dataset.col;renderCols()}
 });
+$('planuri').addEventListener('change',e=>{
+  const el=e.target;
+  if(el.dataset.pk){plan.features[el.dataset.pk].tier=el.value;renderPlans()}
+  if(el.dataset.bulkg!==undefined&&el.value){const g=el.dataset.bulkg,v=el.value;let n=0;
+    Object.entries(plan.features).forEach(([k,f])=>{if((f.group||'altele')===g&&!f.fixed&&f.tier!=='sparks'){f.tier=v;n++}});
+    renderPlans();toast(n+(n===1?' funcție mutată':' funcții mutate')+' în '+tierName(v)+'.');}
+});
+$('fl_q').oninput=()=>renderFeat();
 Object.keys(LIMK).forEach(id=>$(id).onchange=()=>{plan.limits[LIMK[id]]=parseInt($(id).value,10)||0;markDirty()});
 const slug=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
 $('nf_name').oninput=()=>{if(!$('nf_key').dataset.touched)$('nf_key').value=slug($('nf_name').value)};
@@ -889,16 +1009,16 @@ $('nf_add').onclick=()=>{
   const n=$('nf_name').value.trim(), k=slug($('nf_key').value||n);
   if(!n||!k){showErr('Scrie numele funcției.');return}
   if(plan.features[k]){showErr('Există deja o funcție cu cheia „'+k+'”.');return}
-  showErr('');plan.features[k]={name:n,group:$('nf_group').value,tier:'free'};
-  $('nf_name').value='';$('nf_key').value='';delete $('nf_key').dataset.touched;renderPlans();toast('Adăugată ca gratuită. Alege-i planul și salvează.');
+  showErr('');plan.features[k]={name:n,group:$('nf_group').value,tier:$('nf_tier').value||'free'};
+  $('nf_name').value='';$('nf_key').value='';delete $('nf_key').dataset.touched;$('fl_q').value='';flt='all';renderPlans();toast('Adăugată în '+tierName(plan.features[k].tier)+'. Salvează ca să intre în aplicație.');
 };
-$('pl_reset').onclick=()=>{plan=clone(cfg&&cfg.plans);plan.features=plan.features||{};plan.groups=plan.groups||{};plan.limits=plan.limits||{};renderPlans()};
+$('pl_reset').onclick=()=>{plan=clone(cfg&&cfg.plans);plan.features=plan.features||{};plan.groups=plan.groups||{};plan.limits=plan.limits||{};if(!Array.isArray(plan.tiers)||!plan.tiers.length)plan.tiers=clone(BUILTIN_TIERS);$('tp_form').hidden=true;renderPlans()};
 $('pl_save').onclick=e=>act(e.target,async()=>{
+  if(!$('tp_form').hidden)throw new Error('Termină întâi planul deschis (Gata sau Renunță).');
   cfg=await fn('admin.set_config('+lit(JSON.stringify({...(cfg||{}),plans:plan}))+'::jsonb)');
   plan=clone(cfg.plans);monState();fillCfg();renderPlans();toast('Planurile au fost salvate');
+  fn('admin.tier_counts()').then(r=>{tcount=r||{};renderTiers()}).catch(()=>{});
 });
-
-
 
 /* PIN */
 let pinOn=false, locked=false, lastAct=Date.now(), pinWait=null;
@@ -936,7 +1056,7 @@ function renderRO(){
   const F=roDraft||{}, G=(cfg&&cfg.plans&&cfg.plans.groups)||{}, GO=['agenda','notif','family','leisure','tools','account'];
   const ks=Object.keys(F).filter(k=>!F[k].fixed).sort((a,b)=>(GO.indexOf(F[a].group)-GO.indexOf(F[b].group))||String(F[a].name).localeCompare(String(F[b].name),'ro'));
   $('ro_list').innerHTML=ks.map(k=>{const v=roVal(F[k]);const opts=RO_OPTS.some(o=>o[0]===v)?RO_OPTS:RO_OPTS.concat([[v,v+'% din utilizatori']]);
-    return '<div class="ro"><div><b style="font-weight:600">'+esc(F[k].name||k)+'</b><div class="mut" style="font-size:13px">'+esc(G[F[k].group]||F[k].group||'')+' · '+esc(TIER[F[k].tier||'free']||'')+'</div></div><select data-ro="'+esc(k)+'" aria-label="Cine vede '+esc(F[k].name||k)+'">'+opts.map(o=>'<option value="'+o[0]+'"'+(o[0]===v?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select></div>'}).join('')||'<div class="empty">Nicio funcție în catalog.</div>';
+    return '<div class="ro"><div><b style="font-weight:600">'+esc(F[k].name||k)+'</b><div class="mut" style="font-size:13px">'+esc(G[F[k].group]||F[k].group||'')+' · '+esc(tierName(F[k].tier||'free'))+'</div></div><select data-ro="'+esc(k)+'" aria-label="Cine vede '+esc(F[k].name||k)+'">'+opts.map(o=>'<option value="'+o[0]+'"'+(o[0]===v?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select></div>'}).join('')||'<div class="empty">Nicio funcție în catalog.</div>';
   roDirty();
 }
 function roDirty(){const a=(cfg&&cfg.plans&&cfg.plans.features)||{};let n=0;for(const k in roDraft)if(roVal(roDraft[k])!==roVal(a[k]||{}))n++;$('ro_dirty').textContent=n?n+(n===1?' modificare nesalvată':' modificări nesalvate'):'Nicio modificare';$('ro_save').disabled=!n}
@@ -1023,36 +1143,40 @@ $('tx_save').onclick=e=>act(e.target,async()=>{texts=await fn("admin.set_key('te
 /* Previzualizare */
 function renderPreview(){
   if(!plan)return;
-  const t=$('pv_t').value, c=cfg||{}, m={...MON_DEF,...(c.mon||{})}, F=plan.features||{}, L=plan.limits||{};
-  const pro=!!m.free||t==='control'||t==='invite', sp=t==='sparks'?10:0, fsm=+L.free_sparks_month||0;
+  const t=$('pv_t').value||'free', c=cfg||{}, m={...MON_DEF,...(c.mon||{})}, F=plan.features||{}, L=plan.limits||{};
+  const all=!!m.free||t==='invite';
+  const ts=all?new Set(['free'].concat(plan.tiers.filter(x=>x.kind!=='use').map(x=>x.id))):expand(['free'].concat(t.startsWith('tier:')?[t.slice(5)]:[]));
+  const paid=[...ts].some(x=>x!=='free'), sp=t==='sparks'?10:0, fsm=+L.free_sparks_month||0;
   const on=[],lock=[],hid=[];
-  Object.keys(F).sort((a,b)=>String(F[a].name||a).localeCompare(String(F[b].name||b),'ro')).forEach(k=>{const f=F[k],tr=f.tier||'free',n=f.name||k;
-    if(f.fixed||tr==='free')on.push(n);
+  Object.keys(F).sort((a,b)=>String(F[a].name||a).localeCompare(String(F[b].name||b),'ro')).forEach(k=>{const f=F[k],tr=effTier(f),n=f.name||k;
+    if(tr==='free')on.push(n);
     else if(tr==='off')hid.push(n);
-    else if(tr==='control')(pro?on:lock).push(pro?n:n+' — cere Control');
-    else if(tr==='sparks')(pro||sp>0||fsm>0?on:lock).push(pro?n:n+(sp?' — consumă scântei':fsm?' — '+fsm+' scântei gratuite pe lună':' — cere scântei'));
+    else if(tr==='sparks')(ts.has('control')||sp>0||fsm>0?on:lock).push(ts.has('control')?n:n+(sp?' — consumă scântei':fsm?' — '+fsm+' scântei gratuite pe lună':' — cere scântei'));
+    else (ts.has(tr)?on:lock).push(ts.has(tr)?n:n+' — cere '+tierName(tr));
   });
   const P=c.prices||{}, cur=P.currency||'RON', promo=P.promo&&P.promo.until>=new Date().toISOString().slice(0,10)?P.promo:null;
   const pr=v=>v?(promo?(Math.round(parseFloat(v)*(100-promo.pct))/100).toFixed(2)+' '+cur+' (în loc de '+v+')':v+' '+cur):'preț necompletat';
   const offers=[];
   if(m.free)offers.push('Niciuna: aplicația e gratuită pentru toți.');
   else if(t==='invite')offers.push('Niciuna: sub un cod activ nu apar oferte.');
-  else if(pro)offers.push('„Abonamentul tău” în foaia Control (reînnoire, anulare).');
   else{
-    if(m.control)offers.push('Control lunar: '+pr(P.month)+'; anual: '+pr(P.year)+(P.trial_days?'; '+P.trial_days+' zile de probă':'')+(promo?' · '+promo.label+' −'+promo.pct+'%':''));
+    if(paid)offers.push('„Abonamentul tău” (reînnoire, anulare).');
+    if(m.control&&!ts.has('control'))offers.push('Control lunar: '+pr(P.month)+'; anual: '+pr(P.year)+(P.trial_days?'; '+P.trial_days+' zile de probă':'')+(promo?' · '+promo.label+' −'+promo.pct+'%':''));
+    plan.tiers.filter(x=>!x.builtin&&x.sale&&!ts.has(x.id)).forEach(x=>offers.push(x.name+': '+[x.price_month&&x.price_month+' '+cur+' pe lună',x.price_year&&x.price_year+' '+cur+' pe an'].filter(Boolean).join(', ')||x.name+' (fără preț completat)'));
     if(m.sparks)offers.push('Pachete de scântei în Timp liber');
-    if(!offers.length)offers.push('Niciuna (Control și scânteile sunt oprite în Monetizare).');
+    if(!offers.length)offers.push(paid?'Nicio altă ofertă.':'Niciuna (niciun plan nu se vinde acum).');
   }
-  if(m.invites&&!pro)offers.push('Câmpul „Ai un cod de invitație?”');
-  if(m.referrals)offers.push('Recomandări: 30 de zile pentru amândoi');
-  const n=c.news, aud=n&&(n.audience||'all');
+  if(m.invites&&!paid&&!all)offers.push('Câmpul „Ai un cod de invitație?”');
+  if(m.referrals)offers.push('Recomandări: '+(((c.ref||{}).days)||30)+' de zile pentru amândoi');
+  const n=c.news, aud=n&&(n.audience||'all'), pro=all||paid;
   const sees=n&&n.on&&(aud==='all'||(aud==='free'&&!pro)||(aud==='paid'&&pro)||(aud==='new'&&t==='new')||(aud==='invite'&&t==='invite'));
   const lim=!pro?['Termene: '+(+L.free_items?L.free_items:'nelimitat'),'Memento-uri pe termen: '+(L.free_reminders||1)]:['Documente pe termen: '+(L.attachments_max||3)];
   const li=a=>a.length?'<ul>'+a.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p class="mut">—</p>';
   $('pv_out').innerHTML='<div class="phone" style="margin-top:12px">'+
     (c.maint&&c.maint.on?'<div class="off"><b>Mentenanță pornită:</b> vede doar „'+esc(c.maint.msg||'')+'”.</div>':'')+
     (sees?'<div class="off" style="background:var(--soft)"><b>Anunț:</b> '+esc(n.title||'')+(n.body?' — '+esc(n.body):'')+'</div>':'')+
-    (m.free&&!['control','invite'].includes(t)?'<p class="mut" style="margin:0 0 6px">Modul gratuit e pornit, deci vede tot ce nu e oprit.</p>':'')+
+    (m.free&&t!=='invite'?'<p class="mut" style="margin:0 0 6px">Modul gratuit e pornit, deci vede tot ce nu e oprit.</p>':'')+
+    (!all&&t.startsWith('tier:')&&ts.size>2?'<p class="mut" style="margin:0 0 6px">Include și: '+esc([...ts].filter(x=>x!=='free'&&x!==t.slice(5)).map(tierName).join(', '))+'.</p>':'')+
     '<div class="prev"><div><h3>Poate folosi ('+on.length+')</h3>'+li(on)+'</div><div><h3>Blocate ('+lock.length+')</h3>'+li(lock)+'<h3 style="margin-top:10px">Ascunse ('+hid.length+')</h3>'+li(hid)+'</div>'+
     '<div><h3>Oferte afișate</h3>'+li(offers)+'<h3 style="margin-top:10px">Limite</h3>'+li(lim)+'</div></div></div>';
 }
@@ -1202,7 +1326,7 @@ $('x_dl').onclick=e=>act(e.target,async()=>{const r=await getRows();if(!r.length
   try{await downloads.save({filename:'latimp-'+X_NAME[$('x_what').value]+'-'+new Date().toISOString().slice(0,10)+'.csv',data:'﻿'+toTable(r,';')});$('x_info').textContent='Fișier salvat ('+r.length+' rânduri).'}catch(_){$('x_info').textContent='Descărcarea a fost anulată sau nu e permisă aici.'}});
 
 /* Fișa utilizatorului */
-const ACT={config:'Configurare schimbată',undo:'Configurare anulată',grant:'Acces Control dat',revoke:'Acces retras',sparks:'Scântei adăugate',admin_on:'Administrator numit',admin_off:'Administrator scos',invite:'Cod de invitație creat',invite_off:'Cod retras',report:'Raport actualizat',delete_user:'Cont șters',preset_save:'Set salvat',preset_apply:'Set aplicat',preset_delete:'Set șters',schedule_add:'Schimbare programată',schedule_cancel:'Programare anulată',schedule_run:'Programare făcută automat',report_reply:'Răspuns la raport',ban:'Utilizator blocat',unban:'Utilizator deblocat',tester_add:'Tester adăugat',tester_remove:'Tester scos',key:'Schimbat',error_fix:'Eroare rezolvată',error_open:'Eroare redeschisă',pin_set:'PIN schimbat',pin_off:'PIN scos',pin_locked:'Panou blocat după 5 PIN-uri greșite'};
+const ACT={config:'Configurare schimbată',undo:'Configurare anulată',grant:'Acces Control dat',revoke:'Acces retras',sparks:'Scântei adăugate',admin_on:'Administrator numit',admin_off:'Administrator scos',invite:'Cod de invitație creat',invite_off:'Cod retras',report:'Raport actualizat',delete_user:'Cont șters',preset_save:'Set salvat',preset_apply:'Set aplicat',preset_delete:'Set șters',schedule_add:'Schimbare programată',schedule_cancel:'Programare anulată',schedule_run:'Programare făcută automat',report_reply:'Răspuns la raport',ban:'Utilizator blocat',unban:'Utilizator deblocat',tester_add:'Tester adăugat',tester_remove:'Tester scos',key:'Schimbat',error_fix:'Eroare rezolvată',error_open:'Eroare redeschisă',pin_set:'PIN schimbat',pin_off:'PIN scos',pin_locked:'Panou blocat după 5 PIN-uri greșite',tier_grant:'Plan dat',tier_revoke:'Plan retras'};
 const TGT={content:'conținut Timp liber',texts:'texte din aplicație'};
 const KEYN={abtest:'test A/B',ref:'recomandări',ai:'plafon AI',plans:'planuri',mon:'monetizare',prices:'prețuri',maint:'mentenanță',min_ver:'versiune minimă',goal:'obiectiv',news:'anunț',f:'funcții',ab:'test A/B'};
 let curUser=null;
@@ -1210,7 +1334,7 @@ const dl=rows=>'<dl class="dl">'+rows.filter(r=>r[1]!==''&&r[1]!=null).map(([k,v
 async function openUser(id){
   curUser=id;$('sheet').classList.add('on');$('d_body').innerHTML='<div class="empty">Se încarcă…</div>';$('d_title').textContent='Fișa utilizatorului';
   await act(null,async()=>{
-    const [d,bi]=await Promise.all([fn('admin.user_detail('+uid(id)+')'),fn('admin.user_ban_info('+uid(id)+')')]);if(curUser!==id)return;
+    const [d,bi,ut]=await Promise.all([fn('admin.user_detail('+uid(id)+')'),fn('admin.user_ban_info('+uid(id)+')'),fn('admin.user_tiers('+uid(id)+')')]);if(curUser!==id)return;
     const u=d.user||{}, e=d.ent||{};
     $('d_title').textContent=u.email||'Cont fără e-mail';
     const a=access({...e,invite:!!(d.invite&&!d.invite.revoked&&(!d.invite.expires||d.invite.expires>=new Date().toISOString().slice(0,10)))});
@@ -1220,6 +1344,11 @@ async function openUser(id){
     h+='<h3>Acces</h3>'+dl([['Plan',PL[e.plan]||e.plan||'gratuit'],['Control până la',e.pro_until?fmtD(e.pro_until):''],['Sursa',SO[e.store]||e.store||''],['Reînnoire automată',e.plan?(e.auto_renew?'da':'nu'):''],['Bonus până la',e.bonus_until?fmtD(e.bonus_until):''],['Scântei',e.sparks??0],
       ['Cod de invitație',d.invite?((d.invite.label||'fără notă')+', folosit pe '+fmtD(d.invite.at)+(d.invite.revoked?' (retras)':'')):''],
       ['Codul lui de recomandare',d.ref_code||''],['Prieteni aduși',d.ref_count||0],['Adus de',d.ref_by?(d.ref_by.email||'cont șters')+', '+fmtD(d.ref_by.at):'']]);
+    const CT=tiersOf(cfg&&cfg.plans).filter(t=>!t.builtin);
+    if(CT.length||(ut||[]).length){
+      h+='<h3>Alte planuri</h3>'+((ut||[]).length?(ut||[]).map(x=>'<div class="row" style="justify-content:space-between;padding:6px 0"><span><span class="pill" style="background:'+esc(tierCol(x.tier))+';color:#fff">'+esc(tierName(x.tier))+'</span> <span class="mut">'+esc((x.active?(x.until?'până la '+fmtD(x.until):'nelimitat'):'expirat')+({apple:' · App Store',google:' · Google Play',web:' · web'}[x.source]||' · dat de tine'))+'</span></span>'+(x.source==='manual'?'<button class="b d sm" data-trev="'+esc(x.tier)+'">Retrage</button>':'')+'</div>').join(''):'<p class="mut">Niciun alt plan.</p>')+
+        (CT.length?'<div class="row" style="margin:6px 0 10px"><select id="d_tier" aria-label="Plan" style="width:auto;min-height:40px">'+CT.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'</select><select id="d_tdays" aria-label="Durata" style="width:auto;min-height:40px"><option value="30">30 de zile</option><option value="365">1 an</option><option value="">Nelimitat</option></select><button class="b sm" id="d_tgrant">Dă planul</button></div>':'');
+    }
     h+='<h3>Date</h3>'+dl([['Ultima sincronizare',d.state?fmtD(d.state.updated)+' ('+d.state.kb+' KB'+(d.state.device?', '+d.state.device:'')+')':'nicio sincronizare'],['Grup de familie',d.family?'da':'nu'],['Sondaj deschis',d.poll?'da':'nu'],['Fișiere atașate',d.files||0]]);
     const st=d.stats&&d.stats.data||{};const sk=Object.keys(st);
     if(sk.length)h+='<h3>Folosire</h3>'+dl(sk.slice(0,20).map(k=>[k,typeof st[k]==='object'?JSON.stringify(st[k]):st[k]]));
@@ -1233,6 +1362,8 @@ async function openUser(id){
     h+='<div class="danger"><h3>Șterge contul</h3><p class="mut">La cererea utilizatorului (GDPR). Se șterg definitiv contul, agenda sincronizată, accesul, statisticile, rapoartele, sondajele și datele de familie. Nu se poate anula.'+(d.files?' Cele '+d.files+' fișiere atașate rămân în Supabase → Storage și trebuie șterse de acolo.':'')+'</p>'+
       '<label class="f" for="d_conf">Scrie e-mailul contului ca să confirmi</label><input type="text" id="d_conf" autocomplete="off" placeholder="'+esc(u.email||'')+'"><div style="margin-top:10px"><button class="b d" id="d_del">Șterge definitiv</button></div></div>';
     $('d_body').innerHTML=h;
+    if($('d_tgrant'))$('d_tgrant').onclick=ev=>act(ev.target,async()=>{const dd=$('d_tdays').value;await q('select admin.grant_tier('+uid(id)+', '+lit($('d_tier').value)+', '+(dd?parseInt(dd,10):'null')+')');toast('Plan dat');openUser(id);loadUsers()});
+    $('d_body').querySelectorAll('[data-trev]').forEach(b=>b.onclick=()=>{if(!sure(b,'Retrage'))return;act(b,async()=>{const r=await fn('admin.revoke_tier('+uid(id)+', '+lit(b.dataset.trev)+')');toast(r==='paid'?'E plătit din magazin; se anulează doar de acolo':'Plan retras');openUser(id);loadUsers()})});
     if($('d_ban'))$('d_ban').onclick=ev=>{if(!sure(ev.target,'Blochează'))return;act(ev.target,async()=>{if(!await pinGuard('blocarea contului'))return;const dd=$('d_bdays').value;await q('select admin.ban_user('+uid(id)+', '+(dd?parseInt(dd,10):'null')+', '+lit($('d_breason').value.trim())+')');toast('Utilizator blocat');openUser(id);loadUsers()})};
     $('d_del').onclick=ev=>act(ev.target,async()=>{
       if(!await pinGuard('ștergerea contului'))return;

@@ -40,7 +40,7 @@ function famCard(){
  rows.sort((a,b)=>left(a.d)-left(b.d));
  return `<div class="card"><div class="top"><strong>Familie</strong><span class="mu">${FAMV.length+1} ${FAMV.length?"persoane":"persoană"}</span></div>${rows.slice(0,6).map(r=>`<div class="top" style="margin-top:8px"><span>${esc(r.w)} · ${esc(r.n)}</span><span class="mu">${nice(r.d)}</span></div>`).join("")||`<div class="mu" style="margin-top:6px">Încă nu a distribuit nimeni un termen.</div>`}<div class="acts"><button onclick="famOpen()">Gestionează</button></div></div>`}
 function famOpen(){FM={};
- if(!S.pro){toast("Familia face parte din Control.");openPlan("agenda");return}
+ if(gate("family","Familia face parte din Control."))return;
  if(needAcct("Pentru familie ai nevoie de un cont, ca să vă găsiți unii pe alții.",famOpen))return;
  if(!cryptoOk()||!DB||!UID){openSheet(`<h2>Familie</h2><div class="mu">Pentru familie ai nevoie de un cont conectat și de baza de date a aplicației. Aici nu sunt disponibile.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam");return}
  drawFam()}

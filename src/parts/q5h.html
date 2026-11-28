@@ -14,7 +14,7 @@ const od0=obDone;
 obDone=function(){const sel=(OB.sel||[]).slice();od0();if(sel.length){S.prof={sel,skip:[],hide:false};save();render()}};
 
 /* „De completat”: card complet pentru o agendă nouă, un singur rând când agenda are deja termene */
-function profRows(l){return l.map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")+(l.some(s=>PAIDG.includes(s.g))&&!S.pro?`<div class="note">Facturile, casa, sănătatea, documentele și taxele fac parte din Control.</div>`:"")}
+function profRows(l){return l.map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")+(l.some(s=>PAIDG.includes(s.g))&&!can("cat_extra")?`<div class="note">Facturile, casa, sănătatea, documentele și taxele fac parte din Control.</div>`:"")}
 function profCard(){
  const p=S.prof||{},n=S.items.filter(x=>!x.ex).length;if(p.hide)return"";
  if(!(p.sel||[]).length)return n<3?`<div class="card xs"><div class="top"><strong>Ce să urmărim pentru tine?</strong><button class="x" aria-label="Ascunde" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Spune ce ai (mașină, casă, animal) și îți propunem termenele potrivite. Tu completezi doar datele.</div><div class="acts"><button onclick="profOpen()">Alege</button></div></div>`:"";

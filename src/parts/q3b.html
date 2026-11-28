@@ -26,8 +26,8 @@ function pre(i){grab();cur.e=PRE[i][0];cur.n=PRE[i][1];drawItem(false)}
 function drawItem(ed){
  const c=cur,g=c.g,opt=(l,v)=>l.map(o=>`<option value="${o[0]}"${o[0]==v?" selected":""}>${o[1]}</option>`).join("");
  let h=`<h2>${ed?(c.rn?"Noua dată":"Editează"):"Termen nou"}</h2>`;
- if(!ed&&S.pro&&!c.fromText)h+=qaBox();
- if(!ed)h+=`<div class="chips">${GORD.map(k=>`<button class="${g==k?"on":""}" onclick="setG('${k}')">${GN[k]}</button>`).join("")}</div>`;
+ if(!ed&&can("quick_add")&&!c.fromText)h+=qaBox();
+ if(!ed)h+=`<div class="chips">${GORD.filter(k=>!(PAIDG.includes(k)&&fHid("cat_extra"))).map(k=>`<button class="${g==k?"on":""}" onclick="setG('${k}')">${GN[k]}</button>`).join("")}</div>`;
  if(c.fromText)h+=`<div class="sg"><b>Completat din text</b>Verifică fiecare câmp înainte să salvezi.</div>`;
  if(c.fromPhoto)h+=`<div class="sg"><b>Citit din poză</b>Verifică fiecare câmp înainte să salvezi: citirea poate greși. Ce nu s-a văzut clar a rămas gol.</div>`;
  if(g=="sub"){
@@ -80,7 +80,8 @@ async function exportCsv(){
 function parseJ(t){t=String(t||"").replace(/```json|```/g,"");const a=t.search(/[\[{]/);if(a<0)return null;const e=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));try{return JSON.parse(t.slice(a,e+1))}catch(x){return null}}
 function shrink(f,max,q){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(new Error("blob")),"image/jpeg",q)};im.onerror=()=>{URL.revokeObjectURL(u);no(new Error("img"))};im.src=u})}
 function photoStart(){
- if(!S.pro&&S.photos>=FREE_PHOTOS){toast("Ai folosit cele "+FREE_PHOTOS+" citiri gratuite din poză.");openPlan("agenda");return}
+ if(fHid("photo_read")){toast("Funcția nu este disponibilă acum.");return}
+ if(!can("photo_read")&&S.photos>=FREE_PHOTOS){toast("Ai folosit cele "+FREE_PHOTOS+" citiri gratuite din poză.");gate("photo_read");return}
  const intro=`<h2>Citește din poză</h2><div class="mu">Fotografiază o poliță RCA, o rovinietă, o fișă ITP, un talon sau o factură. Aplicația completează câmpurile, iar tu le verifici.</div>`;
  if(!S.aic){
   openSheet(intro+`<div class="sg"><b>Acordul tău, o singură dată</b>Poza pe care o alegi este trimisă către un serviciu de inteligență artificială, care o citește și returnează câmpurile. Aplicația trimite doar poza și instrucțiunea de citire, nu și restul agendei tale, și nu păstrează poza. Acoperă CNP-ul, numerele de card și alte date sensibile. Poți retrage acordul oricând din Mai mult.</div><div style="margin-top:14px"><button class="btn" onclick="photoOk()">Sunt de acord</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"photo");return}

@@ -40,11 +40,11 @@ function personBtn(x){return x.g=="per"&&PDT.includes(x.t)&&(x.n||"").trim()?`<b
 
 /* buget: venit și bani pentru ieșiri (Control) */
 function budCard(){
- if(!S.pro)return"";const b=S.bud||{},subs=S.items.filter(x=>!x.ex&&x.g=="sub").reduce((s,x)=>s+mon(x),0),bills=S.items.filter(x=>!x.ex&&x.g=="fac"&&+x.p>0).reduce((s,x)=>s+(+x.p),0),out=subs+bills;
+ if(!can("budget"))return"";const b=S.bud||{},subs=S.items.filter(x=>!x.ex&&x.g=="sub").reduce((s,x)=>s+mon(x),0),bills=S.items.filter(x=>!x.ex&&x.g=="fac"&&+x.p>0).reduce((s,x)=>s+(+x.p),0),out=subs+bills;
  const inc=+b.inc>0?+b.inc:0,fun=+b.fun>0?+b.fun:0;
  return `<div class="card"><strong>Bugetul lunii</strong><div class="row"><div><label for="bd_i">Venit lunar net (opțional)</label><input id="bd_i" type="number" inputmode="numeric" min="0" value="${inc||""}" onchange="budSet('inc',this.value)"></div><div><label for="bd_f">Pentru ieșiri, pe lună</label><input id="bd_f" type="number" inputmode="numeric" min="0" value="${fun||""}" onchange="budSet('fun',this.value)"></div></div>${inc?`<div class="ar"><span>Rămân după abonamente și facturi</span><b class="${inc-out<0?"wn":""}">${money(inc-out)} lei</b></div>`:""}${fun?`<div class="ar"><span>Pentru ieșiri, pe weekend</span><b>cam ${money(fun/4)} lei</b></div>${inc&&inc-out-fun<0?`<div class="note dg">Bugetul pentru ieșiri depășește ce rămâne după plăți.</div>`:""}`:""}<div class="note">Bugetul pentru ieșiri ajunge și în Timp liber, la ideile pentru weekend. Sumele rămân în agenda ta.</div></div>`}
 function budSet(k,v){S.bud=Object.assign({inc:0,fun:0},S.bud||{});const n=Math.round(+v);S.bud[k]=n>0&&n<1e7?n:0;save();render()}
-function budWk(){const f=S.pro&&S.bud&&+S.bud.fun>0?+S.bud.fun/4:0;return f}
+function budWk(){const f=can("budget")&&S.bud&&+S.bud.fun>0?+S.bud.fun/4:0;return f}
 function budBucket(){const w=budWk();if(!w)return "";return w<=0?"Gratis":w<50?"Sub 50 lei":w<150?"Sub 150 lei":"Orice buget"}
 
 /* votul câștigător intră în agendă */
@@ -61,11 +61,11 @@ function pollToAgenda(){
 
 /* istoric pe termen și costul mașinii (Control) */
 function histBox(c){
- if(!c.id||!S.pro)return"";const x=S.items.find(i=>i.id==c.id),h=x&&Array.isArray(x.hist)?x.hist:[];
+ if(!c.id||!can("item_history"))return"";const x=S.items.find(i=>i.id==c.id),h=x&&Array.isArray(x.hist)?x.hist:[];
  if(!h.length)return `<label>Istoric</label><div class="note">După primul „${esc(DONE[c.g]||"Gata")}”, aici apar datele și sumele de până acum.</div>`;
  return `<label>Istoric</label>${h.slice().reverse().slice(0,10).map(e=>`<div class="ar"><span>${esc(nice(e.d))} ${okDate(e.d)?pd(e.d).getFullYear():""}</span><span class="mu">${+e.p>0?money(+e.p)+" lei":"–"}${+e.km>0?" · "+money(+e.km)+" km":""}</span></div>`).join("")}`}
 function carCost(k){
- if(!S.pro)return"";const lim=fmt(addD(td(),-365));let s=0,n=0;
+ if(!can("item_history"))return"";const lim=fmt(addD(td(),-365));let s=0,n=0;
  S.items.filter(x=>x.g=="auto"&&x.car==k.id).forEach(x=>(x.hist||[]).forEach(e=>{if(okDate(e.d)&&e.d>=lim&&+e.p>0){s+=+e.p;n++}}));
  return n?`<div class="mu sm" style="margin:-4px 0 10px 2px">Ultimele 12 luni: ${money(s)} lei, din ${n} ${n==1?"plată":"plăți"} notate.</div>`:""}
 

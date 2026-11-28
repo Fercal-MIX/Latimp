@@ -4,6 +4,33 @@ const lsGet=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){
 let CFGW=lsGet("latimp.cfg"),ACC=lsGet("latimp.acc"),ISADM=false;
 const MONC=()=>Object.assign({free:false,control:true,sparks:true,invites:true,referrals:true},CFGW&&CFGW.mon||{});
 const accNow=()=>{if(ACC&&SBU)return ACC;const fm=!!MONC().free;return{pro:fm,source:fm?"free":null,free_mode:fm}};
+/* ---------- planuri pe funcții (panoul: Planuri). Cu cont decide serverul (get_my_access().unlocked); fără cont, catalogul din app_config ---------- */
+function PLF(){const p=WEB&&CFGW&&CFGW.plans;return p&&p.features&&typeof p.features=="object"?p.features:null}
+function PLT(){const p=CFGW&&CFGW.plans;return p&&Array.isArray(p.tiers)?p.tiers:[]}
+function fTier(k){const F=PLF(),f=F&&F[k];if(!f||typeof f!="object")return null;return f.fixed?"free":String(f.tier||"free")}
+function tierNm(t){if(!t||t=="control")return "Control";if(t=="sparks")return "Scântei";const x=PLT().find(y=>y&&y.id==t);return x&&x.name?String(x.name).slice(0,30):"Control"}
+function planName(k){return tierNm(fTier(k)||"control")}
+function accUnl(){return WEB&&ACC&&SBU&&Array.isArray(ACC.unlocked)?ACC.unlocked:null}
+/* ascunsă: oprită din panou, sau în afara lansării treptate / doar pentru testeri */
+function fHid(k){const t=fTier(k);if(t==null)return false;if(t=="off")return true;const u=accUnl(),f=PLF()[k];
+ if(u){if(u.includes(k))return false;const tl=Array.isArray(ACC.tiers)?ACC.tiers:[];return t=="free"||tl.includes(t)}
+ return !!(f.beta||(f.rollout!=null&&+f.rollout<100))}
+/* poate folosi funcția acum */
+function can(k){const t=fTier(k);if(t==null)return !!S.pro;if(fHid(k))return false;if(t=="sparks")return true;
+ const u=accUnl();if(u)return u.includes(k);const a=accNow();if(a.free_mode||a.source=="free")return true;return t=="free"||(t=="control"&&!!S.pro)}
+function ptag(k){return can(k)?"":" ("+planName(k)+")"}
+function ktag(k){if(can(k))return "";const t=fTier(k);return ` <span class="tag k">${t&&t!="control"&&t!="sparks"?"plan "+esc(tierNm(t)):"plan Agendă"}</span>`}
+/* blochează și arată ce trebuie: true = s-a oprit aici */
+function gate(k,msg){if(can(k))return false;
+ if(fHid(k)){toast("Funcția nu este disponibilă acum.");return true}
+ const t=fTier(k)||"control";
+ if(t=="control"||t=="sparks"){if(msg)toast(msg);openPlan(t=="sparks"?"leisure":"agenda");return true}
+ tierOpen(t);return true}
+function gateGo(k){if(can(k))return false;const t=fTier(k)||"control";if(t=="control"&&!fHid(k)){planGo();return true}return gate(k)}
+function tierOpen(t){const x=PLT().find(y=>y&&y.id==t)||{name:t},m=MONC(),P=CFGW&&CFGW.prices||{},cur=String(P.currency||"RON").slice(0,4);
+ const F=PLF()||{},fs=Object.keys(F).filter(k=>fTier(k)==t).map(k=>String(F[k].name||k).slice(0,80)).sort((a,b)=>a.localeCompare(b,"ro"));
+ const pr=[x.price_month&&x.price_month+" "+cur+" pe lună",x.price_year&&x.price_year+" "+cur+" pe an"].filter(Boolean).map(v=>String(v).slice(0,40)).join(" · ");
+ openSheet(`<h2>${esc(String(x.name||t).slice(0,30))}</h2>${x.desc?`<div class="mu">${esc(String(x.desc).slice(0,160))}</div>`:""}${fs.length?`<div class="gt">Ce include</div><div class="card">${fs.map(n=>`<div class="ar"><span>${esc(n)}</span></div>`).join("")}</div>`:""}${pr?`<div class="mu" style="margin-top:10px">${esc(pr)}</div>`:""}<div class="mu" style="margin-top:10px">${x.sale&&!m.free?"Plata nu este disponibilă încă în versiunea web.":"Planul nu este disponibil încă. Te anunțăm când pornește."}</div><button class="btn alt" style="margin-top:14px" onclick="closeSheet()">Închide</button>`,"plan")}
 async function cfgLoad(){
  if(!SB)return;
  try{const{data,error}=await SB.from("app_config").select("value").eq("key","app").maybeSingle();if(error||!data)return;CFGW=data.value||{};lsSet("latimp.cfg",CFGW);cfgApply();soft()}catch(e){}}
@@ -24,7 +51,9 @@ function cfgApply(){
   ["ad_n","ad_t","ad_u"].forEach(k=>{if(!(k in b.f))b.f[k]=""});
   Object.keys(b.f).forEach(k=>{const v=F[k];if(typeof v=="string")b.f[k]=/_u$|^aff$/.test(k)?(okUrl(v)?v.trim().slice(0,300):""):v.trim().slice(0,120)});
   Object.keys(b.flags).forEach(k=>{if(typeof G[k]=="boolean")b.flags[k]=G[k]});
-  CFG.f=b.f;CFG.flags=b.flags}
+  CFG.f=b.f;CFG.flags=b.flags;
+  /* funcțiile oprite din Planuri dispar și de la intrare */
+  const FM={photo:"photo_read",fam:"family",gifts:"gift_ideas"};for(const x in FM)if(fHid(FM[x]))CFG.flags[x]=false}
  mntCheck()}
 /* mentenanță: ecran peste aplicație, cu excepția administratorilor */
 function mntCheck(){
@@ -38,7 +67,7 @@ if(WEB){
  invExp=function(){};bonusExp=function(){};subExp=function(){};
  const rA0=render;
  render=function(){
-  const a=accNow();S.pro=!!a.pro;
+  const a=accNow();S.pro=!!a.pro||(Array.isArray(a.tiers)&&a.tiers.includes("control"));
   S.inv=a.source=="invite"?{h:"srv",exp:a.until?String(a.until).slice(0,10):"",at:0,was:false}:null;
   S.bx=a.source=="bonus"&&a.bonus_until?String(a.bonus_until).slice(0,10):null;S.bw=false;
   if(a.source!="sub")S.sub=null;

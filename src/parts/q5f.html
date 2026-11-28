@@ -11,7 +11,7 @@ function profCard(){
  const p=S.prof||{};if(p.hide)return"";
  if(!(p.sel||[]).length)return `<div class="card xs"><div class="top"><strong>Ce să urmărim pentru tine?</strong><button class="x" aria-label="Ascunde" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Spune ce ai (mașină, casă, animal) și îți propunem termenele potrivite. Tu completezi doar datele.</div><div class="acts"><button onclick="profOpen()">Alege</button></div></div>`;
  const l=profSugs();if(!l.length)return"";
- return `<div class="card pfl"><div class="top"><strong>De completat</strong><button class="x" aria-label="Ascunde lista" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Termene propuse după profilul tău. Adaugă-le pe cele care te privesc.</div>${l.slice(0,12).map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}${PAIDG.includes(s.g)&&!S.pro?` <span class="tag k">Control</span>`:""}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")}<div class="acts"><button onclick="profOpen()">Schimbă profilul</button></div></div>`}
+ return `<div class="card pfl"><div class="top"><strong>De completat</strong><button class="x" aria-label="Ascunde lista" onclick="profHide()">✕</button></div><div class="mu" style="margin-top:4px">Termene propuse după profilul tău. Adaugă-le pe cele care te privesc.</div>${l.slice(0,12).map(s=>`<div class="ar"><span>${esc(TYN[s.t]||GN[s.g])}${PAIDG.includes(s.g)&&!can("cat_extra")?` <span class="tag k">${esc(planName("cat_extra"))}</span>`:""}</span><span class="acts" style="margin:0"><button onclick="profAdd('${s.id}')">Adaugă</button><button class="g" onclick="profSkip('${s.id}')">Nu</button></span></div>`).join("")}<div class="acts"><button onclick="profOpen()">Schimbă profilul</button></div></div>`}
 function profOpen(){PSEL=((S.prof||{}).sel||[]).slice();profDraw()}
 function profDraw(){openSheet(`<h2>Ce ai în viața ta?</h2><div class="mu">Alege tot ce se potrivește. Poți schimba oricând.</div><div class="chips">${PROF.map(([k,n])=>`<button class="${PSEL.includes(k)?"on":""}" aria-pressed="${PSEL.includes(k)}" onclick="profTg('${k}')">${n}</button>`).join("")}</div><div style="margin-top:14px"><button class="btn" onclick="profSave()">Propune termenele</button><button class="btn alt" onclick="closeSheet()">Renunță</button></div>`,"prof")}
 function profTg(k){PSEL=PSEL.includes(k)?PSEL.filter(x=>x!=k):PSEL.concat(k);profDraw()}
@@ -20,7 +20,7 @@ function profHide(){S.prof=Object.assign({sel:[],skip:[]},S.prof||{},{hide:true}
 function profSkip(id){S.prof.skip=(S.prof.skip||[]).concat(id);save();swap()}
 function profAdd(id){
  const[g,t]=id.split(":");
- if(PAIDG.includes(g)&&!S.pro){toast(GN[g]+" fac parte din Control.");openPlan("agenda");return}
+ if(PAIDG.includes(g)&&gate("cat_extra",GN[g]+" fac parte din Control."))return;
  if(!S.pro&&S.items.filter(x=>!x.ex).length>=FREE_ITEMS){toast("Ai atins limita gratuită de "+FREE_ITEMS+" de termene.");openPlan("agenda");return}
  const rep=XT[g]?(XT[g].find(a=>a[0]==t)||[0,0,0])[2]:((g=="auto"?AT:PT).find(a=>a[0]==t)||[0,0])[1];
  cur={g,t,n:"",d:"",rep,note:"",p:"",auto:g=="per"&&rep>0};drawItem(false)}
@@ -30,14 +30,14 @@ const STP={itp:["Programare la stație","Talonul și cartea mașinii","Plata"],r
 function stepBox(c){
  if(!c.id)return"";const x=S.items.find(i=>i.id==c.id);if(!x)return"";
  const l=Array.isArray(x.ss)?x.ss:[];
- if(!S.pro)return `<label>Pași (Control)</label><div class="note">Împarte termenul în pași mici, de bifat pe rând.</div>`;
+ if(!can("steps"))return fHid("steps")?"":`<label>Pași${ptag("steps")}</label><div class="note">Împarte termenul în pași mici, de bifat pe rând.</div>`;
  const sug=(STP[x.t]||[]).filter(t=>!l.some(s=>s.t==t));
  return `<label>Pași</label>${l.map((s,i)=>`<div class="it tli" style="padding:6px 0"><label class="ck" style="margin:0"><input type="checkbox"${s.dn?" checked":""} onchange="stepTg(${i})"> <span${s.dn?' class="mu" style="text-decoration:line-through"':""}>${esc(s.t)}</span></label><button class="x" aria-label="Scoate pasul" onclick="stepDel(${i})">✕</button></div>`).join("")}${sug.length?`<div class="chips">${sug.map(t=>`<button onclick="stepAdd(${JSON.stringify(t).replace(/"/g,"&quot;")})">+ ${esc(t)}</button>`).join("")}</div>`:""}<div class="qa"><input id="st_n" maxlength="60" placeholder="Pas nou" aria-label="Pas nou" onkeydown="if(event.key=='Enter')stepAdd()"><button onclick="stepAdd()">Adaugă</button></div>`}
 function stepItem(){return S.items.find(i=>i.id==cur.id)}
 function stepAdd(t){const x=stepItem();if(!x)return;grab();const v=(t||(($("st_n")||{}).value||"")).trim().slice(0,60);if(!v){toast("Scrie pasul");return}x.ss=(Array.isArray(x.ss)?x.ss:[]).concat({t:v,dn:false}).slice(0,12);cur.ss=x.ss;save();drawItem(true)}
 function stepTg(i){const x=stepItem();if(!x||!x.ss[i])return;grab();x.ss[i].dn=!x.ss[i].dn;cur.ss=x.ss;save();drawItem(true)}
 function stepDel(i){const x=stepItem();if(!x)return;grab();x.ss.splice(i,1);cur.ss=x.ss;save();drawItem(true)}
-const stepTag=x=>Array.isArray(x.ss)&&x.ss.length&&S.pro?`<span class="tag${x.ss.every(s=>s.dn)?" ok":""}">${x.ss.filter(s=>s.dn).length}/${x.ss.length} pași</span>`:"";
+const stepTag=x=>Array.isArray(x.ss)&&x.ss.length&&can("steps")?`<span class="tag${x.ss.every(s=>s.dn)?" ok":""}">${x.ss.filter(s=>s.dn).length}/${x.ss.length} pași</span>`:"";
 
 /* căutare în toată aplicația */
 function srOpen(){openSheet(`<h2>Caută</h2><input id="sr_q" type="search" maxlength="60" placeholder="Termene, persoane, idei, liste" aria-label="Caută în aplicație" oninput="srRun(this.value)"><div id="sr_r" aria-live="polite"></div>`,"sr");setTimeout(()=>{const e=$("sr_q");if(e)e.focus()},60)}

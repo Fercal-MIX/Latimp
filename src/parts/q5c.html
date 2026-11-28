@@ -14,10 +14,10 @@ const ntH=()=>HM.test(S.nt&&S.nt.h)?S.nt.h:"09:00";
 function ntFix(){const b=fresh();S.nt=Object.assign(b.nt,S.nt&&typeof S.nt=="object"?S.nt:{});S.ui=Object.assign(b.ui,S.ui&&typeof S.ui=="object"?S.ui:{})}
 let RCUT=false;
 function remDays(x){
- const n=S.nt,own=x&&S.pro&&x.rd!==undefined&&x.rd!==null&&x.rd!==""&&isFinite(+x.rd),d=Math.max(0,Math.min(365,Math.round(own?+x.rd:+n.d)||0)),a=[d];RCUT=false;
- if(S.pro&&n.rep){const i=Math.max(1,Math.min(60,Math.round(+n.i)||1)),c=Math.max(2,Math.min(10,Math.round(+n.n)||2));
+ const n=S.nt,own=x&&can("custom_reminder")&&x.rd!==undefined&&x.rd!==null&&x.rd!==""&&isFinite(+x.rd),d=Math.max(0,Math.min(365,Math.round(own?+x.rd:+n.d)||0)),a=[d];RCUT=false;
+ if(can("reminders_extra")&&n.rep){const i=Math.max(1,Math.min(60,Math.round(+n.i)||1)),c=Math.max(2,Math.min(10,Math.round(+n.n)||2));
   for(let k=1;k<c;k++){const v=d-k*i;if(v<0){RCUT=true;break}a.push(v)}}
- if(S.pro&&n.day&&!a.includes(0))a.push(0);
+ if(can("reminders_extra")&&n.day&&!a.includes(0))a.push(0);
  return a}
 const remAt=(ds,k)=>{const d=pd(ds);d.setDate(d.getDate()-k);const[h,m]=ntH().split(":").map(Number);d.setHours(h,m,0,0);return d};
 const dayW=k=>k==0?"în ziua termenului":k==1?"cu o zi înainte":k==7?"cu o săptămână înainte":"cu "+k+" zile înainte";
@@ -25,7 +25,7 @@ const remSum=()=>{if(typeof pauseOn=="function"&&pauseOn())return "În pauză p�
 const dt=d=>d.toLocaleDateString(LOC(),{weekday:"short",day:"numeric",month:"short"})+", "+ntH();
 function ntSet(k,v){
  const n=S.nt;
- if(["rep","day","wk"].includes(k)){if(!S.pro){planGo();return}v=!n[k]}
+ if(["rep","day","wk"].includes(k)){if(gateGo(k=="wk"?"weekly_summary":"reminders_extra"))return;v=!n[k]}
  else if(k=="d")v=Math.max(0,Math.min(365,Math.round(+v)||0));
  else if(k=="h"){if(!HM.test(v)){toast("Alege o oră validă");render();return}}
  else if(k=="n")v=Math.max(2,Math.min(10,Math.round(+v)||2));
@@ -38,16 +38,16 @@ function tSel(){const[h,m]=ntH().split(":"),mm=[...Array(12)].map((_,i)=>String(
 function ntHM(){ntSet("h",$("nt_hh").value+":"+$("nt_mm").value)}
 function notifGo(){if(TAB=="more"){VIEW="notif";render();enter(1);scrollTo(0,0);return}tab("more");VIEW="notif";if(reduce())render()}
 function notifView(){
- const n=S.nt,P=S.pro,a=remDays(),ex=plus(Math.max(+n.d||0,1)+10);
+ const n=S.nt,P=can("reminders_extra"),PW=can("weekly_summary"),a=remDays(),ex=plus(Math.max(+n.d||0,1)+10);
  let h=backBtn()+head("Notificări","Când și cât de des îți amintim de termene");
  h+=`<div class="gt">Primul memento</div><div class="card"><label for="nt_d" style="margin-top:0">Cu câte zile înainte de termen</label><div class="nr"><input id="nt_d" type="number" inputmode="numeric" min="0" max="365" value="${Math.round(+n.d)||0}" onchange="ntSet('d',this.value)"><span class="mu">zile</span></div><div class="chips">${[1,3,7,14,30].map(v=>`<button class="${+n.d==v?"on":""}" onclick="ntSet('d',${v})">${v==1?"1 zi":v+" zile"}</button>`).join("")}</div><label for="nt_hh">La ce oră</label>${tSel()}<div class="note">0 înseamnă chiar în ziua termenului. Termenul apare în „De rezolvat curând” de la primul memento.</div></div>`;
- h+=`<div class="gt">Repetare</div><div class="grp">`+rw("Repetă memento-ul"+ctag(),"Mai multe memento-uri până la termen, la intervalul ales.",swb(P&&n.rep,"Repetă memento-ul","ntSet('rep')"));
+ if(!fHid("reminders_extra")){h+=`<div class="gt">Repetare</div><div class="grp">`+rw("Repetă memento-ul"+ktag("reminders_extra"),"Mai multe memento-uri până la termen, la intervalul ales.",swb(P&&n.rep,"Repetă memento-ul","ntSet('rep')"));
  if(P&&n.rep){const c=Math.round(+n.n)||2,i=Math.round(+n.i)||1;
   h+=rw("De câte ori, în total","Cu tot cu primul memento.",`<div class="stp"><button onclick="ntSet('n',${c-1})" aria-label="Mai puține"${c<=2?" disabled":""}>−</button><b aria-live="polite">${c}</b><button onclick="ntSet('n',${c+1})" aria-label="Mai multe"${c>=10?" disabled":""}>+</button></div>`)+
   rw("La fiecare","",`<div class="nr" style="width:100%"><input id="nt_i" type="number" inputmode="numeric" min="1" max="60" value="${i}" onchange="ntSet('i',this.value)" aria-label="Interval în zile"><span class="mu">zile</span></div><div class="chips">${[1,2,3,7].map(v=>`<button class="${i==v?"on":""}" onclick="ntSet('i',${v})">${v==1?"în fiecare zi":v==7?"o dată pe săptămână":"la "+v+" zile"}</button>`).join("")}</div>`,1)}
- h+=rw("Și în ziua termenului"+ctag(),"Un memento la ora aleasă, chiar în ziua respectivă.",swb(P&&n.day,"Și în ziua termenului","ntSet('day')"))+`</div>`;
+ h+=rw("Și în ziua termenului"+ktag("reminders_extra"),"Un memento la ora aleasă, chiar în ziua respectivă.",swb(P&&n.day,"Și în ziua termenului","ntSet('day')"))+`</div>`}
  h+=`<div class="gt">Cum arată</div><div class="card"><div class="mu">Pentru un termen pe ${esc(nice(ex))} primești:</div>${a.map(k=>`<div class="ar"><span>${dayW(k)}</span><span class="mu">${esc(dt(remAt(ex,k)))}</span></div>`).join("")}${RCUT?`<div class="note">Până la termen încap doar ${a.filter(k=>k>0||!n.day).length} memento-uri la intervalul ales.</div>`:""}${P?"":`<div class="note">În planul gratuit primești un memento pentru fiecare termen. Repetările fac parte din planul din Agendă.</div>`}<button class="btn alt" onclick="pushBanner('RCA · Mașina mea','Termenul e în ${Math.round(+n.d)||0} zile. Aceasta este o notificare de test.')">Trimite o notificare de test</button></div>`;
- h+=`<div class="gt">Rezumat</div><div class="grp">`+rw("Rezumat săptămânal"+ctag(),"Luni, în Agendă: ce urmează în 7 zile și cât ai de plătit.",swb(P&&n.wk,"Rezumat săptămânal","ntSet('wk')"))+(P&&n.wk?`<button class="it" onclick="wkShow()"><b>Vezi cum arată</b><span class="mu">›</span></button>`:"")+`</div>`;
+ if(!fHid("weekly_summary"))h+=`<div class="gt">Rezumat</div><div class="grp">`+rw("Rezumat săptămânal"+ktag("weekly_summary"),"Luni, în Agendă: ce urmează în 7 zile și cât ai de plătit.",swb(PW&&n.wk,"Rezumat săptămânal","ntSet('wk')"))+(PW&&n.wk?`<button class="it" onclick="wkShow()"><b>Vezi cum arată</b><span class="mu">›</span></button>`:"")+`</div>`;
  h+=`<div class="gt">Unde le primești</div><div class="grp">`+rw("În aplicație","Memento-ul apare ca banner când deschizi aplicația.",`<span class="tag ok">activ</span>`)+rw("Pe telefon","Notificări chiar și cu aplicația închisă. Vin cu aplicația instalată.",`<span class="tag">în curând</span>`)+rw("Pe e-mail",S.acct?"Către "+esc(S.acct.e)+".":"Ai nevoie de un cont.",`<span class="tag">în curând</span>`)+`</div>`;
  return h}
 /* memento-urile ajunse la termen apar ca banner în aplicație */
@@ -72,7 +72,7 @@ function wkBody(){
  if(!a.length)return `<div class="mu" style="margin-top:4px">Nimic de rezolvat în următoarele 7 zile.</div>`;
  return `<div class="mu" style="margin-top:4px">${a.length} ${a.length==1?"termen":"termene"} în următoarele 7 zile${sum?", "+money(sum)+" lei de plătit pe abonamente":""}.</div>`+a.slice(0,5).map(x=>`<div class="ar"><span>${esc(ttl(x))}</span><span class="mu">${left(x.d)==0?"azi":esc(nice(x.d))}</span></div>`).join("")+(a.length>5?`<div class="mu sm" style="margin-top:8px">și încă ${a.length-5}</div>`:"")}
 function wkCard(){
- if(!S.pro||!S.nt.wk||S.wkd==wkKey())return"";
+ if(!can("weekly_summary")||!S.nt.wk||S.wkd==wkKey())return"";
  return `<div class="card wk"><div class="top"><strong>Săptămâna ta</strong><button class="x" aria-label="Ascunde rezumatul săptămânii" onclick="S.wkd=wkKey();save();swap()">✕</button></div>${wkBody()}</div>`}
 function wkShow(){openSheet(`<h2>Săptămâna ta</h2>${wkBody()}<div class="note">Apare luni în Agendă, până îl închizi.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"wk")}
 
@@ -172,12 +172,12 @@ function lockWipe(){
 function lockToggle(){
  if(!cryptoOk()){toast("Blocarea nu este disponibilă aici");return}
  if(lockGet()){lockShow("off");return}
- if(!S.pro){planGo();return}
+ if(gateGo("pin_lock"))return;
  lockShow("set1")}
 function lockOpt(k,v){const o=lockGet();if(!o)return;if(k=="b")o.b=!o.b;else if(k=="t"&&[0,1,5].includes(v))o.t=v;lockPut(o);render()}
 function lockRows(){
  const o=lockGet();
- let h=rw("Blocare cu PIN"+(o?"":ctag()),o?"Aplicația cere PIN-ul când o deschizi.":"Cere un PIN de 4 cifre când deschizi aplicația.",swb(!!o,"Blocare cu PIN","lockToggle()"));
+ let h=rw("Blocare cu PIN"+(o?"":ktag("pin_lock")),o?"Aplicația cere PIN-ul când o deschizi.":"Cere un PIN de 4 cifre când deschizi aplicația.",swb(!!o,"Blocare cu PIN","lockToggle()"));
  if(o)h+=rw("Deblocare cu amprenta sau fața","În prototip, butonul doar simulează amprenta.",swb(o.b,"Deblocare cu amprenta","lockOpt('b')"))+
   rw("Blochează după","Cât timp poate sta aplicația în fundal fără să ceară PIN-ul.",`<div class="seg">${[[0,"Imediat"],[1,"1 min"],[5,"5 min"]].map(x=>`<button class="${(+o.t||0)==x[0]?"on":""}" onclick="lockOpt('t',${x[0]})">${x[1]}</button>`).join("")}</div>`,1)+
   `<button class="it" onclick="lockShow('set1')"><b>Schimbă PIN-ul</b><span class="mu">›</span></button>`;

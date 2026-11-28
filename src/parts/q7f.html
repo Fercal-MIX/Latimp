@@ -60,7 +60,7 @@ if(WEB){
   if(!S.fam||!onCloud()||!cryptoOk())return;
   try{const d=await derive(S.fam.code);if(tk!=FTK)return;FKEY=d.key;FH=d.h;lastFam="";famPush();await famPull()}catch(e){}};
  famOpen=function(){FM={};
-  if(!S.pro){toast("Familia face parte din Control.");openPlan("agenda");return}
+  if(gate("family","Familia face parte din Control."))return;
   if(needAcct("Pentru familie ai nevoie de un cont, ca să vă găsiți unii pe alții.",famOpen))return;
   if(!cryptoOk()||!SB){openSheet(`<h2>Familie</h2><div class="mu">Familia are nevoie de internet. Încearcă din nou când ești online.</div><button class="btn alt" onclick="closeSheet()">Închide</button>`,"fam");return}
   drawFam()};

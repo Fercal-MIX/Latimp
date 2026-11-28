@@ -68,7 +68,7 @@ function calRow(){
 if(WEB){
  calOpen=function(){
   CF.stop=false;
-  if(!S.pro){openPlan("agenda");return}
+  if(gate("calendar_sync"))return;
   if(needAcct("Calendarul care se actualizează singur are nevoie de un cont, ca să-l poată citi calendarul tău.",calOpen))return;
   if(!SB){toast("Ai nevoie de internet ca să pornești calendarul.");return}
   drawCal()};
