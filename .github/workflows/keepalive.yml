@@ -1,0 +1,20 @@
+# Ține proiectul Supabase activ pe planul gratuit: Supabase oprește proiectele fără activitate timp de 7 zile.
+# O cerere zilnică, publică (cheia publică a aplicației), la configurația aplicației. Nu atinge datele utilizatorilor.
+name: Supabase activ
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cerere la configurația aplicației
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://jzcwmucmxxedvwbtzrvp.supabase.co/rest/v1/app_config?select=key&limit=1" \
+            -H "apikey: sb_publishable_qZDRrfEWVRhr9xeDBmME9A_y_7wIg5k")
+          echo "Răspuns: $code"
+          test "$code" = "200"
