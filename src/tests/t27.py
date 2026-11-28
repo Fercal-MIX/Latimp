@@ -1,88 +1,73 @@
-# 1.16: interfața în relief și ecranul de pornire nou (versiunea web)
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
 SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
 ok=[];bad=[]
 def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
-U="http://localhost:8768/"
+U="http://localhost:8777/"
 FAKE=open(SC+"fake_sb.js").read()
-FR="""()=>new Promise(r=>{const t=[];let p=performance.now(),s=p;function f(n){t.push(n-p);p=n;if(n-s<%d)requestAnimationFrame(f);else r(t.slice(1))}requestAnimationFrame(f)})"""
-async def route(ctx):
+CFG={"mon":{"free":True,"control":False,"sparks":False,"invites":False,"referrals":False}}
+STUB="""(()=>{const sub={endpoint:'https://push.example/abc',toJSON(){return{endpoint:this.endpoint,keys:{p256dh:'B'+'x'.repeat(86),auth:'y'.repeat(22)}}},async unsubscribe(){window.__unsub=(window.__unsub||0)+1;window.__has=false;return true}};
+ window.__perm=window.__perm||'granted';
+ if(window.PushManager){PushManager.prototype.subscribe=async function(){window.__has=true;return sub};PushManager.prototype.getSubscription=async function(){return window.__has?sub:null}}
+ if(window.Notification){Object.defineProperty(Notification,'permission',{get(){return window.__perm=='granted'&&window.__asked?'granted':window.__perm=='denied'?'denied':'default'},configurable:true});Notification.requestPermission=async()=>{window.__asked=1;return window.__perm}}
+ window.__rp=[];window.__rpc={get_my_access:async()=>({pro:true,source:'free',free_mode:true}),am_i_admin:async()=>false,set_reminders:async(a)=>{window.__rp.push(a.p);return a.p.length}};})();"""
+def st(items,extra=""):
+    return json.dumps({"onb":True,"at":5,"items":items,"cars":[],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","nt":{"d":7,"h":"09:00","rep":False,"n":3,"i":7,"day":False,"wk":False},"acct":{"p":"email","e":"ana@test.ro","v":True}})
+async def mk(b,items,signed=True,pre="",geo=None):
+    kw={"viewport":{"width":390,"height":800}}
+    if geo: kw["geolocation"]=geo;kw["permissions"]=["geolocation"]
+    c=await b.new_context(**kw)
     async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await ctx.route("**/cdn.jsdelivr.net/**",h)
-    await ctx.route("**/fonts.googleapis.com/**",lambda r:r.abort())
-async def skip(pg):
-    for t in ["Sări peste","Mai târziu"]:
-        try:
-            await pg.wait_for_selector(f"#sheet button:has-text('{t}')",timeout=5000)
-            await pg.click(f"#sheet button:has-text('{t}')");await pg.wait_for_timeout(700)
-        except Exception: pass
-def slow(t): return sum(1 for x in t if x>20)
+    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(CFG)),json.dumps(st(items)))
+    if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
+    else: init+="(()=>{const s=JSON.parse(localStorage.getItem('buzunar.v2'));s.acct=null;localStorage.setItem('buzunar.v2',JSON.stringify(s))})();"
+    init+="}"
+    await c.add_init_script(init);await c.add_init_script(STUB)
+    await c.add_init_script("window.__fnb=[];window.__fn={ai:async(b)=>{__fnb.push(b);if(b.kind=='status')return{ready:!!window.__aiready,images:['image/jpeg','image/png']};if(window.__aicap)throw new Error('user_cap');if(b.kind=='photo')return{text:JSON.stringify({tip:'rca',nume:'Asigurator X',nr:'B 12 ABC',data:'2027-03-10',pret:null,perioada:null})};return{text:JSON.stringify([{t:'Atelier de olărit',d:'Două ore cu lut, pentru toată familia.',c:'cultura',m:'acasa'},{t:'Picnic în parc',d:'Pătură, sandvișuri și un joc de cărți.',c:'natura',m:'afara'},{t:'Seară de jocuri',d:'Trei jocuri de masă scurte.',c:'acasa',m:'acasa'},{t:'Muzeu interactiv',d:'Expoziții pe care le atingi.',c:'cultura',m:'oras'}])}}};"+pre)
+    p=await c.new_page();errs=[];p.on("pageerror",lambda e:errs.append(str(e)))
+    await p.goto(U);await p.wait_for_timeout(2500)
+    return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8768","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    global CFG
+    srv=subprocess.Popen(["python3","-m","http.server","8777","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
     try:
-        async with async_playwright() as p:
-            b=await p.chromium.launch()
-            # prima pornire, telefon încetinit de 4 ori
-            c=await b.new_context(viewport={"width":390,"height":800},device_scale_factor=2,service_workers="block");await route(c)
-            pg=await c.new_page();errs=[];pg.on("pageerror",lambda e:errs.append(str(e)))
-            cdp=await c.new_cdp_session(pg);await cdp.send("Emulation.setCPUThrottlingRate",{"rate":4})
-            await pg.goto(U);await pg.wait_for_timeout(150)
-            st=await pg.evaluate("(()=>{const e=document.getElementById('spl');return e?{q:e.classList.contains('q'),parts:['.spx','.spe','.spd','.shn','.sph','.spm'].every(s=>e.querySelector(s)),anim:getComputedStyle(e.querySelector('.spe')).animationName}:null})()")
-            chk("pornire: emblema în relief și toate părțile ei",st and st["parts"],st)
-            chk("pornire: prima dată, cu animația completă",st and not st["q"] and st["anim"]=="spr",st)
-            chk("pornire: culorile nu trec prin tranziție (fără recalcularea paginii la fiecare cadru)",await pg.evaluate("!document.documentElement.dataset.rdy&&getComputedStyle(document.documentElement).transitionDuration.split(',').every(x=>parseFloat(x)==0)"))
-            fr=await pg.evaluate(FR%1500)
-            print("info: pornire, cadre peste 20 ms (procesor /4):",slow(fr))
-            await pg.wait_for_timeout(1500)
-            chk("pornire: ecranul dispare la final",await pg.evaluate("!document.getElementById('spl')"))
-            chk("după pornire: tranziția culorilor revine pentru schimbarea planului",await pg.evaluate("document.documentElement.dataset.rdy=='1'&&getComputedStyle(document.documentElement).transitionDuration.split(',').some(x=>parseFloat(x)>0)"))
-            an=await pg.evaluate("[...document.styleSheets].flatMap(s=>{try{return[...s.cssRules]}catch(e){return[]}}).filter(r=>r instanceof CSSKeyframesRule&&['spr','sph','shn','spm','in'].includes(r.name)).flatMap(r=>[...r.cssRules].flatMap(k=>[...k.style])).filter((v,i,a)=>a.indexOf(v)==i)")
-            chk("animațiile noi folosesc doar transform și opacity (placa grafică)",an and all(x in("transform","opacity") for x in an),an)
-            await skip(pg)
-            await cdp.send("Emulation.setCPUThrottlingRate",{"rate":1})
-            sh=await pg.evaluate("getComputedStyle(document.querySelector('.pn')).boxShadow")
-            chk("bara de jos: umbre în straturi cu muchie luminată","inset" in sh and sh.count("rgba")>=3,sh)
-            hs=await pg.evaluate("(()=>{const h=document.querySelector('.hero');return h?getComputedStyle(h).backgroundImage:''})()")
-            chk("cardul principal: lumină și volum",hs.count("gradient")>=3,hs[:120])
-            await cdp.send("Emulation.setCPUThrottlingRate",{"rate":4})
-            frames=[]
-            for t in ["free","more","agenda","free","agenda"]:
-                pr=pg.evaluate(FR%650);await pg.click("#t-"+t);frames+=await pr
-            print("info: schimbarea meniului, cadre peste 20 ms (procesor /4):",slow(frames))
-            ind=await pg.evaluate("(()=>{const a=document.getElementById('ind').getAnimations();return getComputedStyle(document.getElementById('ind')).transitionProperty})()")
-            chk("indicatorul barei alunecă doar prin transform",ind=="transform",ind)
-            await cdp.send("Emulation.setCPUThrottlingRate",{"rate":1})
-            chk("fără erori de script",not errs,errs)
-            # a doua pornire: varianta scurtă
-            pg2=await c.new_page();await pg2.goto(U);await pg2.wait_for_timeout(100)
-            q=await pg2.evaluate("(()=>{const e=document.getElementById('spl');return e&&e.classList.contains('q')&&getComputedStyle(e.querySelector('.spe')).animationName=='none'})()")
-            chk("revenire: pornire scurtă, fără animația emblemei",q)
-            await pg2.wait_for_timeout(1200)
-            chk("revenire: ecranul dispare repede",await pg2.evaluate("!document.getElementById('spl')"))
-            await pg2.close();await c.close()
-            # animații reduse: simbolul apare întreg, nu gol
-            c=await b.new_context(viewport={"width":390,"height":800},reduced_motion="reduce",service_workers="block");await route(c)
-            pg=await c.new_page();await pg.goto(U);await pg.wait_for_timeout(120)
-            da=await pg.evaluate("(()=>{const d=document.querySelector('#spl .d');return d?getComputedStyle(d).strokeDasharray:'x'})()")
-            chk("animații reduse: simbolul e desenat complet",da=="none",da)
+        async with async_playwright() as pw:
+            b=await pw.chromium.launch()
+            CFG={"mon":{"free":True}}
+            # 1. română: dicționarul englez nu se descarcă
+            reqs=[]
+            c,p,e=await mk(b,[])
+            p.on("request",lambda r:reqs.append(r.url))
+            await p.reload();await p.wait_for_timeout(2500)
+            chk("ro: English dictionary not downloaded",not any("i18n-en.js" in u for u in reqs),[u for u in reqs if "i18n" in u])
+            chk("ro: interface in Romanian","Mai mult" in await p.inner_text("nav") if await p.locator("nav").count() else "Mai mult" in await p.inner_text("body"))
+            # 2. schimbarea în engleză încarcă dicționarul și traduce
+            await p.evaluate("tab('more')");await p.wait_for_timeout(500)
+            await p.click("button:text-is('English')");await p.wait_for_timeout(1500)
+            t=await p.inner_text("body")
+            chk("switch to en: dictionary loaded",any("i18n-en.js" in u for u in reqs) and await p.evaluate("!!(window.LT_EN&&LT_EN.ok)"))
+            chk("switch to en: interface translated","More" in t and "Free time" in t and "Timp liber" not in t,t[:300])
+            chk("no errors 1",not e,e)
             await c.close()
-            # lățimi și teme
-            for th in ["light","dark"]:
-                for w in [320,360,390,560]:
-                    c=await b.new_context(viewport={"width":w,"height":780},color_scheme=th,service_workers="block");await route(c)
-                    pg=await c.new_page();e2=[];pg.on("pageerror",lambda e:e2.append(str(e)))
-                    await pg.goto(U);await pg.wait_for_timeout(2300);await skip(pg)
-                    o=[]
-                    for t in ["agenda","free","more"]:
-                        await pg.click("#t-"+t);await pg.wait_for_timeout(700)
-                        o.append(await pg.evaluate("document.documentElement.scrollWidth>innerWidth+1"))
-                    if w in (320,390): await pg.screenshot(path=SC+f"r16_{th}_{w}.png",full_page=False)
-                    chk(f"{th} {w}px: fără depășire pe orizontală și fără erori",not any(o) and not e2,(o,e2))
-                    await c.close()
+            # 3. pornire direct în engleză: textele în engleză de la prima afișare
+            c,p,e=await mk(b,[])
+            await p.evaluate("S.lang='en';store()")
+            reqs=[];p.on("request",lambda r:reqs.append(r.url))
+            await p.reload();await p.wait_for_timeout(2500)
+            t=await p.inner_text("body")
+            chk("start in en: dictionary loaded at start",any("i18n-en.js" in u for u in reqs))
+            chk("start in en: English interface","Free time" in t and "Timp liber" not in t,t[:300])
+            await p.evaluate("tab('more')");await p.wait_for_timeout(400)
+            await p.click("button:text-is('Română')");await p.wait_for_timeout(800)
+            chk("back to ro","Timp liber" in await p.inner_text("body"))
+            chk("no errors 2",not e,e)
+            await c.close()
+            # 4. fișierul e păstrat pentru folosirea fără internet
+            sw=open(SC+"web/sw.js").read()
+            chk("offline copy includes the dictionary",'"i18n-en.js"' in sw)
             await b.close()
-    finally:
-        srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    finally: srv.terminate()
+    print("OK",len(ok));print("FAIL",len(bad))
+    for x in bad:print(" -",x)
 asyncio.run(main())

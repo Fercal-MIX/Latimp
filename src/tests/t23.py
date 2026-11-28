@@ -31,7 +31,7 @@ async def main():
             c,p,e=await mk(b)
             await p.evaluate("save()");await p.wait_for_timeout(9500)
             u=await p.evaluate(LS("fake.ust"))
-            chk("usage stats sent with consent",u and u["user_id"]=="u1" and u["data"]["items"]==1 and u["data"]["days"]==2 and u["data"].get("budget")==2,u)
+            chk("usage stats sent with consent",u and u["user_id"]=="u1" and u["data"]["items"]==1 and u["data"]["days"]==len({"2026-11-26","2026-11-27",__import__("datetime").date.today().isoformat()}) and u["data"].get("budget")==2,u)
             chk("stats carry no agenda content",u and "Netflix" not in json.dumps(u))
             await p.evaluate("S.stats=false;save()");await p.wait_for_timeout(9500)
             chk("stats removed when consent withdrawn",await p.evaluate(LS("fake.ust")) is None)

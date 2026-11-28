@@ -29,9 +29,9 @@ async def main():
             await page.click("#main >> button:text-is('Afară')"); await page.wait_for_timeout(500)
             t=await txt(); chk(scheme+": outdoor situations","Excursie de o zi" in t and "Weekend ieftin" in t)
             await page.click("#main >> summary:has-text('Ajustează')"); await page.wait_for_timeout(300)
-            await page.click("#main >> button:text-is('Cu copiii')"); await page.wait_for_timeout(200)
+            await page.click("#main details >> button:text-is('Cu copiii')"); await page.wait_for_timeout(200)
             t=await txt(); chk(scheme+": filter counted","Ajustează · 1" in t,t[:500])
-            await page.click("#main >> button:text-is('Excursie de o zi')"); await page.wait_for_timeout(500)
+            await page.click("#main button[onclick^=\"SIT='o2'\"]"); await page.wait_for_timeout(500)
             await page.fill("#det","vreme frumoasă");
             await page.click("#main >> button:text-is('Dă-mi idei')"); await page.wait_for_timeout(900)
             t=await txt()

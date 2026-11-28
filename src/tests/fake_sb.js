@@ -26,7 +26,7 @@
    const q={_eq:null,select(){return q},eq(c,v){q._eq=v;return q},async maybeSingle(){const db=L("fake.db")||{};return{data:db[q._eq]||null,error:null}},
    async upsert(row){const db=L("fake.db")||{};db[row.user_id]={state:row.state,updated_at:new Date().toISOString()};P("fake.db",db);__sb.upserts++;return{error:null}}};return q}
   const functions={async invoke(n,o){__sb.invoked.push(n);const fh=(window.__fn||{})[n];if(fh){try{return{data:await fh(o&&o.body,sess()),error:null}}catch(x){return{data:null,error:{context:{json:async()=>({err:String(x&&x.message||x)})}}}}}const s=sess();if(n=="delete-account"&&s){const db=L("fake.db")||{};delete db[s.user.id];P("fake.db",db);return{data:{ok:true},error:null}}return{data:null,error:{context:{json:async()=>({error:"x"})}}}}};
-  async function rpc(n,a){__sb.rpcs=(__sb.rpcs||[]).concat(n);const h=(window.__rpc||{})[n];if(h)return{data:await h(a,sess()),error:null};return{data:null,error:{message:"no rpc "+n}}}
+  async function rpc(n,a){__sb.rpcs=(__sb.rpcs||[]).concat(n);const h=(window.__rpc||{})[n];if(h){const v=await h(a,sess());if(v&&v.__err)return{data:null,error:{message:v.__err}};return{data:v,error:null}}return{data:null,error:{message:"no rpc "+n}}}
   const storage={from(b){return{async upload(p,blob,o){rec2("fake.up",{b,p,type:o&&o.contentType,size:blob&&blob.size});return{data:{path:p},error:null}},async remove(a){rec2("fake.rm",{b,a});return{data:a,error:null}},async createSignedUrl(p,s){rec2("fake.sign",{b,p,s});return{data:{signedUrl:location.origin+"/termeni.html#"+p},error:null}}}}};
   function rec2(k,v){const a=L(k)||[];a.push(v);P(k,a)}
   return{auth,from,functions,rpc,storage}}

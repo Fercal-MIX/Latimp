@@ -129,7 +129,7 @@ async def main():
         chk("plan sheet shows Control only", "Control" in sh and "Scântei" not in sh.split("Control")[0])
         await page.click("#sheet >> text=Activează Control")
         await page.wait_for_timeout(300)
-        await page.click("text=Pornește"); await page.wait_for_timeout(300)
+        await page.click("button[onclick=\"famOpen()\"]"); await page.wait_for_timeout(300)
         await page.fill("#fw","Test Eu")
         await page.click("#sheet >> text=Creează codul de familie")
         await page.wait_for_timeout(1500)

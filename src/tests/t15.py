@@ -22,8 +22,8 @@ async def main():
                 chk("320 no page errors",not errs,errs); await ctx.close(); continue
             # ---- profile ----
             await ev("S.items=S.items.filter(x=>!x.ex);save();render()"); await pg.wait_for_timeout(300)
-            chk("new users are asked what to track","Ce să urmărim pentru tine?" in await M())
-            await pg.click("#main >> .card:has-text('Ce să urmărim') >> text=Alege"); await pg.wait_for_timeout(200)
+            chk("new users are asked what to track (first steps)","Alege ce ai" in await M() and "Ce să urmărim pentru tine?" not in await M())
+            await pg.click("#main .fs >> button:text-is('Alege ce ai')"); await pg.wait_for_timeout(200)
             for t in ["Am mașină","Stau la bloc","Am animal de companie"]: await pg.click("#sheet >> button:text-is('%s')"%t)
             await pg.click("#sheet >> text=Propune termenele"); await pg.wait_for_timeout(400)
             t=await M()

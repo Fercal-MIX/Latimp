@@ -53,5 +53,7 @@ assert 'fonts.g' not in s
 open(p,'w').write(s)
 PY2
 node $D/site/gen_legal.js $D/q7l.html $W
+python3 $D/min_web.py $W
+python3 $D/build_admin.py $D/admin_panel.html $W/admin.html
 node --check $W/sw.js
 echo web built: $(ls $W) VER=$VER

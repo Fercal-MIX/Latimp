@@ -1,0 +1,64 @@
+<style>
+/* 1.17: „Primii pași” în Agendă */
+.fs .fsp{height:6px;border-radius:99px;background:var(--ln);margin:10px 0 4px;overflow:hidden}
+.fs .fsp i{display:block;height:100%;border-radius:99px;background:var(--ac);transition:width .6s var(--sp,ease)}
+.fs ol{list-style:none;margin:6px 0 0;padding:0}
+.fs li{display:flex;align-items:flex-start;gap:12px;padding:12px 0 10px;border-top:1px solid var(--ln)}
+.fs li:first-child{border-top:0}
+.fs .fc{flex:none;margin-top:-1px;width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--ln);display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--mu)}
+.fs li.dn .fc{background:var(--ac);box-shadow:none;color:var(--on,#fff)}
+.fs li>span{flex:1;min-width:0}
+.fs li b{display:block;font-weight:700}
+.fs li.dn b{color:var(--mu);text-decoration:line-through;text-decoration-thickness:1px}
+.fs li .mu{font-size:13px}
+.fs li .acts{margin:4px 0 -8px -6px}
+.fs li.dn{align-items:center}
+@media (prefers-reduced-motion:reduce){.fs .fsp i{transition:none}}
+html[data-motion=off] .fs .fsp i{transition:none}
+a.it{color:inherit;text-decoration:none}
+.fs .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+<script>
+/* ---------- 1.17: Primii pași. Un card în Agendă pentru cei noi: ce merită făcut ca LaTimp să-și facă treaba ---------- */
+/* Se arată doar după prima pornire din versiunea asta (S.fs) sau când îl redeschizi din Mai mult → Ajutor. */
+const fsReal=()=>S.items.some(x=>!x.ex);
+function fsSteps(){
+ const f=S.fs||{},st=[];
+ st.push({k:"add",t:"Adaugă primul termen",d:"RCA, ITP, un abonament sau o zi de naștere. Sau spune ce ai (mașină, casă, animal) și îți propunem termenele. Netflix, Spotify și Sală sunt doar exemple.",b:"Adaugă",fn:"editItem()",b2:"Alege ce ai",fn2:"profOpen()",ok:fsReal()});
+ if(WEB&&!standalone()&&!INSTD)st.push({k:"inst",t:"Instalează aplicația",d:isIOS()?"Pe iPhone, memento-urile vin doar cu LaTimp pe ecranul principal.":"Se deschide de pe ecranul principal și merge și fără internet.",b:"Instalează",fn:"instGo()",ok:!!f.inst});
+ const nOk=WEB?(typeof pushState=="function"&&pushState()=="on")||!!S.nt.mail:!!f.nt;
+ st.push({k:"nt",t:"Pornește memento-urile",d:WEB?"Primești o notificare înainte de fiecare termen, chiar și cu aplicația închisă.":"Alegi cu câte zile înainte și la ce oră afli de termene.",b:"Pornește",fn:"fsNt()",ok:nOk});
+ st.push({k:"idea",t:"Cere o idee de timp liber",d:"În Timp liber alegi situația și primești idei concrete.",b:"Încearcă",fn:"fsIdea()",ok:!!f.idea});
+ return st}
+function fsCard(){
+ const f=S.fs;if(!f||f.hide)return"";
+ const st=fsSteps(),n=st.filter(s=>s.ok).length,all=n==st.length;
+ if(all)return `<div class="card fs"><div class="top"><strong>Gata, LaTimp e pregătită</strong><button class="x" aria-label="Închide" onclick="fsHide()">✕</button></div><div class="mu" style="margin-top:4px">Îți amintim din timp de fiecare termen. Ghidul rămâne în Mai mult, la Ajutor.</div><div class="acts"><button onclick="fsHide()">Închide</button></div></div>`;
+ return `<div class="card fs"><div class="top"><strong>Primii pași</strong><button class="x" aria-label="Ascunde primii pași" onclick="fsHide()">✕</button></div><div class="fsp" role="progressbar" aria-label="Primii pași" aria-valuemin="0" aria-valuemax="${st.length}" aria-valuenow="${n}"><i style="width:${Math.round(n/st.length*100)}%"></i></div><div class="mu sm"><span>${n} din ${st.length} gata</span></div><ol>${st.map((s,i)=>`<li class="${s.ok?"dn":""}"><span class="fc" aria-hidden="true">${s.ok?"✓":i+1}</span><span><b>${s.t}</b>${s.ok?`<span class="vh">gata</span>`:`<div class="mu">${s.d}</div><div class="acts"><button onclick="${s.fn}">${s.b}</button>${s.b2?`<button onclick="${s.fn2}">${s.b2}</button>`:""}</div>`}</span></li>`).join("")}</ol></div>`}
+function fsMark(k){if(!S.fs||S.fs[k])return;S.fs[k]=1;save()}
+function fsHide(){if(!S.fs)S.fs={};S.fs.hide=1;save();render();toast("Primii pași rămân în Mai mult, la Ajutor")}
+function fsShow(){S.fs=Object.assign(S.fs||{},{hide:0});save();FIL="all";VIEW="main";tab("agenda");scrollTo(0,0)}
+function fsNt(){fsMark("nt");notifGo()}
+function fsIdea(){FSEG="ideas";tab("free");scrollTo(0,0)}
+
+/* noii utilizatori primesc cardul după întrebările de la prima pornire */
+{const d1=obDone,s1=obSkip;
+ obDone=function(){if(!S.fs)S.fs={at:fmt(td())};return d1.apply(this,arguments)};
+ obSkip=function(){if(!S.fs)S.fs={at:fmt(td())};return s1.apply(this,arguments)}}
+
+/* cât e deschis, invitația „Ce să urmărim pentru tine?” intră în primul pas */
+{const pc1=profCard;profCard=function(){const f=S.fs;if(f&&!f.hide&&!((S.prof||{}).sel||[]).length&&!fsSteps().every(s=>s.ok))return"";return pc1()}}
+
+/* cardul stă sub antet, înaintea listei; doar în „Toate” */
+{const ag1=agenda;agenda=function(){const h=ag1();if(FIL!="all")return h;const c=fsCard();if(!c)return h;const i=h.indexOf('<div class="tb">');return i<0?h+c:h.slice(0,i)+c+h.slice(i)}}
+
+/* pașii se bifează singuri: ideile cerute, aplicația instalată, notificările văzute */
+{const fr1=free;free=function(){const h=fr1();if(S.fs&&!S.fs.idea&&((IDEAS&&IDEAS.length)||(GL&&GL.length)))fsMark("idea");return h}}
+{const nv2=notifView;notifView=function(){if(!WEB)fsMark("nt");return nv2()}}
+if(WEB){addEventListener("appinstalled",()=>fsMark("inst"));const ig1=instGo;instGo=async function(){const r=await ig1.apply(this,arguments);if(INSTD)fsMark("inst");return r}}
+
+/* Mai mult → Ajutor: ghidul se poate redeschide oricând */
+{const mo2=more;more=function(){const h=mo2();if(VIEW!="main")return h;const k='<div class="gt">Ajutor</div><div class="grp">',i=h.indexOf(k);return i<0?h:h.slice(0,i+k.length)+`<button class="it" onclick="fsShow()"><span><b>Primii pași</b><div class="mu">Ce merită făcut ca să nu ratezi niciun termen</div></span><span class="mu">›</span></button>`+h.slice(i+k.length)}}
+/* administratorii: legătura spre panoul web (admin.html, lângă aplicație), doar pe web */
+{const mo3=more;more=function(){const h=mo3();if(VIEW!="main"||!WEB||typeof ISADM=="undefined"||!ISADM)return h;const k='<div class="gt">Ajutor</div>',i=h.indexOf(k);const row=`<div class="gt">Administrare</div><div class="grp"><a class="it" href="admin.html"><span><b>Panou de administrare</b><div class="mu">Utilizatori, rapoarte, configurare, conținut</div></span><span class="mu">›</span></a></div>`;return i<0?h+row:h.slice(0,i)+row+h.slice(i)}}
+</script>
