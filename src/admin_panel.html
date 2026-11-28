@@ -108,6 +108,16 @@ textarea{min-height:110px;font:14px/1.45 ui-monospace,monospace}
 .vbars div{background:var(--g2);border-radius:3px 3px 0 0;min-height:2px}.vbars div.z{background:var(--line)}.vbars div.hot{background:var(--a)}
 input[type=date],input[type=time]{width:100%;font:16px Manrope,sans-serif;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:44px}
 .reply{border-left:3px solid var(--g2);padding:6px 10px;margin:8px 0;background:var(--soft);border-radius:0 8px 8px 0;font-size:15px}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.qb{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 12px;min-height:62px;cursor:pointer;font:inherit;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.qb b{font-size:15px;font-weight:700;line-height:1.25}.qb span{font-size:13px;color:var(--mut);line-height:1.3;overflow-wrap:anywhere}
+.qb.hot{border-color:var(--a);background:var(--warn)}.qb.on{border-color:var(--g2);background:var(--soft)}
+.qb:disabled{opacity:.5}
+.qmore{margin-top:12px}.qmore:empty{display:none}
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 16px}
+.links a{display:flex;flex-direction:column;padding:9px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;min-height:44px}
+.links a b{color:var(--g);font-weight:700}.links a b:after{content:" ↗";color:var(--mut);font-weight:400}.links a span{font-size:13px;color:var(--mut)}
+.links a:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 .tcard{border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--card)}
 .tcard b{font-size:16px}
 .tform{border:2px solid var(--g2)}
@@ -168,6 +178,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
 
 <section id="rezumat" class="on">
   <div class="row" style="justify-content:space-between"><h2>Rezumat</h2><button class="b s sm" id="refresh">Reîncarcă</button></div>
+  <div class="card"><h3>Acțiuni rapide</h3><div class="qgrid" id="qa"><div class="empty">Se încarcă…</div></div><div class="qmore" id="qa_more"></div></div>
   <div id="alerts"></div>
   <div class="card goal" id="goalCard"><span class="mut">Obiectiv de utilizatori</span>
     <div class="row" style="align-items:baseline;gap:8px;margin-top:4px"><span class="num" id="g_now">0</span><span class="mut" id="g_of">din 1.000 de conturi</span></div>
@@ -181,6 +192,7 @@ pre.st{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var
     <div class="row"><select id="x_what" style="max-width:260px"><option value="users">Utilizatori</option><option value="reports">Rapoarte</option><option value="invites">Coduri de invitație</option><option value="stats">Conturi noi pe zile</option><option value="revenue">Venituri (evenimente)</option></select>
     <button class="b sm" id="x_copy">Copiază tabelul</button><button class="b s sm" id="x_dl" hidden>Descarcă CSV</button></div>
     <p class="mut" id="x_info" style="margin:8px 0 0"></p></div>
+  <div class="card"><h3>Linkuri utile</h3><div class="links"><a href="https://fercal-mix.github.io/Latimp/" target="_blank" rel="noopener"><b>Aplicația LaTimp</b><span>Cum o vede un utilizator</span></a><a href="https://fercal-mix.github.io/Latimp/prezentare.html" target="_blank" rel="noopener"><b>Pagina de prezentare</b><span>Ce văd cei care primesc linkul</span></a><a href="https://fercal-mix.github.io/Latimp/admin.html" target="_blank" rel="noopener"><b>Panoul pe web</b><span>Același panou, cu contul LaTimp</span></a><a href="https://claude.ai/artifact/3fTgrELs7uMo9Y6GdRY1hn" target="_blank" rel="noopener"><b>Lista de test pe telefon</b><span>Pașii de verificat pe Android și iPhone</span></a><a href="https://supabase.com/dashboard/project/jzcwmucmxxedvwbtzrvp" target="_blank" rel="noopener"><b>Supabase: proiectul</b><span>Baza de date, pornire după pauză</span></a><a href="https://supabase.com/dashboard/project/jzcwmucmxxedvwbtzrvp/auth/users" target="_blank" rel="noopener"><b>Supabase: conturi</b><span>Toate conturile și conectările</span></a><a href="https://supabase.com/dashboard/project/jzcwmucmxxedvwbtzrvp/storage/buckets" target="_blank" rel="noopener"><b>Supabase: fișiere</b><span>Documente și capturi atașate</span></a><a href="https://supabase.com/dashboard/project/jzcwmucmxxedvwbtzrvp/functions" target="_blank" rel="noopener"><b>Supabase: funcții pe server</b><span>Cheile (Secrets) pentru AI și e-mail</span></a><a href="https://supabase.com/dashboard/project/jzcwmucmxxedvwbtzrvp/logs/explorer" target="_blank" rel="noopener"><b>Supabase: jurnale</b><span>Ce s-a întâmplat pe server</span></a><a href="https://github.com/Fercal-MIX/Latimp" target="_blank" rel="noopener"><b>GitHub: codul aplicației</b><span>Versiunile publicate</span></a><a href="https://github.com/Fercal-MIX/Latimp/settings/pages" target="_blank" rel="noopener"><b>GitHub: publicare</b><span>Adresa site-ului și domeniul</span></a></div></div>
 </section>
 
 <section id="monetizare">
@@ -623,7 +635,7 @@ $('monSave').onclick=e=>act(e.target,async()=>{
 async function loadOv(btn){
   await act(btn,async()=>{
     const o=await fn('admin.overview()');
-    cfg=o.config||{};monState();fillCfg();resetPlan();
+    cfg=o.config||{};monState();fillCfg();resetPlan();renderQA(o);
     const K=[['users','conturi în total'],['new7','conturi noi în 7 zile'],['active7','conectați în 7 zile'],['synced7','au sincronizat în 7 zile'],
       ['paid','abonați plătitori'],['manual','acces dat de tine'],['invited','cu cod de invitație'],['bonus','cu bonus din recomandări'],['reports_new','rapoarte noi'],['polls','sondaje deschise']];
     $('kpis').innerHTML=K.map(([k,l])=>'<div class="kpi"><b>'+esc(Number(o[k]||0).toLocaleString('ro-RO'))+'</b><span>'+esc(l)+'</span></div>').join('');
@@ -647,6 +659,57 @@ async function loadOv(btn){
 }
 $('refresh').onclick=e=>loadOv(e.target);
 
+/* Acțiuni rapide */
+let lastOv=null;
+const dayPlus=n=>{const d=new Date(Date.now()+n*864e5);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+function renderQA(o){
+  if(o)lastOv=o;o=lastOv||{};
+  const c=cfg||{}, m={...MON_DEF,...(c.mon||{})}, mt=!!(c.maint&&c.maint.on), nw=!!(c.news&&c.news.on), ai=(c.ai||{}).on!==false;
+  const B=[
+    ['news',nw?'Oprește anunțul':'Anunț rapid',nw?'Acum: „'+String(c.news.title||c.news.body||'').slice(0,40)+'”':'Un mesaj în aplicație',nw?'on':''],
+    ['invite','Cod de invitație','1 persoană, 30 de zile',''],
+    ['user','Caută un utilizator',(+o.users||0).toLocaleString('ro-RO')+' conturi',''],
+    ['reports','Rapoarte noi',(+o.reports_new||0)?(+o.reports_new)+' de citit':'Niciunul nou',(+o.reports_new||0)?'hot':''],
+    ['errors','Erori din aplicație','Ce s-a stricat și unde',''],
+    ['maint',mt?'Oprește mentenanța':'Pornește mentenanța',mt?'Acum: aplicația e închisă':'Acum: aplicația merge',mt?'hot':''],
+    ['ai',ai?'Oprește ideile cu AI':'Pornește ideile cu AI',ai?'Acum: pornite':'Acum: oprite',''],
+    ['free',m.free?'Pornește plățile':'Fă aplicația gratuită',m.free?'Acum: gratuit pentru toți':'Acum: plăți pornite',m.free?'':'on']];
+  $('qa').innerHTML=B.map(([k,t,d,cl])=>'<button class="qb'+(cl?' '+cl:'')+'" data-qa="'+k+'"><b>'+esc(t)+'</b><span>'+esc(d)+'</span></button>').join('');
+}
+function qSure(b){if(b.dataset.sure==='1')return true;b.dataset.sure='1';b.querySelector('b').textContent='Sigur? Atinge din nou';setTimeout(()=>{if(b.isConnected)renderQA()},4000);return false}
+async function qSave(next,msg){cfg=await fn('admin.set_config('+lit(JSON.stringify(next))+'::jsonb)');monState();fillCfg();resetPlan();toast(msg);$('qa_more').innerHTML='';loadOv(null)}
+$('qa').addEventListener('click',e=>{
+  const b=e.target.closest('[data-qa]');if(!b)return;const k=b.dataset.qa, c=cfg||{};
+  if(k==='reports'){$('r_f').value='new';go('rapoarte');return}
+  if(k==='errors'){$('er_f').value='1';go('erori');return}
+  if(k==='user'){
+    $('qa_more').innerHTML='<div class="row"><input type="search" id="qa_q" placeholder="E-mailul sau o parte din el" aria-label="Caută un utilizator" style="flex:1 1 200px"><button class="b" id="qa_qgo">Caută</button><button class="b s" id="qa_x">Renunță</button></div>';
+    const goU=()=>{$('u_q').value=$('qa_q').value.trim();$('qa_more').innerHTML='';go('utilizatori')};
+    $('qa_qgo').onclick=goU;$('qa_q').onkeydown=ev=>{if(ev.key==='Enter')goU()};$('qa_x').onclick=()=>$('qa_more').innerHTML='';$('qa_q').focus();return;
+  }
+  if(k==='invite'){act(b,async()=>{
+    const r=await fn('admin.create_invite('+lit('Rapid '+new Date().toLocaleDateString('ro-RO'))+', 1, '+lit(dayPlus(30))+'::date)');const cd=fmtCode(r.code);
+    $('qa_more').innerHTML='<div class="new"><div class="mut">Cod nou, pentru o persoană, valabil 30 de zile</div><div class="code" style="font-size:26px">'+esc(cd)+'</div><div class="row" style="margin-top:8px"><button class="b sm" data-copy="'+esc(cd)+'">Copiază</button><button class="b s sm" id="qa_x">Gata</button></div>'+(((c.mon||{}).invites)?'':'<p class="mut" style="margin:8px 0 0">Atenție: codurile de invitație sunt oprite din Monetizare, deci câmpul pentru cod nu apare în aplicație.</p>')+'</div>';
+    $('qa_x').onclick=()=>$('qa_more').innerHTML='';toast('Cod creat');
+  });return}
+  if(k==='news'){
+    if(c.news&&c.news.on){if(!qSure(b))return;act(b,()=>qSave({...c,news:{...c.news,on:false}},'Anunțul a fost oprit'));return}
+    $('qa_more').innerHTML='<label class="f" for="qa_nt">Titlu</label><input type="text" id="qa_nt" maxlength="60" placeholder="ex. Gratuit în perioada de lansare"><label class="f" for="qa_nb">Text</label><input type="text" id="qa_nb" maxlength="240"><label class="f" for="qa_na">Cui îi apare</label><select id="qa_na">'+[...$('n_aud').options].map(x=>'<option value="'+x.value+'">'+esc(x.text)+'</option>').join('')+'</select><div class="row" style="margin-top:10px"><button class="b" id="qa_npub">Publică acum</button><button class="b s" id="qa_x">Renunță</button></div>';
+    $('qa_x').onclick=()=>$('qa_more').innerHTML='';$('qa_nt').focus();
+    $('qa_npub').onclick=ev=>act(ev.target,async()=>{const t=$('qa_nt').value.trim(), bo=$('qa_nb').value.trim();if(!t&&!bo)throw new Error('Scrie titlul sau textul anunțului.');
+      await qSave({...c,news:{title:t,body:bo,audience:$('qa_na').value,on:true,at:new Date().toISOString()}},'Anunț publicat. Apare la următoarea deschidere a aplicației.')});
+    return;
+  }
+  if(k==='maint'){const on=!(c.maint&&c.maint.on);if(!qSure(b))return;
+    act(b,()=>qSave({...c,maint:{...(c.maint||{}),on,msg:(c.maint&&c.maint.msg)||'Facem câteva îmbunătățiri. Revenim imediat.'}},on?'Mentenanță pornită: utilizatorii văd mesajul de mentenanță':'Mentenanță oprită: aplicația merge din nou'));return}
+  if(k==='ai'){const on=(c.ai||{}).on===false;if(!qSure(b))return;
+    act(b,()=>qSave({...c,ai:{...(c.ai||{}),on}},on?'Ideile cu AI sunt pornite':'Ideile cu AI sunt oprite: aplicația folosește ideile de rezervă'));return}
+  if(k==='free'){const m={...MON_DEF,...(c.mon||{})}, toPaid=!!m.free;if(!qSure(b))return;
+    act(b,async()=>{if(toPaid&&!await pinGuard('pornirea plăților'))return;
+      await qSave({...c,mon:{...m,free:!toPaid}},toPaid?'Plățile sunt pornite. Verifică în Monetizare ce se vinde.':'Aplicația e gratuită pentru toți');
+      if(toPaid&&!m.control&&!m.sparks)toast('Plățile sunt pornite, dar nimic nu se vinde încă. Pornește Control sau Scânteile din Monetizare.');});return}
+});
+
 /* Coduri */
 async function loadInv(){
   await act(null,async()=>{
@@ -662,7 +725,7 @@ async function loadInv(){
 }
 $('c_make').onclick=e=>act(e.target,async()=>{
   const d=$('c_exp').value, max=parseInt($('c_max').value,10)||1;
-  const exp=d?"(current_date + "+parseInt(d,10)+")":'null';
+  const exp=d?lit(dayPlus(parseInt(d,10)))+'::date':'null';
   const r=await fn('admin.create_invite('+lit($('c_label').value.trim())+', '+max+', '+exp+')');
   const c=fmtCode(r.code);
   $('c_new').innerHTML='<div class="new"><div class="mut">Codul nou</div><div class="code" style="font-size:26px">'+esc(c)+'</div><div class="row" style="margin-top:8px"><button class="b sm" data-copy="'+esc(c)+'">Copiază</button></div></div>';
