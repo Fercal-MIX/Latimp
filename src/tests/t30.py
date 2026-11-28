@@ -1,15 +1,11 @@
+from web import *
 # 1.16: interfața în relief și ecranul de pornire nou (versiunea web)
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
 U="http://localhost:8768/"
-FAKE=open(SC+"fake_sb.js").read()
 FR="""()=>new Promise(r=>{const t=[];let p=performance.now(),s=p;function f(n){t.push(n-p);p=n;if(n-s<%d)requestAnimationFrame(f);else r(t.slice(1))}requestAnimationFrame(f)})"""
 async def route(ctx):
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await ctx.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(ctx)
     await ctx.route("**/fonts.googleapis.com/**",lambda r:r.abort())
 async def skip(pg):
     for t in ["Sări peste","Mai târziu"]:
@@ -19,7 +15,7 @@ async def skip(pg):
         except Exception: pass
 def slow(t): return sum(1 for x in t if x>20)
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8768","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8768)
     try:
         async with async_playwright() as p:
             b=await p.chromium.launch()
@@ -83,6 +79,5 @@ async def main():
             await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

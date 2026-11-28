@@ -1,17 +1,13 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8768/"
-FAKE=open(SC+"fake_sb.js").read()
 FREE={"mon":{"free":True,"control":False,"sparks":False,"invites":False,"referrals":False},"ref":{"days":30,"max":12},"maint":{"on":False,"msg":""}}
 PAID={"mon":{"free":False,"control":True,"sparks":True,"invites":True,"referrals":True},"ref":{"days":30,"max":12},"maint":{"on":False,"msg":""}}
 ST=json.dumps({"onb":True,"at":5,"items":[{"id":"a1","g":"sub","t":"sub","n":"Netflix","p":40,"c":"m","d":"2027-01-10"}],"cars":[],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","inv":{"h":"old","exp":"2020-01-01","was":True},"sub":{"pl":"m","ren":"2020-01-01"}})
 async def mk(b,cfg,signed=False,rpc="",extra=""):
     c=await b.new_context(viewport={"width":390,"height":800},service_workers="block")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(cfg)),json.dumps(ST))
     if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
     init+=extra+"}"
@@ -21,7 +17,7 @@ async def mk(b,cfg,signed=False,rpc="",extra=""):
     await p.goto(U);await p.wait_for_timeout(2200)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8768","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8768)
     try:
         async with async_playwright() as pw:
             b=await pw.chromium.launch()
@@ -91,6 +87,5 @@ async def main():
             chk("EN free sheet","Everything is free right now" in await p.inner_text("#sheet"))
             await c.close();await b.close()
     finally: srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

@@ -1,15 +1,13 @@
 import asyncio,subprocess,json,time,os
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8765/"
 async def skip(pg):
     for t in ["Sări peste","Mai târziu"]:
         if await pg.locator(f"#sheet button:has-text('{t}')").count() and await pg.evaluate("$('ov').classList.contains('on')"):
             await pg.click(f"#sheet button:has-text('{t}')");await pg.wait_for_timeout(800)
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8765","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8765)
     try:
         async with async_playwright() as p:
             b=await p.chromium.launch()
@@ -34,7 +32,7 @@ async def main():
             await pg.click("#t-more");await pg.wait_for_timeout(900)
             t=await pg.inner_text("#main")
             chk("install card in More","Instalează LaTimp pe telefon" in t,t[:200])
-            chk("footer says test version","versiune de test 1.23" in t)
+            chk("footer says test version","versiune de test 1.24" in t)
             await pg.click("#main .ins button:has-text('Instalează')");await pg.wait_for_timeout(700)
             chk("install steps sheet",await pg.evaluate("$('sheet').dataset.k")=="inst" and "Instalează LaTimp" in await pg.inner_text("#sheet"))
             await pg.evaluate("closeSheet()");await pg.wait_for_timeout(400)
@@ -55,7 +53,7 @@ async def main():
             await ctx.set_offline(False)
             # engleză
             await pg.evaluate("S.lang='en';save();langApply();tab('more')");await pg.wait_for_timeout(1200)
-            t=await pg.inner_text("#main");chk("EN footer","test version 1.23" in t,t[-120:])
+            t=await pg.inner_text("#main");chk("EN footer","test version 1.24" in t,t[-120:])
             chk("no page errors",not errs,errs)
             await ctx.close()
             for w in [320,360,560]:
@@ -72,6 +70,5 @@ async def main():
             await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

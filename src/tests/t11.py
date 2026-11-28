@@ -1,9 +1,7 @@
 import asyncio, json, re
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
+from web import *
 URL="file:///mnt/user-data/outputs/buzunar.html"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
@@ -155,6 +153,5 @@ async def main():
             chk("no page errors",not errs,errs)
             await ctx.close()
         await b.close()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print("  FAIL:",x)
+    done()
 asyncio.run(main())

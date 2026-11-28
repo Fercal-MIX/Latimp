@@ -1,5 +1,5 @@
 /* LaTimp: funcționare fără internet. Pagina vine de pe rețea când se poate (ca să primești versiunea nouă), altfel din copia salvată. */
-const V="latimp-1.23";
+const V="latimp-1.24";
 const CORE=["./","index.html","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable-512.png","icons/apple-touch-icon-180.png","icons/favicon.svg","icons/favicon-32.png","fonts/plus-jakarta-sans.woff","i18n-en.js"];
 const FONTS=/^https:\/\/(fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@)/;
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
@@ -12,7 +12,12 @@ self.addEventListener("fetch",e=>{
  if(r.mode=="navigate"||u.pathname.endsWith("/")||u.pathname.endsWith(".html")){
   /* doar aplicația se păstrează ca „index.html”; paginile publice (prezentare, termeni) nu o înlocuiesc */
   const app=u.pathname.endsWith("/")||u.pathname.endsWith("/index.html");
-  e.respondWith(fetch(r).then(res=>{if(res.ok&&app){const cp=res.clone();caches.open(V).then(c=>c.put("index.html",cp))}return res}).catch(async()=>(app?(await caches.match("index.html"))||(await caches.match("./")):await caches.match(r))||Response.error()));return}
+  const saved=async()=>(app?(await caches.match("index.html"))||(await caches.match("./")):await caches.match(r));
+  const net=fetch(r).then(res=>{if(res.ok&&app){const cp=res.clone();caches.open(V).then(c=>c.put("index.html",cp))}return res});
+  /* semnal slab: după 3 secunde se folosește copia salvată, iar pagina nouă se păstrează pentru data viitoare */
+  e.respondWith(new Promise(ok=>{let done=false;const go=v=>{if(!done&&v){done=true;ok(v)}};
+   net.then(go,async()=>go((await saved())||Response.error()));
+   setTimeout(async()=>go(await saved()),3000)}));e.waitUntil(net.catch(()=>{}));return}
  e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok){const cp=res.clone();caches.open(V).then(c=>c.put(r,cp))}return res})))});
 
 /* memento-uri trimise de server */

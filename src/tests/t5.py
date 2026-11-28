@@ -1,8 +1,6 @@
 import asyncio
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:400] if (e and not c) else ""))
+from web import *
 async def newpage(b,scheme="light"):
     ctx=await b.new_context(viewport={"width":400,"height":820},color_scheme=scheme)
     page=await ctx.new_page();page.errs=[]
@@ -110,6 +108,5 @@ async def main():
         await page.click("#t-agenda");await page.wait_for_timeout(500);await page.click("#main >> button:has-text('Auto')");await page.wait_for_timeout(600)
         await page.screenshot(path=SC+"n_cars_dark.png")
         await ctx.close();await b.close()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

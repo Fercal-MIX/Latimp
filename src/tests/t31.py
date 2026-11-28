@@ -1,11 +1,8 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
+from web import *
 # t31: planurile pe funcții din panou (Planuri): oprite, gratuite, Control, planuri create, lansare, fără catalog
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
 U="http://localhost:8769/"
-FAKE=open(SC+"fake_sb.js").read()
 TIERS=[{"id":"free","name":"Gratuit","builtin":True},{"id":"control","name":"Control","builtin":True},{"id":"sparks","name":"Scântei","builtin":True,"kind":"use"},
        {"id":"familie","name":"Familie","color":"#2f6f9f","desc":"Agenda comună pentru toată familia","price_month":"14.99","includes":["control"],"sale":False}]
 FEAT={"budget":{"name":"Bugetul lunii","group":"agenda","tier":"off"},"monthly_total":{"name":"Totalul lunar","group":"agenda","tier":"free"},
@@ -22,8 +19,7 @@ ST=json.dumps({"onb":True,"at":5,"items":[{"id":"a1","g":"sub","t":"sub","n":"Ne
   "cars":[{"id":"c1","n":"Mașina mea","km":105000}],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","nt":{"d":7,"h":"09:00","rep":True,"n":3,"i":2,"day":True,"wk":True}})
 async def mk(b,cfg,signed=False,rpc="",w=390):
     c=await b.new_context(viewport={"width":w,"height":800},service_workers="block")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(cfg)),json.dumps(ST))
     if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
     init+="}"
@@ -33,7 +29,7 @@ async def mk(b,cfg,signed=False,rpc="",w=390):
     await p.goto(U);await p.wait_for_timeout(2200)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8769","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8769)
     try:
         async with async_playwright() as pw:
             b=await pw.chromium.launch()
@@ -107,6 +103,5 @@ async def main():
             await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

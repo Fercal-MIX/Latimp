@@ -1,22 +1,18 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8784/"
-FAKE=open(SC+"fake_sb.js").read()
 ST={"onb":True,"at":5,"items":[],"cars":[],"saved":[{"t":"Plimbare în parc","d":"Aer","c":"gratis"},{"t":"Film acasă","d":"Popcorn","c":"~20 lei"}],"credits":0,"used":0,"photos":0,"theme":"auto","nt":{"d":7,"h":"09:00"}}
 async def mk(b,st=ST,w=390,dark=False,url=U):
     c=await b.new_context(viewport={"width":w,"height":850},color_scheme="dark" if dark else "light")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(c)
     await c.add_init_script("if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s)}"%(json.dumps(json.dumps({"mon":{"free":True}})),json.dumps(json.dumps(st))))
     await c.add_init_script("window.__rpc={get_my_access:async()=>({pro:true,source:'free',free_mode:true}),am_i_admin:async()=>false,set_reminders:async(a)=>a.p.length,open_poll:async()=>({code:'ABCD2345'})};")
     p=await c.new_page();errs=[];p.on("pageerror",lambda e:errs.append(str(e)))
     await p.goto(url);await p.wait_for_timeout(2500)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8784","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8784)
     try:
       async with async_playwright() as pw:
         b=await pw.chromium.launch()
@@ -86,6 +82,5 @@ async def main():
         chk("vote page no errors",not e2,e2)
         await c2.close();await b.close()
     finally: srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

@@ -1,15 +1,11 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8770/"
-FAKE=open(SC+"fake_sb.js").read()
 CFG={"mon":{"free":True,"control":False,"sparks":False,"invites":False,"referrals":False}}
 async def mk(b,signed=True,cnt=None,rpl=None,stats=True):
     c=await b.new_context(viewport={"width":390,"height":800},service_workers="block")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     st={"onb":True,"at":5,"items":[{"id":"a","g":"sub","t":"sub","n":"Netflix secret","p":40,"c":"m","d":"2027-01-10"}],"cars":[],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","stats":stats,"st":{"first":"2026-11-01","days":{"2026-11-26":1,"2026-11-27":1},"adds":3,"reads":1,"taps":{"budget":2}},"acct":{"p":"email","e":"ana@test.ro","v":True} if signed else None,"ch":{"on":True,"m":{}}}
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(CFG)),json.dumps(json.dumps(st)))
     if cnt: init+="localStorage.setItem('fake.cnt',%s);"%json.dumps(json.dumps(cnt))
@@ -22,7 +18,7 @@ async def mk(b,signed=True,cnt=None,rpl=None,stats=True):
     return c,p,errs
 LS=lambda k:"JSON.parse(localStorage.getItem('%s')||'null')"%k
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8770","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8770)
     try:
         async with async_playwright() as pw:
             b=await pw.chromium.launch()
@@ -90,6 +86,5 @@ async def main():
             chk("C no errors",not e,e)
             await c.close();await b.close();await mk_.close()
     finally: srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

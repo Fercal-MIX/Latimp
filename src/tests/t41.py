@@ -1,8 +1,6 @@
 import asyncio,re
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 def txt(f): return re.sub(r"<[^>]+>"," ",open(SC+"web/"+f,encoding="utf-8").read())
 pr,pe,tr,te=txt("confidentialitate.html"),txt("privacy.html"),txt("termeni.html"),txt("terms.html")
 chk("privacy RO: automatic weather, ~10 km, kept on the phone","Vremea automată" in pr and "10 km" in pr and "rămân doar pe telefon" in pr)
@@ -31,5 +29,4 @@ async def main():
         chk("no page errors",not errs,errs)
         await b.close()
 asyncio.run(main())
-print("OK",len(ok),"FAIL",len(bad))
-for x in bad: print(" -",x)
+done()

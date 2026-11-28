@@ -1,10 +1,7 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8783/"
-FAKE=open(SC+"fake_sb.js").read()
 ST={"onb":True,"at":5,"items":[{"id":"ex1","g":"sub","t":"sub","n":"Netflix","p":50,"c":"m","d":"2030-01-01","ex":True}],"cars":[{"id":"c1","n":"B 1 ABC","eu":"e6"}],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","nt":{"d":7,"h":"09:00","rep":False,"n":3,"i":7,"day":False,"wk":False}}
 # prognoza simulată: azi ploaie, sâmbătă senin
 WX="""(()=>{const f=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -14,8 +11,7 @@ WX="""(()=>{const f=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDa
  return {wx_start:async(a)=>{window.__wxCalls++;window.__wxArgs=a;return {status:'wait'}},wx_poll:async()=>({status:'ok',data:{now:{tp:9,sy:'rain'},days:window.__wxDays,src:'MET Norway'}})}})()"""
 async def mk(b,lang="ro",geo=True):
     c=await b.new_context(viewport={"width":390,"height":850},permissions=["geolocation"] if geo else [],geolocation={"latitude":44.4268,"longitude":26.1025})
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(c)
     st=dict(ST);st["lang"]=lang
     await c.add_init_script("if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s)}"%(json.dumps(json.dumps({"mon":{"free":True}})),json.dumps(json.dumps(st))))
     await c.add_init_script("window.__rpc=Object.assign({get_my_access:async()=>({pro:true,source:'free',free_mode:true}),am_i_admin:async()=>false},"+WX+");")
@@ -23,7 +19,7 @@ async def mk(b,lang="ro",geo=True):
     await p.goto(U);await p.wait_for_timeout(2500)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8783","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8783)
     try:
       async with async_playwright() as pw:
         b=await pw.chromium.launch()
@@ -113,6 +109,5 @@ async def main():
         await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

@@ -1,10 +1,7 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8773/"
-FAKE=open(SC+"fake_sb.js").read()
 CFG={"mon":{"free":True,"control":False,"sparks":False,"invites":False,"referrals":False}}
 STUB="""(()=>{const sub={endpoint:'https://push.example/abc',toJSON(){return{endpoint:this.endpoint,keys:{p256dh:'B'+'x'.repeat(86),auth:'y'.repeat(22)}}},async unsubscribe(){window.__unsub=(window.__unsub||0)+1;window.__has=false;return true}};
  window.__perm=window.__perm||'granted';
@@ -18,8 +15,7 @@ async def mk(b,items,signed=True,ua=None,perm="granted"):
     if ua: kw["user_agent"]=ua
     c=await b.new_context(**kw)
     if perm=="granted": await c.grant_permissions(["notifications"],origin=U[:-1])
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(CFG)),json.dumps(st(items)))
     if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
     else: init+="(()=>{const s=JSON.parse(localStorage.getItem('buzunar.v2'));s.acct=null;localStorage.setItem('buzunar.v2',JSON.stringify(s))})();"
@@ -29,7 +25,7 @@ async def mk(b,items,signed=True,ua=None,perm="granted"):
     await p.goto(U);await p.wait_for_timeout(2500)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8773","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8773)
     global CFG
     try:
         async with async_playwright() as pw:
@@ -123,6 +119,5 @@ async def main():
             await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

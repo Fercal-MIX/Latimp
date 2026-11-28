@@ -144,7 +144,7 @@ function renew(id){
  const x=S.items.find(i=>i.id==id);if(!x)return;
  if(x.g=="auto"){if(x.rep>0){const b=left(x.d)>=0?pd(x.d):td();x.d=fmt(addM(b,x.rep,b.getDate()));save();render();flashCard(id);toast("Următorul termen: "+nice(x.d))}else editItem(id,true)}
  else if(x.g=="per"&&!x.auto){S.items=S.items.filter(i=>i.id!=id);save();render();toast("Gata, l-am scos din agendă")}}
-const PACKS=[[5,"2,99","Pentru început"],[20,"9,99",""],[60,"24,99","Cel mai ales"],[150,"49,99",""]];
+const PACKS=[[5,"2,99","Pentru început"],[20,"9,99",""],[60,"24,99",""],[150,"49,99",""]];
 function openPlan(k){
  let h;
  if(k=="agenda"){
@@ -153,7 +153,7 @@ function openPlan(k){
   <div class="cmp"><div class="h"></div><div class="h">Gratuit</div><div class="h y">Control</div>${R("Termene",FREE_ITEMS,"nelimitate")+R("Mașini",FREE_CARS,"nelimitate")+R("Familie","–","da")+R("Citire din poză",FREE_PHOTOS,"nelimitată")+R("Memento-uri",1,"repetate, la alegere")+R("Rezumat săptămânal","–","da")+R("Blocare cu PIN","–","da")+R("Alerte în calendar","–","da")+R("Reclame generale","da","nu")+R("Culorile aplicației","Grafit","Pădure și Teracotă")}</div>
   <div class="note">Sugestiile de la termen (service, broker) rămân și în Control, marcate clar.</div>`+
   (invOn()?invNote():S.pro?subBox():
-  `<button class="pl ${PLAN=="y"?"on":""}" onclick="PLAN='y';openPlan('agenda')"><span class="rb">Cel mai ales</span><span><b>Anual</b><br><span class="mu">${py} lei, adică ${fm(py/12)} lei pe lună</span></span><b>−${sv}%</b></button><button class="pl ${PLAN=="m"?"on":""}" onclick="PLAN='m';openPlan('agenda')"><span><b>Lunar</b><br><span class="mu">Anulezi oricând</span></span><b>${fm(pm)} lei</b></button><div style="margin-top:16px"><button class="btn" onclick="setPro(true)">Activează Control (demo)</button></div>`)}
+  `<button class="pl ${PLAN=="y"?"on":""}" onclick="PLAN='y';openPlan('agenda')"><span class="rb">Mai ieftin pe lună</span><span><b>Anual</b><br><span class="mu">${py} lei, adică ${fm(py/12)} lei pe lună</span></span><b>−${sv}%</b></button><button class="pl ${PLAN=="m"?"on":""}" onclick="PLAN='m';openPlan('agenda')"><span><b>Lunar</b><br><span class="mu">Anulezi oricând</span></span><b>${fm(pm)} lei</b></button><div style="margin-top:16px"><button class="btn" onclick="setPro(true)">Activează Control (demo)</button></div>`)}
  else{
   const C=[["Idee sau listă de cadouri",COST.idea+" ✦","3 gratuite pe zi"],["Mai multe ca asta",COST.more+" ✦","din cele gratuite sau din scântei"],["Plan pe ore",COST.plan+" ✦","doar din scântei"],["Idei salvate","gratis",""]];
   h=`<h2>Scântei <span class="tag">${S.credits} rămase</span></h2><div class="mu">Plată unică, fără abonament. Scânteile nu expiră.</div>

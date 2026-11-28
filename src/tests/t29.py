@@ -1,10 +1,7 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8779/admin.html"
-FAKE=open(SC+"fake_sb.js").read()
 OV={"users":2,"new7":2,"new30":2,"paid":0,"bonus":0,"polls":0,"admins":1,"manual":0,"active7":1,"invited":0,"synced7":1,"referrals":0,"reports_new":0,"config_at":"2026-11-27T18:28:33Z",
  "signups":[{"d":"2026-11-%02d"%d,"n":d%3} for d in range(15,29)],
  "config":{"mon":{"free":True,"sparks":False,"control":False,"invites":False,"referrals":False},"ai":{"on":False,"day_eur":2,"user_day":20,"cost_call":0.01,"month_eur":20},"goal":{"users":1000},"maint":{"on":False,"msg":"x"},"prices":{"currency":"RON","month":"","year":"","trial_days":0,"promo":None},"ref":{"max":12,"days":30,"new_days":30},"min_ver":{"ios":"","android":"","msg":""},"plans":{"tiers":[],"groups":{},"limits":{},"features":{}}}}
@@ -21,8 +18,7 @@ window.__rpc={am_i_admin:async(a,s)=>!!(s&&s.user&&/admin/.test(s.user.email)),
 """
 async def mk(b,sess=None,pin=False,w=390,dark=False):
     c=await b.new_context(viewport={"width":w,"height":850},color_scheme="dark" if dark else "light")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(c)
     await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
     if sess: await c.add_init_script("if(!sessionStorage.getItem('s1')){sessionStorage.setItem('s1','1');localStorage.setItem('latimp.auth',%s)}"%json.dumps(json.dumps({"user":{"id":"u1","email":sess},"access_token":"t"})))
     await c.add_init_script(RPC%("true" if pin else "false",json.dumps(OV)))
@@ -30,7 +26,7 @@ async def mk(b,sess=None,pin=False,w=390,dark=False):
     await p.goto(U);await p.wait_for_timeout(1500)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8779","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8779)
     try:
       async with async_playwright() as pw:
         b=await pw.chromium.launch()
@@ -117,6 +113,5 @@ async def main():
         chk("no page errors (PIN)",not e,e);await c.close()
         await b.close()
     finally: srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

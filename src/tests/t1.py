@@ -1,10 +1,7 @@
 import asyncio, json, datetime, sys
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
+from web import *
 def d(n): return (datetime.date.today()+datetime.timedelta(days=n)).isoformat()
-ok=[];bad=[]
-def chk(name,cond,extra=""):
-    (ok if cond else bad).append(name+(" -> "+str(extra) if (extra and not cond) else ""))
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
@@ -160,6 +157,5 @@ async def main():
         await page.screenshot(path=SC+"s_wipe.png")
         chk("no page errors",not errs,errs)
         await b.close()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

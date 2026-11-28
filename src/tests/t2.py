@@ -1,9 +1,7 @@
 import asyncio, datetime
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
+from web import *
 def d(n): return (datetime.date.today()+datetime.timedelta(days=n)).isoformat()
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e) if (e and not c) else ""))
 async def run(b,init,name,fn,w=360,scheme="light"):
     ctx=await b.new_context(viewport={"width":w,"height":780},color_scheme=scheme)
     page=await ctx.new_page();errs=[]
@@ -91,6 +89,5 @@ async def main():
             await page.screenshot(path=SC+"s_dark.png")
         await run(b,"","overdue",f6,scheme="dark")
         await b.close()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

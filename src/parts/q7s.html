@@ -16,20 +16,49 @@ function sbReady(){
  addEventListener("visibilitychange",()=>{if(document.visibilityState=="visible")sbPull()});
  addEventListener("online",()=>{sbPull();sbPush()});
  softMore()}
-/* citește agenda din cont; cea mai nouă câștigă (după S.at, ca în prototip) */
+/* sincronizare: serverul numără versiunile (rev), nu ceasul telefonului. Dacă agenda s-a schimbat și aici, și în altă parte,
+   schimbările se unesc termen cu termen, față de ultima versiune sincronizată (păstrată pe telefon). */
+const sbK=()=>"latimp.sbase:"+(SBU&&SBU.id||"");
+const sbBase=()=>lsGet(sbK())||{rev:0,s:null};
+// shortcut: copia ultimei versiuni sincronizate stă în localStorage (cel mult cât agenda, max. 2 MB pe server); ajunge cât încape în browser
+const sbKeep=(rev,st)=>lsSet(sbK(),{rev,s:st});
+const sbPlain=o=>JSON.parse(JSON.stringify(o));
+const sbJ=o=>JSON.stringify(o===undefined?null:o);
+/* chei doar ale acestui telefon (ora salvării, ultima verificare a memento-urilor, contul): nu contează ca schimbare */
+const SBLOC=["at","nl","acct"],sbCmp=o=>{const c=Object.assign({},o||{});SBLOC.forEach(k=>delete c[k]);return sbJ(c)};
+/* unire în trei: o cheie schimbată aici câștigă, altfel rămâne cea din cont; listele cu id (termene, mașini) se unesc element cu element */
+function merge3(b,l,r){b=b||{};const o={};
+ new Set(Object.keys(l).concat(Object.keys(r))).forEach(k=>{
+  if(SBLOC.includes(k)){o[k]=l[k];return}
+  const B=b[k],L=l[k],R=r[k],ided=a=>Array.isArray(a)&&a.every(x=>x&&typeof x=="object"&&x.id!=null);
+  if(ided(L)&&ided(R)){const bm=new Map((ided(B)?B:[]).map(x=>[x.id,sbJ(x)])),lm=new Map(L.map(x=>[x.id,x])),rm=new Map(R.map(x=>[x.id,x]));
+   o[k]=[...new Set(R.map(x=>x.id).concat(L.map(x=>x.id)))].map(id=>sbJ(lm.get(id))!==(bm.has(id)?bm.get(id):"null")?lm.get(id):rm.get(id)).filter(Boolean)}
+  else o[k]=sbJ(L)!==sbJ(B)?L:R});
+ return o}
 async function sbPull(){
  if(!SB||!SBU||SBQ)return;SBQ=true;
- try{const{data,error}=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();if(error)throw error;
+ try{const{data,error}=await SB.from("user_state").select("state,rev").eq("user_id",SBU.id).maybeSingle();if(error)throw error;
   if(!data){if(S.acct)sbPush();return}
-  const st=data.state||{},ra=+st.at||0;
-  if(ra>(+S.at||0)){const keep=S.acct;S=mig(st);S.at=ra;if(!S.acct)S.acct=keep;store();theme();uiApply();SY.ok=true;SY.t=Date.now();soft()}
-  else if(ra<(+S.at||0))sbPush();
-  else{SY.ok=true;SY.t=SY.t||Date.now()}}
+  const b=sbBase(),rs=data.state||{},rev=+data.rev||0,mine=sbCmp(sbPlain(S))!==sbCmp(b.s);
+  if(rev===b.rev){if(mine)sbPush();else{SY.ok=true;SY.t=SY.t||Date.now()}return}
+  const keep=S.acct;
+  S=mig(mine?merge3(b.s,sbPlain(S),rs):rs);if(keep)S.acct=keep;
+  if(mine)S.at=Date.now();
+  sbKeep(rev,mine?sbPlain(Object.assign(mig(rs),{acct:keep})):sbPlain(S));
+  store();theme();uiApply();SY.ok=true;SY.t=Date.now();soft();
+  if(mine)sbPush()}
  catch(e){SY.ok=false}
  finally{SBQ=false}}
 const sbPush=writer(async()=>{
  if(!SB||!SBU||!S.acct||!S.at)return;
- try{const{error}=await SB.from("user_state").upsert({user_id:SBU.id,state:JSON.parse(JSON.stringify(S)),schema_ver:2,device:String(navigator.userAgent||"").slice(0,80)},{onConflict:"user_id"});if(error)throw error;SY.ok=true;SY.t=Date.now()}
+ if(!sbBase().rev){await sbPull();if(sbBase().rev)return}
+ const st=sbPlain(S),b=sbBase(),dev=String(navigator.userAgent||"").slice(0,80);
+ try{let q;
+  if(b.rev)q=SB.from("user_state").update({state:st,schema_ver:2,device:dev}).eq("user_id",SBU.id).eq("rev",b.rev).select("rev");
+  else q=SB.from("user_state").insert({user_id:SBU.id,state:st,schema_ver:2,device:dev}).select("rev");
+  const{data,error}=await q;
+  if(error||!data||!data.length){if(error&&!(b.rev===0&&error.code=="23505"))throw error;await sbPull();return}
+  sbKeep(+data[0].rev||0,st);SY.ok=true;SY.t=Date.now()}
  catch(e){SY.ok=false}
  softMore()},1200);
 if(WEB){const sv1=save;save=function(){sv1();sbPush()}}
@@ -72,7 +101,8 @@ let SBR=null;
 const realN=s=>(s&&Array.isArray(s.items)?s.items.filter(x=>!x.ex).length:0);
 async function sbJoin(){
  const e=String(SBU.email||AC.e).toLowerCase(),a={p:"email",e,n:"",at:Date.now(),v:true},nx=AC&&AC.next;
- let row=null;try{const r=await SB.from("user_state").select("state,updated_at").eq("user_id",SBU.id).maybeSingle();row=r.data||null}catch(x){}
+ let row=null;try{const r=await SB.from("user_state").select("state,rev").eq("user_id",SBU.id).maybeSingle();row=r.data||null}catch(x){}
+ if(row)sbKeep(+row.rev||0,row.state||{});
  const rs=row&&row.state,rn=realN(rs),ln=realN(S);
  if(rs&&rn&&ln){SBR={rs,a,nx};openSheet(`<h2>Ai deja o agendă în cont</h2><div class="mu">În cont: ${rn} ${rn==1?"termen":"termene"}. Pe acest telefon: ${ln} ${ln==1?"termen":"termene"}. Alege ce păstrezi.</div><div style="margin-top:14px"><button class="btn" onclick="sbPick(true)">Folosește agenda din cont</button><button class="btn alt" onclick="sbPick(false)">Păstrează agenda de pe telefon</button></div><div class="note">Cealaltă agendă se înlocuiește. Dacă nu ești sigur, fă întâi o copie într-un fișier din Mai mult.</div>`,"acct");return}
  if(rs&&rn){S=mig(rs);S.at=Date.now();S.acct=a;store();theme();uiApply();sbDone("Ești conectat. Agenda din cont a fost adusă.",nx);return}
@@ -88,7 +118,7 @@ if(WEB){
   if(!AC.del){AC.del=true;AC.out=false;drawAcct();return}
   if(!SB||!SBU){toast("Ai nevoie de internet ca să ștergi contul.");return}
   try{const{data,error}=await SB.functions.invoke("delete-account",{body:{}});
-   if(error){let c="";try{c=(await error.context.json()).error}catch(x){}toast(c=="active_subscription"?"Ai un abonament activ. Anulează-l întâi din magazin, apoi șterge contul.":"Nu am putut șterge contul. Încearcă din nou.");return}}
+   if(error){let c="";try{c=(await error.context.json()).error}catch(x){}toast(c=="active_subscription"?"Ai un abonament activ. Anulează-l întâi din magazin, apoi șterge contul.":c=="active_subscription_web"?"Ai un abonament activ. Anulează întâi reînnoirea din foaia Control, apoi șterge contul.":"Nu am putut șterge contul. Încearcă din nou.");return}}
   catch(e){toast("Nu am putut șterge contul. Verifică internetul.");return}
   try{await SB.auth.signOut({scope:"local"})}catch(e){}
   SBU=null;if(S.inv){S.pro=!!S.inv.was;S.inv=null}S.acct=null;S.fam=null;S.stats=false;save();closeSheet();render();toast("Contul a fost șters. Agenda rămâne doar pe acest telefon.")};

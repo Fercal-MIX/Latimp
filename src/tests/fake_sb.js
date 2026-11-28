@@ -23,8 +23,17 @@
    if(t=="usage_stats")return{async upsert(r){P("fake.ust",r);return{error:null}},delete(){return{async eq(){localStorage.removeItem("fake.ust");return{error:null}}}}};
    if(t=="push_subs"){const q={async upsert(row){const a=(L("fake.push")||[]).filter(x=>x.endpoint!=row.endpoint);a.push(row);P("fake.push",a);return{error:null}},delete(){return{async eq(c,v){P("fake.push",(L("fake.push")||[]).filter(x=>x[c]!=v));return{error:null}}}}};return q}
    if(t=="referral_uses"){const q={_c:null,_v:null,_o:null,select(a,o){q._o=o;return q},eq(c,v){q._c=c;q._v=v;return q},then(res){const u=L("fake.ru")||[];res({count:u.filter(x=>x[q._c]==q._v).length,data:null,error:null})},async maybeSingle(){const u=L("fake.ru")||[];return{data:u.find(x=>x[q._c]==q._v)||null,error:null}}};return q}
-   const q={_eq:null,select(){return q},eq(c,v){q._eq=v;return q},async maybeSingle(){const db=L("fake.db")||{};return{data:db[q._eq]||null,error:null}},
-   async upsert(row){const db=L("fake.db")||{};db[row.user_id]={state:row.state,updated_at:new Date().toISOString()};P("fake.db",db);__sb.upserts++;return{error:null}}};return q}
+   if(t!="user_state"){const q={select(){return q},eq(){return q},async maybeSingle(){return{data:null,error:null}}};return q}
+   // user_state: ca pe server, „rev” crește la fiecare scriere; update(...).eq("rev",n) scrie doar dacă versiunea e aceeași
+   const q={_u:null,_rev:null,_op:null,_row:null,select(){return q},eq(c,v){if(c=="rev")q._rev=v;else q._u=v;return q},
+   async maybeSingle(){const db=L("fake.db")||{},r=db[q._u];return{data:r?{state:r.state,rev:r.rev||1,updated_at:r.updated_at}:null,error:null}},
+   async upsert(row){const db=L("fake.db")||{},o=db[row.user_id];db[row.user_id]={state:row.state,rev:o?(o.rev||1)+1:1,updated_at:new Date().toISOString()};P("fake.db",db);__sb.upserts++;return{error:null}},
+   update(row){q._op="u";q._row=row;return q},insert(row){q._op="i";q._row=row;q._u=row.user_id;return q},
+   then(res){const db=L("fake.db")||{},o=db[q._u];let out;
+    if(q._op=="i"){if(o)out={data:null,error:{code:"23505",message:"dup"}};else{db[q._u]={state:q._row.state,rev:1,updated_at:new Date().toISOString()};P("fake.db",db);__sb.upserts++;out={data:[{rev:1}],error:null}}}
+    else if(q._op=="u"){if(o&&(q._rev==null||(o.rev||1)==q._rev)){o.state=q._row.state;o.rev=(o.rev||1)+1;o.updated_at=new Date().toISOString();P("fake.db",db);__sb.upserts++;out={data:[{rev:o.rev}],error:null}}else out={data:[],error:null}}
+    else out={data:o?[o]:[],error:null};
+    res(out)}};return q}
   const functions={async invoke(n,o){__sb.invoked.push(n);const fh=(window.__fn||{})[n];if(fh){try{return{data:await fh(o&&o.body,sess()),error:null}}catch(x){return{data:null,error:{context:{json:async()=>({err:String(x&&x.message||x)})}}}}}const s=sess();if(n=="delete-account"&&s){const db=L("fake.db")||{};delete db[s.user.id];P("fake.db",db);return{data:{ok:true},error:null}}return{data:null,error:{context:{json:async()=>({error:"x"})}}}}};
   async function rpc(n,a){__sb.rpcs=(__sb.rpcs||[]).concat(n);const h=(window.__rpc||{})[n];if(h){const v=await h(a,sess());if(v&&v.__err)return{data:null,error:{message:v.__err}};return{data:v,error:null}}return{data:null,error:{message:"no rpc "+n}}}
   const storage={from(b){return{async upload(p,blob,o){rec2("fake.up",{b,p,type:o&&o.contentType,size:blob&&blob.size});return{data:{path:p},error:null}},async remove(a){rec2("fake.rm",{b,a});return{data:a,error:null}},async createSignedUrl(p,s){rec2("fake.sign",{b,p,s});return{data:{signedUrl:location.origin+"/termeni.html#"+p},error:null}}}}};

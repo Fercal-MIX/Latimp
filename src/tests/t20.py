@@ -1,10 +1,7 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8767/"
-FAKE=open(SC+"fake_sb.js").read()
 async def route(ctx,fail=False):
     async def h(r):
         if fail: await r.abort()
@@ -18,7 +15,7 @@ async def skip(pg):
             await pg.click(f"#sheet button:has-text('{t}')");await pg.wait_for_timeout(700)
         except Exception: pass
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8767","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8767)
     try:
         async with async_playwright() as p:
             b=await p.chromium.launch()
@@ -55,7 +52,7 @@ async def main():
             await pg.reload();await pg.wait_for_timeout(2000)
             chk("session survives reload",await pg.evaluate("!!SBU&&S.acct.e=='ana@test.ro'"))
             # alt telefon a salvat ceva mai nou: la revenirea în aplicație se aduce
-            await pg.evaluate("(()=>{const d=JSON.parse(localStorage.getItem('fake.db'));const s=d['u-ana@test.ro'].state;s.items.push({id:'z2',g:'per',t:'zi',n:'Tata',d:plus(50)});s.at=Date.now()+5000;localStorage.setItem('fake.db',JSON.stringify(d))})()")
+            await pg.evaluate("(()=>{const d=JSON.parse(localStorage.getItem('fake.db'));const s=d['u-ana@test.ro'].state;s.items.push({id:'z2',g:'per',t:'zi',n:'Tata',d:plus(50)});s.at=Date.now()+5000;d['u-ana@test.ro'].rev=(d['u-ana@test.ro'].rev||1)+1;localStorage.setItem('fake.db',JSON.stringify(d))})()")
             await pg.evaluate("sbPull()");await pg.wait_for_timeout(800)
             chk("newer cloud agenda pulled",await pg.evaluate("S.items.some(x=>x.n=='Tata')"))
             cloud=await pg.evaluate("localStorage.getItem('fake.db')")
@@ -109,6 +106,5 @@ async def main():
             chk("offline: app still works",await p3.locator("#main h1").count()==1 and not e3,e3)
             await c3.close();await b.close()
     finally: srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

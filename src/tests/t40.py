@@ -1,18 +1,14 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8784/"
-FAKE=open(SC+"fake_sb.js").read()
 ST={"onb":True,"at":5,"items":[{"id":"a1","g":"fac","t":"cur","n":"PPC","p":200,"d":"2030-01-10","rep":1}],"cars":[],"saved":[],"credits":0,"used":0,"photos":0,"theme":"auto","nt":{"d":7,"h":"09:00","rep":False,"n":3,"i":7,"day":False,"wk":False}}
 CFG={"mon":{"free":False,"control":True},"prices":{"currency":"RON","month":"9,99","year":"79,99","trial_days":7}}
 def acc(src=None,until=None,trial=None,founder=None,pro=None):
     return {"pro":bool(src) if pro is None else pro,"source":src,"until":until,"free_mode":False,"trial":trial or {"on":True,"days":7,"used":False,"until":None},"founder":founder}
 async def mk(b,a,rpc_extra="",lang="ro",signed=True):
     c=await b.new_context(viewport={"width":390,"height":850},service_workers="block")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     st=dict(ST);st["lang"]=lang
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(CFG)),json.dumps(json.dumps(st)))
     if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
@@ -25,7 +21,7 @@ async def mk(b,a,rpc_extra="",lang="ro",signed=True):
 def iso(days):
     import datetime;return (datetime.datetime.now(datetime.UTC).replace(tzinfo=None)+datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8784","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8784)
     try:
       async with async_playwright() as pw:
         b=await pw.chromium.launch()
@@ -108,6 +104,5 @@ async def main():
         await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

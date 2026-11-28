@@ -22,41 +22,43 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails("https://fercal-mix.github.io/Latimp/", cfg.pub, cfg.priv);
 
   const now = new Date();
-  const since = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
-  const { data: due, error: de } = await db.from("reminders").select("id,user_id,title,body,tag,mail")
-    .is("sent_at", null).lte("at", now.toISOString()).gte("at", since).order("at").limit(500);
+  // rândurile sunt marcate ca trimise când sunt luate: o rulare oprită la mijloc nu le mai retrimite, două rulări nu iau același rând
+  const { data: due, error: de } = await db.rpc("claim_reminders", { p_limit: 300 });
   if (de) return json({ error: "query" }, 500);
   if (!due?.length) return json({ ok: true, due: 0, sent: 0 });
 
   const users = [...new Set(due.map((r) => r.user_id))];
   const { data: subs } = await db.from("push_subs").select("id,user_id,endpoint,p256dh,auth,fails,lang").in("user_id", users);
   let sent = 0, gone = 0, mailed = 0;
-  const done: number[] = [], okIds: number[] = [];
+  const okIds: number[] = [], okSubs: number[] = [], goneSubs: number[] = [], failSubs: { id: number; fails: number }[] = [];
+  const jobs: (() => Promise<void>)[] = [];
   for (const r of due) {
-    const mine = (subs || []).filter((s) => s.user_id === r.user_id);
     // eticheta „lt-<timp>~<id termen>~<p|r|f|g>” spune ce termen deschide notificarea și ce buton are („Am plătit” etc.)
     const m = /~([A-Za-z0-9_-]{3,40})(?:~([prfg]))?$/.exec(r.tag || "");
     const it = m?.[1] || "", act = m?.[2] || "";
     const link = BASE + "?from=push" + (it ? "&it=" + encodeURIComponent(it) : "");
-    for (const s of mine) {
+    for (const s of (subs || []).filter((s) => s.user_id === r.user_id)) {
       const en = s.lang === "en";
       const actions = act ? [{ action: "done", title: (en ? ACT_EN : ACT_RO)[act] }] : [];
       // câmpurile de sus le citește service worker-ul; „notification” e formatul declarativ (Safari 18.4+), care se afișează și fără service worker
       const payload = JSON.stringify({ title: r.title, body: r.body, tag: r.tag || ("r" + r.id), url: link, it, actions,
         web_push: 8030, notification: { title: r.title, body: r.body, navigate: link, tag: r.tag || ("r" + r.id), lang: en ? "en" : "ro" } });
-      try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: "normal" });
-        sent++;
-        if (!okIds.includes(r.id)) okIds.push(r.id);
-        await db.from("push_subs").update({ last_ok: now.toISOString(), fails: 0 }).eq("id", s.id);
-      } catch (e) {
-        const code = (e as { statusCode?: number }).statusCode || 0;
-        if (code === 404 || code === 410) { gone++; await db.from("push_subs").delete().eq("id", s.id); }
-        else await db.from("push_subs").update({ fails: (s.fails || 0) + 1 }).eq("id", s.id);
-      }
+      jobs.push(async () => {
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: "normal" });
+          sent++; okIds.push(r.id); okSubs.push(s.id);
+        } catch (e) {
+          const code = (e as { statusCode?: number }).statusCode || 0;
+          if (code === 404 || code === 410) { gone++; goneSubs.push(s.id); } else failSubs.push({ id: s.id, fails: (s.fails || 0) + 1 });
+        }
+      });
     }
-    done.push(r.id);
   }
+  for (let i = 0; i < jobs.length; i += 20) await Promise.all(jobs.slice(i, i + 20).map((f) => f()));
+  const uniq = <T>(a: T[]) => [...new Set(a)];
+  if (okSubs.length) await db.from("push_subs").update({ last_ok: now.toISOString(), fails: 0 }).in("id", uniq(okSubs));
+  if (goneSubs.length) await db.from("push_subs").delete().in("id", uniq(goneSubs));
+  for (const f of failSubs) await db.from("push_subs").update({ fails: f.fails }).eq("id", f.id);
 
   // e-mail: un singur mesaj pe utilizator la fiecare rulare, cu toate memento-urile lui ajunse la oră
   const su = Deno.env.get("SMTP_USER"), sp = Deno.env.get("SMTP_PASS");
@@ -84,14 +86,13 @@ Deno.serve(async (req) => {
           `<p style="margin:14px 0 0;font-size:13px;color:#5c6253">Oprești memento-urile pe e-mail din aplicație: Mai mult → Notificări.</p></div>`;
         await tr.sendMail({ from: { name: "LaTimp", address: su! }, to, subject, text, html });
         mailed++;
-        for (const r of list) if (!okIds.includes(r.id)) okIds.push(r.id);
+        for (const r of list) okIds.push(r.id);
       } catch (e) { console.error("mail", String(e).slice(0, 200)); }
     }
   }
-  // marcate ca trimise chiar dacă utilizatorul nu are abonare: nu se trimit mai târziu, întârziat
-  for (let i = 0; i < done.length; i += 200) await db.from("reminders").update({ sent_at: now.toISOString() }).in("id", done.slice(i, i + 200));
   // ajuns pe cel puțin un telefon: folosit în panou (timpul până la primul memento livrat)
-  for (let i = 0; i < okIds.length; i += 200) await db.from("reminders").update({ delivered: true }).in("id", okIds.slice(i, i + 200));
-  if (okIds.length) { const us = [...new Set(due.filter((r) => okIds.includes(r.id)).map((r) => r.user_id))]; await db.rpc("note_delivered", { p_users: us }); }
+  const del = uniq(okIds);
+  for (let i = 0; i < del.length; i += 200) await db.from("reminders").update({ delivered: true }).in("id", del.slice(i, i + 200));
+  if (del.length) await db.rpc("note_delivered", { p_users: uniq(due.filter((r) => del.includes(r.id)).map((r) => r.user_id)) });
   return json({ ok: true, due: due.length, sent, gone, mailed });
 });

@@ -1,15 +1,11 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8778/"
-FAKE=open(SC+"fake_sb.js").read()
 CFG={"mon":{"free":True}}
 async def mk(b,state=None,w=390,dark=False):
     c=await b.new_context(viewport={"width":w,"height":800},color_scheme="dark" if dark else "light")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(c)
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);"%json.dumps(json.dumps(CFG))
     if state: init+="localStorage.setItem('buzunar.v2',%s);"%json.dumps(json.dumps(state))
     init+="}"
@@ -20,7 +16,7 @@ async def mk(b,state=None,w=390,dark=False):
     return c,p,errs
 async def card(p): return await p.evaluate("(()=>{const e=document.querySelector('#main .fs');return e?e.innerText:''})()")
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8778","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8778)
     try:
         async with async_playwright() as pw:
             b=await pw.chromium.launch()
@@ -108,6 +104,5 @@ async def main():
             await b.close()
     finally:
         srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())

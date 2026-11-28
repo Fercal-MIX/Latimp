@@ -1,10 +1,7 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8771/"
-FAKE=open(SC+"fake_sb.js").read()
 CFG={"mon":{"free":True,"control":False,"sparks":False,"invites":False,"referrals":False}}
 RPC="""window.__rpcs=[];window.__rpc={get_my_access:async()=>({pro:true,source:'free'}),am_i_admin:async()=>false,set_reminders:async()=>0,
  open_poll:async(a)=>{__rpcs.push(['open',a]);return{code:'ABCD2345'}},
@@ -12,8 +9,7 @@ RPC="""window.__rpcs=[];window.__rpc={get_my_access:async()=>({pro:true,source:'
  vote_poll:async(a)=>{__rpcs.push(['vote',a]);return{ok:true}}};"""
 async def mk(b,signed=True):
     c=await b.new_context(viewport={"width":390,"height":800},service_workers="block")
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h);await c.route("**/fonts.googleapis.com/**",lambda r:r.abort())
+    await fake_route(c,fonts=True)
     st={"onb":True,"at":5,"items":[{"id":"a","g":"per","t":"zi","n":"Ziua Anei","d":"2027-02-10","sh":True},{"id":"b","g":"sub","t":"sub","n":"Netflix","p":40,"c":"m","d":"2027-01-10","sh":True}],"cars":[],"saved":[{"t":"Bowling"},{"t":"Film"},{"t":"Picnic"}],"credits":0,"used":0,"photos":0,"theme":"auto","acct":{"p":"email","e":"ana@test.ro","v":True} if signed else None}
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);localStorage.setItem('buzunar.v2',%s);"%(json.dumps(json.dumps(CFG)),json.dumps(json.dumps(st)))
     if signed: init+="localStorage.setItem('latimp.auth',JSON.stringify({user:{id:'u1',email:'ana@test.ro'},access_token:'t'}));"
@@ -23,7 +19,7 @@ async def mk(b,signed=True):
     await p.goto(U);await p.wait_for_timeout(2500)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8771","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8771)
     try:
         async with async_playwright() as pw:
             b=await pw.chromium.launch()
@@ -76,6 +72,5 @@ async def main():
             chk("B no errors",not e,e)
             await c.close();await b.close()
     finally: srv.terminate()
-    print("OK",len(ok));print("FAIL",len(bad))
-    for x in bad:print(" -",x)
+    done()
 asyncio.run(main())

@@ -1,16 +1,12 @@
 import asyncio,subprocess,time,json
 from playwright.async_api import async_playwright
-SC="/tmp/claude-0/-home-claude/47db69b0-b487-5d18-a3d6-1f2f98c3be6e/scratchpad/"
-ok=[];bad=[]
-def chk(n,c,e=""): (ok if c else bad).append(n+(" -> "+str(e)[:300] if (e and not c) else ""))
+from web import *
 U="http://localhost:8783/"
-FAKE=open(SC+"fake_sb.js").read()
 async def mk(b,st=None,ua=None):
     kw={"viewport":{"width":390,"height":850}}
     if ua: kw["user_agent"]=ua
     c=await b.new_context(**kw)
-    async def h(r): await r.fulfill(status=200,content_type="application/javascript",body=FAKE)
-    await c.route("**/cdn.jsdelivr.net/**",h)
+    await fake_route(c)
     init="if(!sessionStorage.getItem('i')){sessionStorage.setItem('i','1');localStorage.setItem('fake.cfg',%s);"%json.dumps(json.dumps({"mon":{"free":True}}))
     if st: init+="localStorage.setItem('buzunar.v2',%s);"%json.dumps(json.dumps(st))
     await c.add_init_script(init+"}")
@@ -19,7 +15,7 @@ async def mk(b,st=None,ua=None):
     await p.goto(U);await p.wait_for_timeout(3000)
     return c,p,errs
 async def main():
-    srv=subprocess.Popen(["python3","-m","http.server","8783","-d",SC+"web"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+    srv=serve(8783)
     try:
       async with async_playwright() as pw:
         b=await pw.chromium.launch()
@@ -49,6 +45,5 @@ async def main():
         chk("no errors (iPhone)",not e,e);await c.close()
         await b.close()
     finally: srv.terminate()
-    print("OK",len(ok),"FAIL",len(bad))
-    for x in bad: print(" -",x)
+    done()
 asyncio.run(main())
